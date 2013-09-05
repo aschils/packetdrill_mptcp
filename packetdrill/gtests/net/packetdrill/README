@@ -1,3 +1,14 @@
+Multipath tcp patch README:
+---------------------------
+
+New packetdrill features of this first commit:
+    
+    In local mode (no wire_server), both in ipv4 and ipv6 mode:
+    - partial implementation of bind syscall allowing to specify a destination port.
+    - multisocket support: it is possible to establish multiple tcp connections in a single packetdrill session (script). An implementation constraint is that mutliple tcp three way handshakes can't be interleaved in the script.
+    - multipath tcp options implementation: mp_capable and mp_join "in both direction" (first syn sent by packetdrill - first syn sent by kernel).
+    
+Note that these extensions have not been tested in wire_server mode.
 
 README povided by google for their original packetdrill version:
 ----------------------------------------------------------------
