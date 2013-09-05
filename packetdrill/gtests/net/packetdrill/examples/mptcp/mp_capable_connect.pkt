@@ -1,0 +1,20 @@
+// Test mp_capable mptcp option initiated by kernel
+
+0.000 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0.000 fcntl(3, F_GETFL) = 0x2 (flags O_RDWR)
++0.000 fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+
+// Establish connection and verify that there was no error.
++0.0 connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)
++0.0 > S 0:0(0) win 14600 <mss 1460,sackOK,TS val 5648549 ecr 0,nop,wscale 7,mp_capable a> sock(3)
++0.0 < S. 0:0(0) ack 1 win 5792 <mp_capable b> sock(3)
++0.0 > . 1:1(0) ack 1 win 28896 <mp_capable a b> sock(3)
+//+0.0 getsockopt(3, SOL_SOCKET, SO_ERROR, [0], [4]) = 0
+//+0.0 fcntl(3, F_SETFL, O_RDWR) = 0   // set back to blocking
+
+//+0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable a>
+//+0  > S. 0:0(0) ack 1 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
+//+0.1  < . 1:1(0) ack 1 win 257 <mp_capable a b>
+
+//+0  accept(3, ..., ...) = 4
+

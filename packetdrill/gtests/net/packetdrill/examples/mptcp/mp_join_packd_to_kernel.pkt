@@ -1,0 +1,36 @@
+// Test mp_join mptcp option
+
+0   socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0  setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
++0  bind(3, {sa_family = AF_INET, sin_port = htons(13000), sin_addr = inet_addr("192.168.0.1")}, ...) = 0
++0  listen(3, 1) = 0
+
++0  socket(..., SOCK_STREAM, IPPROTO_TCP) = 5
++0  setsockopt(5, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
++0  bind(5, {sa_family = AF_INET, sin_port = htons(13001), sin_addr = inet_addr("192.168.0.1")}, ...) = 0
++0  listen(5,1) = 0
+
++0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 10
++0  setsockopt(10, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
++0  bind(10, {sa_family = AF_INET, sin_port = htons(13002), sin_addr = inet_addr("192.168.0.1")}, ...) = 0
++0  listen(10, 1) = 0
+
++0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable a> sock(3)
++0  > S. 0:0(0) ack 1 win 14400 <mss 1460,nop,nop,sackOK,nop,wscale 7,mp_capable b> sock(3)
++0  < . 1:1(0) ack 1 win 257 <mp_capable a b> sock(3)
++0  accept(3, ..., ...) = 4
+
+//First subflow
++0  < S 0:0(0) win 32792 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_join_syn> sock(5)
++0  > S. 0:0(0) ack 1 win 14400 <mss 1460,nop,nop,sackOK,nop,wscale 7,mp_join_syn_ack> sock(5)
++0  < . 1:1(0) ack 1 win 32792 <mss 1460,nop,nop,sackOK,nop,wscale 7,mp_join_ack> sock(5)
++0 mp_join_accept(5) = 6
+
++0 > . 1:1(0) ack 1 win 338 <...> sock(6)
+
+//Second subflow
++0  < S 0:0(0) win 32792 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_join_syn> sock(10)
++0  > S. 0:0(0) ack 1 win 14400 <mss 1460,nop,nop,sackOK,nop,wscale 7,mp_join_syn_ack> sock(10)
++0  < . 1:1(0) ack 1 win 32792 <mss 1460,nop,nop,sackOK,nop,wscale 7,mp_join_ack> sock(10)
+
+//+0  < R. 1:1(0) win 32792 sock(5)

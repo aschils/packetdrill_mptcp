@@ -1,0 +1,64 @@
+// Test fast retransmit with 4 packets outstanding, receiver sending SACKs.
+// In this variant the receiver supports SACK.
+// IPV6 is used.
+// Test is executed two times concurrently using two sockets (thus two tcp
+// connections).
+
+// Establish a connection.
+0   socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0  setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
++0  bind(3, {sa_family = AF_INET6, sin_port = htons(13000), sin_addr = inet_addr("fd3d:fa7b:d17d::1")}, ...) = 0
++0  listen(3, 1) = 0
+
++0  socket(..., SOCK_STREAM, IPPROTO_TCP) = 5
++0  setsockopt(5, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
++0  bind(5, {sa_family = AF_INET6, sin_port = htons(12000), sin_addr = inet_addr("fd3d:fa7b:d17d::1")}, ...) = 0
++0  listen(5, 1) = 0
+
+
++0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7> sock(3)
++0  > S. 0:0(0) ack 1 <...> sock(3)
++.1 < . 1:1(0) ack 1 win 257 sock(3)
++0  accept(3, ..., ...) = 4
+
++0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7> sock(5)
++0  > S. 0:0(0) ack 1 <...> sock(5)
++0  < . 1:1(0) ack 1 win 257 sock(5)
++0  accept(5, ..., ...) = 6
+
+// Send 1 data segment and get an ACK, so cwnd is now 4.
++0  write(4, ..., 1000) = 1000
++0  > P. 1:1001(1000) ack 1 sock(4)
++0  < . 1:1(0) ack 1001 win 257 sock(4)
+
+// Send 1 data segment and get an ACK, so cwnd is now 4.
++0  write(6, ..., 1000) = 1000
++0  > P. 1:1001(1000) ack 1 sock(6)
++0  < . 1:1(0) ack 1001 win 257 sock(6)
+
+// Write 4 data segments.
++0  write(4, ..., 4000) = 4000
++0  > P. 1001:5001(4000) ack 1 sock(4)
+
+// Write 4 data segments.
++0  write(6, ..., 4000) = 4000
++0  > P. 1001:5001(4000) ack 1 sock(6)
+
+// Get 3 SACKs.
++.1 < . 1:1(0) ack 1001 win 257 <sack 2001:3001,nop,nop> sock(4)
++0  < . 1:1(0) ack 1001 win 257 <sack 2001:4001,nop,nop> sock(4)
++0  < . 1:1(0) ack 1001 win 257 <sack 2001:5001,nop,nop> sock(4)
+// We've received 3 duplicate ACKs, so we do a fast retransmit.
++0  > . 1001:2001(1000) ack 1 sock(4)
+
+// Get 3 SACKs.
++.1 < . 1:1(0) ack 1001 win 257 <sack 2001:3001,nop,nop> sock(6)
++0  < . 1:1(0) ack 1001 win 257 <sack 2001:4001,nop,nop> sock(6)
++0  < . 1:1(0) ack 1001 win 257 <sack 2001:5001,nop,nop> sock(6)
+// We've received 3 duplicate ACKs, so we do a fast retransmit.
++0  > . 1001:2001(1000) ack 1 sock(6)
+
+
+// Receiver ACKs all data.
++.1 < . 1:1(0) ack 6001 win 257 sock(4)
++.1 < . 1:1(0) ack 6001 win 257 sock(6)
