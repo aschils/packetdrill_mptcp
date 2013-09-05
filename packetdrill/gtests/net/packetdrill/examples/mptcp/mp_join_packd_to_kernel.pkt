@@ -1,4 +1,4 @@
-// Test mp_join mptcp option
+// Test mp_join mptcp option, mp_join_syn sent by packetdrill
 
 0   socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
 +0  setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
