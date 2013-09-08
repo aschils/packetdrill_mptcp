@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
+#include <asm/byteorder.h>
 #include "types.h"
 
 /**
@@ -15,7 +16,7 @@ typedef unsigned char uint8_t;
 
 
 void seed_generator();
-u64 generate_key64();
+u64 rand_64();
 unsigned generate_32();
 u32 get_token_32(u64 key);
 void hash_key_sha1(uint8_t *hash, key64 key);
@@ -31,6 +32,6 @@ void hmac_sha1(const unsigned char *key,
 		char *data,
 		unsigned data_length,
 		unsigned *output);
-
+u16 checksum(u16 *buffer, int size);
 #endif
 

@@ -148,7 +148,7 @@ static void verbose_packet_dump(struct state *state, const char *type,
  * a Queue fashion, state->sockets pointer being the head.
  *
  */
-static struct socket *find_socket_matching_packet(struct state *state,
+struct socket *find_socket_matching_packet(struct state *state,
 		const struct packet *packet,
 		bool (*match)(struct socket*, const struct packet*))
 {
@@ -171,7 +171,7 @@ static bool is_equals_script_fd_socket_and_packet(struct socket *socket,
 /**
  * Find the socket in state->sockets list having the file descriptor socket_fd.
  */
-static struct socket *find_socket_matching_packet_script_fd(
+struct socket *find_socket_matching_packet_script_fd(
 		struct state *state,
 		const struct packet *packet)
 {
@@ -190,7 +190,7 @@ static struct socket *find_socket_matching_packet_script_fd(
  * (three-way hanshake).
  *
  */
-static struct socket *find_connecting_socket(struct state *state)
+struct socket *find_connecting_socket(struct state *state)
 {
 	struct socket *socket = state->sockets;
 	while(socket){
@@ -211,10 +211,25 @@ static bool is_equals_tuple_socket_and_packet(struct socket *socket,
 		   is_equal_port(socket->live.remote.port, packet->tcp->dst_port);
 }
 
-static struct socket *find_socket_matching_packet_tuple(struct state *state,
+struct socket *find_socket_matching_packet_tuple(struct state *state,
 		const struct packet *packet)
 {
 	return find_socket_matching_packet(state, packet, is_equals_tuple_socket_and_packet);
+}
+
+static bool is_equals_tuple_socket_and_packet_reversed_ports(struct socket *socket,
+		const struct packet *packet)
+{
+	//TODO check IP too, will be necessary when multiple interface support
+	//will be implemented.
+	return is_equal_port(socket->live.local.port, packet->tcp->dst_port) &&
+			is_equal_port(socket->live.remote.port, packet->tcp->src_port);
+}
+
+struct socket *find_socket_matching_packet_tuple_reversed_ports(struct state *state,
+		const struct packet *packet)
+{
+	return find_socket_matching_packet(state, packet, is_equals_tuple_socket_and_packet_reversed_ports);
 }
 
 static bool socket_remote_port_equals_packet_dst_port(struct socket *socket,
@@ -223,14 +238,13 @@ static bool socket_remote_port_equals_packet_dst_port(struct socket *socket,
 	return is_equal_port(socket->live.remote.port, packet->tcp->dst_port);
 }
 
-static struct socket *find_corresponding_socket_remote_port(struct state *state,
+struct socket *find_corresponding_socket_remote_port(struct state *state,
 		struct packet *packet)
 {
 	return find_socket_matching_packet(state, packet, socket_remote_port_equals_packet_dst_port);
 }
 
 /************************************* END ***********************************/
-
 
 /* See if the live packet matches the live 4-tuple of the socket under t
  * est. */

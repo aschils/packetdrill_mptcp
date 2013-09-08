@@ -18,6 +18,8 @@
 #include "socket.h"
 #include "tcp_options.h"
 #include "tcp_options_iterator.h"
+#include "tcp_packet.h"
+#include "run.h"
 
 #define MPTCP_VERSION 0
 
@@ -27,20 +29,39 @@
 #define DSS_SUBTYPE 2
 #define ADD_ADDR_SUBTYPE 3
 
-//MPTCP options subtypes length
+/* MPTCP options subtypes length */
+//MP_CAPABLE
 #define TCPOLEN_MP_CAPABLE_SYN 12 /* Size of the first and second steps of the three way handshake. */
 #define TCPOLEN_MP_CAPABLE 20 /* Size of the third step of the three way handshake. */
+//MP_JOIN
 #define TCPOLEN_MP_JOIN_SYN 12
 #define TCPOLEN_MP_JOIN_SYN_ACK 16
 #define TCPOLEN_MP_JOIN_ACK 24
-#define TCPOLEN_DSS 8 //TODO CHANGE
+//DSS
+#define TCPOLEN_DSS_DACK4 8
+#define TCPOLEN_DSS_DACK8 12
+#define TCPOLEN_DSS_DSN4 16
+#define TCPOLEN_DSS_DSN4_WOCS 14
+#define TCPOLEN_DSS_DSN8 20
+#define TCPOLEN_DSS_DSN8_WOCS 18
+#define TCPOLEN_DSS_DACK4_DSN4 20
+#define TCPOLEN_DSS_DACK4_DSN8 24
+#define TCPOLEN_DSS_DACK8_DSN4 24
+#define TCPOLEN_DSS_DACK8_DSN8 28
+#define TCPOLEN_DSS_DACK4_DSN4_WOCS 18
+#define TCPOLEN_DSS_DACK4_DSN8_WOCS 22
+#define TCPOLEN_DSS_DACK8_DSN4_WOCS 22
+#define TCPOLEN_DSS_DACK8_DSN8_WOCS 26
+//ADD_ADDR
 #define TCPOLEN_ADD_ADDR 8
 #define TCPOLEN_ADD_ADDR_PORT 10
 
 //MPTCP Flags
-#define MP_CAPABLE_FLAGS 129
+#define MP_CAPABLE_FLAGS 1
+#define MP_CAPABLE_FLAGS_CS 129 //With checksum
 #define MP_JOIN_SYN_FLAGS_BACKUP 1
 #define MP_JOIN_SYN_FLAGS_NO_BACKUP 0
+#define DSS_RESERVED 0
 
 //Variable types
 #define KEY 0
@@ -69,6 +90,7 @@ struct mp_subflow{
 	u8 kernel_addr_id;
 	unsigned kernel_rand_nbr;
 	unsigned packetdrill_rand_nbr;
+	u32 subflow_sequence_number;
 	struct mp_subflow *next;
 };
 
@@ -97,6 +119,9 @@ struct mp_state_s {
     struct mp_subflow *subflows;
 
     unsigned last_packetdrill_addr_id;
+
+    u64 dack;
+    u64 dsn;
 };
 
 typedef struct mp_state_s mp_state_t;
@@ -169,7 +194,6 @@ u64 *find_next_key();
  */
 void free_vars();
 
-
 /* subflows management */
 
 /**
@@ -185,6 +209,7 @@ void free_vars();
  * - last_packetdrill_addr_id is incremented.
  */
 struct mp_subflow *new_subflow_inbound(struct packet *packet);
+struct mp_subflow *new_subflow_outbound(struct packet *outbound_packet);
 /**
  * Return the first subflow S of mp_state.subflows for which match(packet, S)
  * returns true.
@@ -237,6 +262,10 @@ int mptcp_subtype_mp_join(struct packet *packet,
 						struct tcp_option *tcp_opt,
 						unsigned direction);
 
+int mptcp_subtype_dss(struct packet *packet_to_modify,
+						struct packet *live_packet,
+						struct tcp_option *tcp_opt_to_modify,
+						unsigned direction);
 
 /**
  * Main function for managing mptcp packets. We have to insert appropriate

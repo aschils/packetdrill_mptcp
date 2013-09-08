@@ -67,43 +67,55 @@ static int get_expected_tcp_option_length(struct tcp_option *opt, u8 *expected_l
 
 		case MP_CAPABLE_SUBTYPE:
 			switch(opt->length){
-
 			case TCPOLEN_MP_CAPABLE_SYN:
 				*expected_length = TCPOLEN_MP_CAPABLE_SYN;
 				break;
-
 			case TCPOLEN_MP_CAPABLE:
 				*expected_length = TCPOLEN_MP_CAPABLE;
 				break;
-
 			default:
-				printf("reserved %u subtype %u\n", opt->data.mp_join_ack.reserved, //opt->data.mp_join_ack.subtype_and_reserved.reserved,
-						opt->data.mp_capable.subtype);
 				asprintf(error, "unexpected MPTCP mp_capable length: %u", opt->length);
 				return STATUS_ERR;
 			}
 			break;
 
 		case DSS_SUBTYPE:
-			*expected_length = TCPOLEN_DSS;
+			switch(opt->length){
+			case TCPOLEN_DSS_DACK4:
+				*expected_length = TCPOLEN_DSS_DACK4;
+				break;
+			case TCPOLEN_DSS_DACK8:
+				*expected_length = TCPOLEN_DSS_DACK8;
+				break;
+			case TCPOLEN_DSS_DSN4:
+				*expected_length = TCPOLEN_DSS_DSN4;
+				break;
+			case TCPOLEN_DSS_DSN8:
+				*expected_length = TCPOLEN_DSS_DSN8;
+				break;
+			case TCPOLEN_DSS_DACK4_DSN8:
+				*expected_length = TCPOLEN_DSS_DACK4_DSN8;
+				break;
+			case TCPOLEN_DSS_DACK8_DSN8:
+				*expected_length = TCPOLEN_DSS_DACK8_DSN8;
+				break;
+			default:
+				asprintf(error, "unexpected MPTCP dss length: %u", opt->length);
+				return STATUS_ERR;
+			}
 			break;
 
 		case MP_JOIN_SUBTYPE:
-
 			switch(opt->length){
-
 			case TCPOLEN_MP_JOIN_SYN:
 				*expected_length = TCPOLEN_MP_JOIN_SYN;
 				break;
-
 			case TCPOLEN_MP_JOIN_SYN_ACK:
 				*expected_length = TCPOLEN_MP_JOIN_SYN_ACK;
 				break;
-
 			case TCPOLEN_MP_JOIN_ACK:
 				*expected_length = TCPOLEN_MP_JOIN_ACK;
 				break;
-
 			default:
 				asprintf(error, "unexpected MPTCP mp_join length: %u", opt->length);
 				return STATUS_ERR;
@@ -112,15 +124,12 @@ static int get_expected_tcp_option_length(struct tcp_option *opt, u8 *expected_l
 
 		case ADD_ADDR_SUBTYPE:
 			switch(opt->length){
-
 			case TCPOLEN_ADD_ADDR:
 				*expected_length = TCPOLEN_ADD_ADDR;
 				break;
-
 			case TCPOLEN_ADD_ADDR_PORT:
 				*expected_length = TCPOLEN_ADD_ADDR_PORT;
 				break;
-
 			default:
 				asprintf(error, "unexpected MPTCP add_addr length: %u", opt->length);
 				return STATUS_ERR;

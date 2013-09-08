@@ -6,7 +6,7 @@ void seed_generator(){
 
 //rand() value is library-dependent,
 //but is guaranteed to be at least 32767 
-u64 generate_key64(){
+u64 rand_64(){
 	u64 r;
 	unsigned int *part1 = (unsigned int*)&r;
 	unsigned int *part2 = &(((unsigned int*)&r)[1]);
@@ -36,8 +36,12 @@ dsn64* retreive_dsn(uint8_t *hash){
 }
 
 token32 retreive_token(uint8_t *hash){
-	return *(token32*)hash;  // to get the first 32 bits
+	return *(token32*)(hash);  // to get the first 32 bits
 }
+/*
+token32 retreive_token(uint8_t *hash){
+	return *(token32*)(hash);  // to get the first 32 bits
+}*/
 
 void hmac_sha1(const unsigned char *key,
 		unsigned key_length,
@@ -82,6 +86,21 @@ u32 get_token_32(u64 key){
 	return *((unsigned*)(tokA.data));
 }
 
+u16 checksum(u16 *buffer, int size)
+{
+	unsigned long cksum=0;
+	while(size >1)
+	{
+		cksum+=*buffer++;
+		size -=sizeof(u16);
+	}
+	if(size)
+		cksum += *(u8*)buffer;
+
+	cksum = (cksum >> 16) + (cksum & 0xffff);
+	cksum += (cksum >>16);
+	return (u16)(~cksum);
+}
 /*
  // a compiler avec gcc utils.c -o utils.o -lcrypto -std=c99
 int main(){

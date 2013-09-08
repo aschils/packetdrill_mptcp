@@ -121,17 +121,72 @@ int tcp_options_to_string(struct packet *packet,
         	switch(option->data.mp_capable.subtype){
 
         	case MP_CAPABLE_SUBTYPE:
+        		//TODO refactor this ugly piece of code
         		if(option->length == TCPOLEN_MP_CAPABLE){
-        			fprintf(s, "mp_capable (20 bytes) sender key: %lu receiver key: %lu",
-        					(unsigned long)option->data.mp_capable.sender_key,
-        					(unsigned long)option->data.mp_capable.receiver_key);
+        			fprintf(s, "mp_capable (20 bytes) sender key: %lu receiver key: %lu, flags %u",
+        					(unsigned long)be64toh(option->data.mp_capable.no_syn.sender_key),
+        					(unsigned long)be64toh(option->data.mp_capable.no_syn.receiver_key),
+        					option->data.mp_capable.flags);
         		}
         		else if(option->length == TCPOLEN_MP_CAPABLE_SYN){
-        			fprintf(s, "mp_capable (12 bytes) key: %lu",
-        					(unsigned long)option->data.mp_capable.sender_key);
+        			fprintf(s, "mp_capable (12 bytes) key: %lu, flags: %u",
+        					(unsigned long)be64toh(option->data.mp_capable.syn.key),
+        					option->data.mp_capable.flags);
         		}
         		else{
         			fprintf(s, "mp_capable unknown length");
+        		}
+        		break;
+
+        	case DSS_SUBTYPE:
+        		fprintf(s, "dss ");
+
+        		if(option->data.dss.flag_dsn){
+        			fprintf(s, "dsn");
+
+        			if(!option->data.dss.flag_dack){
+
+        				if(option->data.dss.flag_dsn8)
+							fprintf(s, "8: %lu, ",
+									(unsigned long)be64toh(option->data.dss.dsn.data_seq_nbr_8oct));
+        				else
+        					fprintf(s, "4: %u, ",
+        							ntohl(option->data.dss.dsn.data_seq_nbr_4oct));
+
+        				if(option->length == TCPOLEN_DSS_DSN8){
+        					fprintf(s, "ssn %u, dll %u, checksum %u",
+        							ntohl(option->data.dss.dsn.w_cs.subflow_seq_nbr),
+        							ntohs(option->data.dss.dsn.w_cs.data_level_length),
+        							ntohs(option->data.dss.dsn.w_cs.checksum));
+        				}
+        				else {
+        					fprintf(s, "ssn %u, dll %u, no_checksum",
+        							option->data.dss.dsn.wo_cs.subflow_seq_nbr,
+        							option->data.dss.dsn.wo_cs.data_level_length);
+        				}
+        			}
+
+        			else{
+        				if(option->data.dss.flag_dsn8)
+        					fprintf(s, "8: %lu, ",
+        							(unsigned long)option->data.dss.dack_dsn.dsn.data_seq_nbr_8oct);
+        				else
+        					fprintf(s, "8: %u, ",
+        							option->data.dss.dack_dsn.dsn.data_seq_nbr_4oct);
+
+        				if(option->length == TCPOLEN_DSS_DSN8){
+        					fprintf(s, "ssn %u, dll %u, checksum %u",
+        							option->data.dss.dack_dsn.dsn.w_cs.subflow_seq_nbr,
+        							option->data.dss.dack_dsn.dsn.w_cs.data_level_length,
+        							option->data.dss.dack_dsn.dsn.w_cs.checksum);
+        				}
+        				else {
+        					fprintf(s, "ssn %u, dll %u, no_checksum",
+        							option->data.dss.dack_dsn.dsn.wo_cs.subflow_seq_nbr,
+        							option->data.dss.dack_dsn.dsn.wo_cs.data_level_length);
+        				}
+        			}
+
         		}
         		break;
 
@@ -143,26 +198,26 @@ int tcp_options_to_string(struct packet *packet,
 
         		if(option->length == TCPOLEN_MP_JOIN_SYN){
         			fprintf(s, "mp_join_syn flags: %u, address id: %u, receiver token: %u",
-        					option->data.mp_join_syn.flags,
-        					option->data.mp_join_syn.address_id,
-        					option->data.mp_join_syn.receiver_token
+        					option->data.mp_join.syn.flags,
+        					option->data.mp_join.syn.address_id,
+        					ntohl(option->data.mp_join.syn.no_ack.receiver_token)
         					);
         		}
 
         		else if(option->length == TCPOLEN_MP_JOIN_SYN_ACK){
         			fprintf(s, "mp_join_syn_ack flags: %u, address id: %u, sender hmac: %lu",
-        					option->data.mp_join_syn_ack.flags,
-        					option->data.mp_join_syn_ack.address_id,
-        					(unsigned long)option->data.mp_join_syn_ack.sender_hmac);
+        					option->data.mp_join.syn.flags,
+        					option->data.mp_join.syn.address_id,
+        					(unsigned long)option->data.mp_join.syn.ack.sender_hmac);
         		}
 
         		else if(option->length == TCPOLEN_MP_JOIN_ACK){
         			fprintf(s, "mp_join_ack sender hmac (160) bits, by 32bits bloc from [0] to [4]: %u, %u, %u, %u, %u",
-        					option->data.mp_join_ack.sender_hmac[0],
-        					option->data.mp_join_ack.sender_hmac[1],
-        					option->data.mp_join_ack.sender_hmac[2],
-        					option->data.mp_join_ack.sender_hmac[3],
-        					option->data.mp_join_ack.sender_hmac[4]);
+        					option->data.mp_join.no_syn.sender_hmac[0],
+        					option->data.mp_join.no_syn.sender_hmac[1],
+        					option->data.mp_join.no_syn.sender_hmac[2],
+        					option->data.mp_join.no_syn.sender_hmac[3],
+        					option->data.mp_join.no_syn.sender_hmac[4]);
         		}
 
         		else{

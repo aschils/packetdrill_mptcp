@@ -10,6 +10,9 @@ void init_mp_state()
 	mp_state.kernel_key_set = false;
 	queue_init(&mp_state.vars_queue);
 	mp_state.vars = NULL; //Init hashmap
+	mp_state.dack = 0;
+	mp_state.dsn = 0;
+	mp_state.last_packetdrill_addr_id = 0;
 }
 
 void free_mp_state(){
@@ -175,18 +178,19 @@ struct mp_subflow *new_subflow_inbound(struct packet *inbound_packet)
 		return NULL;
 	}
 
-	subflow->src_port =	inbound_packet->tcp->src_port;
-	subflow->dst_port = inbound_packet->tcp->dst_port;
+	subflow->src_port =	ntohs(inbound_packet->tcp->src_port);
+	subflow->dst_port = ntohs(inbound_packet->tcp->dst_port);
 	subflow->packetdrill_rand_nbr =	generate_32();
 	subflow->packetdrill_addr_id = mp_state.last_packetdrill_addr_id;
 	mp_state.last_packetdrill_addr_id++;
+	subflow->subflow_sequence_number = 0;
 	subflow->next = mp_state.subflows;
 	mp_state.subflows = subflow;
 
 	return subflow;
 }
 
-struct mp_subflow *new_subflow_outound(struct packet *outbound_packet)
+struct mp_subflow *new_subflow_outbound(struct packet *outbound_packet)
 {
 
 	struct mp_subflow *subflow = malloc(sizeof(struct mp_subflow));
@@ -210,12 +214,13 @@ struct mp_subflow *new_subflow_outound(struct packet *outbound_packet)
 		return NULL;
 	}
 
-	subflow->src_port =	outbound_packet->tcp->dst_port;
-	subflow->dst_port = outbound_packet->tcp->src_port;
+	subflow->src_port =	ntohs(outbound_packet->tcp->dst_port);
+	subflow->dst_port = ntohs(outbound_packet->tcp->src_port);
 	subflow->kernel_rand_nbr =
-			mp_join_syn->data.mp_join_syn.sender_random_number;
+			mp_join_syn->data.mp_join.syn.no_ack.sender_random_number;
 	subflow->kernel_addr_id =
-			mp_join_syn->data.mp_join_syn.address_id;
+			mp_join_syn->data.mp_join.syn.address_id;
+	subflow->subflow_sequence_number = 0;
 	subflow->next = mp_state.subflows;
 	mp_state.subflows = subflow;
 
@@ -241,8 +246,8 @@ struct mp_subflow *find_matching_subflow(struct packet *packet,
 
 static bool does_subflow_match_outbound_packet(struct mp_subflow *subflow,
 		struct packet *outbound_packet){
-	return subflow->dst_port == outbound_packet->tcp->src_port &&
-			subflow->src_port == outbound_packet->tcp->dst_port;
+	return subflow->dst_port == ntohs(outbound_packet->tcp->src_port) &&
+			subflow->src_port == ntohs(outbound_packet->tcp->dst_port);
 }
 
 struct mp_subflow *find_subflow_matching_outbound_packet(
@@ -253,8 +258,8 @@ struct mp_subflow *find_subflow_matching_outbound_packet(
 
 static bool does_subflow_match_inbound_packet(struct mp_subflow *subflow,
 		struct packet *inbound_packet){
-	return subflow->dst_port == inbound_packet->tcp->dst_port &&
-			subflow->src_port == inbound_packet->tcp->src_port;
+	return subflow->dst_port == ntohs(inbound_packet->tcp->dst_port) &&
+			subflow->src_port == ntohs(inbound_packet->tcp->src_port);
 }
 
 struct mp_subflow *find_subflow_matching_inbound_packet(
@@ -305,7 +310,7 @@ int mptcp_gen_key()
 	//and save corresponding variable
 	if(!mp_state.packetdrill_key_set){
 		seed_generator();
-		u64 key = generate_key64();
+		u64 key = rand_64();
 		set_packetdrill_key(key);
 		add_mp_var_key(snd_var_name, &mp_state.packetdrill_key);
 	}
@@ -323,7 +328,7 @@ int mptcp_set_mp_cap_syn_key(struct tcp_option *tcp_opt)
 	u64 *key = find_next_key();
 	if(!key)
 		return STATUS_ERR;
-	tcp_opt->data.mp_capable_syn.key = *key;
+	tcp_opt->data.mp_capable.syn.key = *key;
 	return STATUS_OK;
 }
 
@@ -336,12 +341,12 @@ int mptcp_set_mp_cap_keys(struct tcp_option *tcp_opt)
 	u64 *key = find_next_key();
 	if(!key)
 		return STATUS_ERR;
-	tcp_opt->data.mp_capable.sender_key = *key;
+	tcp_opt->data.mp_capable.no_syn.sender_key = *key;
 
 	key = find_next_key();
 	if(!key)
 		return STATUS_ERR;
-	tcp_opt->data.mp_capable.receiver_key = *key;
+	tcp_opt->data.mp_capable.no_syn.receiver_key = *key;
 	return STATUS_OK;
 }
 
@@ -364,7 +369,7 @@ static int extract_and_set_kernel_key(
 	if(!mp_state.kernel_key_set){
 
 		//Set found kernel key
-		set_kernel_key(mpcap_opt->data.mp_capable_syn.key);
+		set_kernel_key(mpcap_opt->data.mp_capable.syn.key);
 		//Set front queue variable name to refer to kernel key
 		char *var_name;
 		if(queue_front(&mp_state.vars_queue, (void**)&var_name)){
@@ -405,6 +410,14 @@ int mptcp_subtype_mp_capable(struct packet *packet_to_modify,
 			!packet_to_modify->tcp->syn &&
 			packet_to_modify->tcp->ack){
 		error = mptcp_set_mp_cap_keys(tcp_opt_to_modify);
+		//Choose initial dsn
+		mp_state.dsn = rand_64();
+		if(direction == DIRECTION_INBOUND)
+			new_subflow_inbound(packet_to_modify);
+		else if(direction == DIRECTION_OUTBOUND)
+			new_subflow_outbound(packet_to_modify);
+		else
+			return STATUS_ERR;
 	}
 
 	else if(tcp_opt_to_modify->length == TCPOLEN_MP_CAPABLE_SYN &&
@@ -441,11 +454,12 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 		if(!subflow)
 			return STATUS_ERR;
 
-		tcp_opt_to_modify->data.mp_join_syn.receiver_token =
+		tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
 				get_token_32(mp_state.kernel_key);
-		tcp_opt_to_modify->data.mp_join_syn.sender_random_number =
+		tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
 				subflow->packetdrill_rand_nbr;
-		tcp_opt_to_modify->data.mp_join_syn.address_id = subflow->packetdrill_addr_id;
+		tcp_opt_to_modify->data.mp_join.syn.address_id =
+				subflow->packetdrill_addr_id;
 	}
 
 	else if(direction == DIRECTION_OUTBOUND &&
@@ -463,9 +477,9 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 
 		//Update mptcp packetdrill state
 		subflow->kernel_addr_id =
-				live_mp_join->data.mp_join_syn_ack.address_id;
+				live_mp_join->data.mp_join.syn.address_id;
 		subflow->kernel_rand_nbr =
-				live_mp_join->data.mp_join_syn_ack.sender_random_number;
+				live_mp_join->data.mp_join.syn.ack.sender_random_number;
 
 		//Build key for HMAC-SHA1
 		unsigned char hmac_key[16];
@@ -480,11 +494,11 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 		msg[1] = subflow->packetdrill_rand_nbr;
 
 		//Update script packet mp_join option fields
-		tcp_opt_to_modify->data.mp_join_syn_ack.address_id =
-				live_mp_join->data.mp_join_syn_ack.address_id;
-		tcp_opt_to_modify->data.mp_join_syn_ack.sender_random_number =
-				live_mp_join->data.mp_join_syn_ack.sender_random_number;
-		tcp_opt_to_modify->data.mp_join_syn_ack.sender_hmac =
+		tcp_opt_to_modify->data.mp_join.syn.address_id =
+				live_mp_join->data.mp_join.syn.address_id;
+		tcp_opt_to_modify->data.mp_join.syn.ack.sender_random_number =
+				live_mp_join->data.mp_join.syn.ack.sender_random_number;
+		tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac =
 				hmac_sha1_truncat_64(hmac_key,
 						16,
 						(char*)msg,
@@ -520,9 +534,8 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 				8,
 				sender_hmac);
 
-		//Inject correct mp_join fields to be sent to kernel
-		memcpy(tcp_opt_to_modify->data.mp_join_ack.sender_hmac,
-				sender_hmac,
+		memcpy(tcp_opt_to_modify->data.mp_join.no_syn.sender_hmac,
+			   sender_hmac,
 				20);
 	}
 
@@ -531,14 +544,14 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 			packet_to_modify->tcp->syn &&
 			tcp_opt_to_modify->length == TCPOLEN_MP_JOIN_SYN){
 
-		struct mp_subflow *subflow = new_subflow_outound(live_packet);
+		struct mp_subflow *subflow = new_subflow_outbound(live_packet);
 
-		tcp_opt_to_modify->data.mp_join_syn.address_id =
+		tcp_opt_to_modify->data.mp_join.syn.address_id =
 				subflow->kernel_addr_id;
-		tcp_opt_to_modify->data.mp_join_syn.sender_random_number =
-				subflow->kernel_rand_nbr;
-		tcp_opt_to_modify->data.mp_join_syn.receiver_token =
-				get_token_32(mp_state.kernel_key);
+		tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
+				htonl(subflow->kernel_rand_nbr);
+		tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
+				htonl(get_token_32(mp_state.kernel_key));
 	}
 
 	else if(direction == DIRECTION_INBOUND &&
@@ -566,17 +579,17 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 		msg[0] = subflow->packetdrill_rand_nbr;
 		msg[1] = subflow->kernel_rand_nbr;
 
-		tcp_opt_to_modify->data.mp_join_syn_ack.address_id =
+		tcp_opt_to_modify->data.mp_join.syn.address_id =
 				mp_state.last_packetdrill_addr_id;
 		mp_state.last_packetdrill_addr_id++;
-		tcp_opt_to_modify->data.mp_join_syn_ack.sender_random_number =
-				subflow->packetdrill_rand_nbr;
+		tcp_opt_to_modify->data.mp_join.syn.ack.sender_random_number =
+				htonl(subflow->packetdrill_rand_nbr);
 
-		tcp_opt_to_modify->data.mp_join_syn_ack.sender_hmac =
-				hmac_sha1_truncat_64(hmac_key,
+		tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac =
+				htobe64(hmac_sha1_truncat_64(hmac_key,
 						16,
 						(char*)msg,
-						8);
+						8));
 	}
 
 	else if(direction == DIRECTION_OUTBOUND &&
@@ -610,9 +623,69 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 				8,
 				sender_hmac);
 
-		memcpy(tcp_opt_to_modify->data.mp_join_ack.sender_hmac,
+		memcpy(tcp_opt_to_modify->data.mp_join.no_syn.sender_hmac,
 				sender_hmac,
 				20);
+	}
+
+	else{
+		return STATUS_ERR;
+	}
+	return STATUS_OK;
+}
+
+int mptcp_subtype_dss(struct packet *packet_to_modify,
+						struct packet *live_packet,
+						struct tcp_option *tcp_opt_to_modify,
+						unsigned direction){
+
+	if(direction == DIRECTION_INBOUND){
+
+		if(tcp_opt_to_modify->data.dss.flag_dsn){
+
+			//Computer tcp payload length
+			u32 packet_total_length = packet_to_modify->ip_bytes;
+			u32 tcp_header_length = packet_to_modify->tcp->doff*4;
+			u32 ip_header_length = packet_to_modify->ipv4->ihl*8;
+			u32 tcp_header_wo_options = 20;
+			u32 tcp_payload_length = packet_total_length-ip_header_length-
+					(tcp_header_length-tcp_header_wo_options);
+
+			//Compute dsn fields values
+			mp_state.dsn += tcp_payload_length;
+			struct mp_subflow *subflow =
+					find_subflow_matching_inbound_packet(packet_to_modify);
+			subflow->subflow_sequence_number += tcp_payload_length;
+
+			tcp_opt_to_modify->data.dss.dsn.data_seq_nbr_8oct = htobe64(mp_state.dsn);
+			tcp_opt_to_modify->data.dss.dsn.w_cs.data_level_length =
+					htons(tcp_payload_length);
+			tcp_opt_to_modify->data.dss.dsn.w_cs.subflow_seq_nbr =
+					htonl(subflow->subflow_sequence_number);
+			struct {
+				u64 dsn;
+				u32 ssn;
+				u16 dll;
+				u16 zeros;
+			} buffer_checksum;
+
+			buffer_checksum.dsn = tcp_opt_to_modify->data.dss.dsn.data_seq_nbr_8oct;
+			buffer_checksum.ssn =
+					tcp_opt_to_modify->data.dss.dsn.w_cs.subflow_seq_nbr;
+			buffer_checksum.dll =
+					tcp_opt_to_modify->data.dss.dsn.w_cs.data_level_length;
+			buffer_checksum.zeros = 0;
+			tcp_opt_to_modify->data.dss.dsn.w_cs.checksum =
+					htons(checksum((u16*)&buffer_checksum, sizeof(buffer_checksum)));
+		}
+
+		if(tcp_opt_to_modify->data.dss.flag_dack){
+
+		}
+	}
+
+	else if(direction == DIRECTION_OUTBOUND){
+
 	}
 
 	else{
@@ -654,6 +727,13 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 
 			case MP_JOIN_SUBTYPE:
 				error = mptcp_subtype_mp_join(packet_to_modify,
+						live_packet,
+						tcp_opt_to_modify,
+						direction);
+				break;
+
+			case DSS_SUBTYPE:
+				error = mptcp_subtype_dss(packet_to_modify,
 						live_packet,
 						tcp_opt_to_modify,
 						direction);

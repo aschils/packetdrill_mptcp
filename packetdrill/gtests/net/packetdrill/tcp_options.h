@@ -61,6 +61,32 @@ struct sack_block {
 	u32 right;  /* right edge: 1st sequence number just past block */
 };
 
+/* part of mptcp dss structures */
+struct dack {
+	union {
+		u32 data_ack_4oct;
+		u64 data_ack_8oct;
+	};
+};
+
+struct dsn {
+	union {
+		u32 data_seq_nbr_4oct;
+		u64 data_seq_nbr_8oct;
+	};
+	union {
+		struct {
+			u32 subflow_seq_nbr;
+			u16 data_level_length;
+		} wo_cs;
+		struct {
+			u32 subflow_seq_nbr;
+			u16 data_level_length;
+			u16 checksum;
+		} w_cs;
+	};
+};
+
 /* Represents a single TCP option in its wire format. Note that for
  * EOL and NOP options the length and data field are not included in
  * the on-the-wire data. For other options, the length field describes
@@ -95,85 +121,104 @@ struct tcp_option {
 
 		/*******MPTCP options*********/
 
-		// 12 bytes structure used for the two first steps of the three way handshake.
-		// The first step is a SYN including the sender key.
-		// The second step is a SYN/ACK including the receiver key.
 		struct {
-		    #if defined(__LITTLE_ENDIAN_BITFIELD)
-		        __u8    version:4,
-		                subtype:4;        
-		    #elif defined(__BIG_ENDIAN_BITFIELD)
-		        __u8    subtype:4,
-		                version:4;
-		    #else
-            #error "Adjust your <asm/byteorder.h> defines"
-            #endif
-		    u8 flags; //TODO endianess
-		    u64 key;
-		} __packed mp_capable_syn;
-		// 20 bytes structure used for the third step of the three way handshake.
-		// In this last step, both keys are included.
-		struct {
-		    #if defined(__LITTLE_ENDIAN_BITFIELD)
-		        __u8    version:4,
-		                subtype:4;
-		    #elif defined(__BIG_ENDIAN_BITFIELD)
-		        __u8    subtype:4,
-		                version:4;
-		    #else
-            #error "Adjust your <asm/byteorder.h> defines"
-            #endif
-		    u8 flags; //TODO endianess
-		    u64 sender_key;
-		    u64 receiver_key;
+			#if defined(__LITTLE_ENDIAN_BITFIELD)
+			u8 version:4;
+			u8 subtype:4;
+			u8 flags;
+			#elif defined(__BIG_ENDIAN_BITFIELD)
+			u8 subtype:4;
+			u8 version:4;
+			u8 flags;
+			#else
+			#error "Adjust your <asm/byteorder.h> defines"
+			#endif
+			union {
+				struct {
+					u64 key;
+				} syn;
+				struct {
+					u64 sender_key;
+					u64 receiver_key;
+				} no_syn;
+			};
 		} __packed mp_capable;
-		//Join Connection (MP_JOIN) Option (for Initial SYN)
-		struct {
-			#if defined(__LITTLE_ENDIAN_BITFIELD)
-				__u8    flags:4,
-						subtype:4;
-			#elif defined(__BIG_ENDIAN_BITFIELD)
-				__u8    subtype:4,
-						flags:4;
-			#else
-            #error "Adjust your <asm/byteorder.h> defines"
-            #endif
-			u8 address_id;
-			u32 receiver_token;
-			u32 sender_random_number;
-		} __packed mp_join_syn;
-		//Join Connection (MP_JOIN) Option (for Responding SYN/ACK)
-		struct {
-			#if defined(__LITTLE_ENDIAN_BITFIELD)
-				__u8    flags:4,
-						subtype:4;
-			#elif defined(__BIG_ENDIAN_BITFIELD)
-				__u8    subtype:4,
-						flags:4;
-			#else
-            #error "Adjust your <asm/byteorder.h> defines"
-            #endif
-			u8 address_id;
-			u64 sender_hmac;
-			u32 sender_random_number;
-		} __packed mp_join_syn_ack;
-		//Join Connection (MP_JOIN) Option (for Third ACK)
-		struct{
-			#if defined(__LITTLE_ENDIAN_BITFIELD)
-				__u8    reserved:4,
-						subtype:4;
-			#elif defined(__BIG_ENDIAN_BITFIELD)
-				__u8    subtype:4,
-						reserved:4;
-			#else
-            #error "Adjust your <asm/byteorder.h> defines"
-            #endif
-			u8 reserved_next_bits; //TODO find better solution
-			u32 sender_hmac[5];
-		} __packed mp_join_ack;
 
+		struct {
+			union {
+				struct {
+					#if defined(__LITTLE_ENDIAN_BITFIELD)
+					__u8    flags:4,
+					subtype:4;
+					#elif defined(__BIG_ENDIAN_BITFIELD)
+					__u8    subtype:4,
+					flags:4;
+					#else
+					#error "Adjust your <asm/byteorder.h> defines"
+					#endif
+					u8 address_id;
+					union {
+						struct {
+							u64 sender_hmac;
+							u32 sender_random_number;
+						} ack;
+						struct {
+							u32 receiver_token;
+							u32 sender_random_number;
+						} no_ack;
+					};
+				} __packed syn;
+				struct {
+					#if defined(__LITTLE_ENDIAN_BITFIELD)
+					__u8    reserved_first_bits:4,
+					subtype:4;
+					#elif defined(__BIG_ENDIAN_BITFIELD)
+					__u8    subtype:4,
+					reserved_first_bits:4;
+					#else
+					#error "Adjust your <asm/byteorder.h> defines"
+					#endif
+					u8 reserved_last_bits; //TODO find better solution
+					u32 sender_hmac[5];
+				} __packed no_syn;
+			};
+		} mp_join;
+
+		struct {
+			#if defined(__LITTLE_ENDIAN_BITFIELD)
+			__u8    reserved_first_bits:4,
+			subtype:4;
+			__u8 flag_dack:1,
+			flag_dack8:1,
+			flag_dsn:1,
+			flag_dsn8:1,
+			flag_data_fin:1,
+			reserved_last_bits:3;
+			#elif defined(__BIG_ENDIAN_BITFIELD)
+			__u8    subtype:4,
+			reserved_first_bits:4;
+			__u8	reserved_last_bits:3,
+			//flags: 5;
+			flag_data_fin:1,
+			flag_dsn8:1,
+			flag_dsn:1,
+			flag_dack8:1,
+			flag_dack:1;
+			#else
+			#error "Adjust your <asm/byteorder.h> defines"
+			#endif
+
+			union {
+				struct dack dack;
+				struct dsn dsn;
+				struct {
+					struct dack dack;
+					struct dsn dsn;
+				} dack_dsn;
+			};
+		} __packed dss;
 		/*******END MPTCP options*********/
-	} data;
+	} __packed data;
 } __packed tcp_option;
 
 /* Allocate a new options list. */
