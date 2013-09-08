@@ -448,6 +448,16 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 		u32 start_sequence;
 		u16 payload_bytes;
 	} tcp_sequence_info;
+	struct {
+		int type; //4 or 8 octects mptcp DSN or -1 (none)
+		u64 seq_a;
+		u64 seq_b;
+		u64 length;
+	} mptcp_dsn_info;
+	struct {
+		int type; //4 or 8 octects mptcp DACK or -1 (none)
+		u64 dack;
+	} mptcp_dack;
 	struct option_list *option;
 	struct event *event;
 	struct packet *packet;
@@ -470,7 +480,9 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 %token <reserved> MSG_NAME MSG_IOV MSG_FLAGS
 %token <reserved> FD EVENTS REVENTS ONOFF LINGER
 %token <reserved> ACK ECR EOL MSS NOP SACK SACKOK TIMESTAMP VAL WIN WSCALE PRO SOCK
-%token <reserved> MP_CAPABLE MP_JOIN_SYN MP_JOIN_SYN_BACKUP MP_JOIN_SYN_ACK_BACKUP MP_JOIN_ACK MP_JOIN_SYN_ACK
+%token <reserved> MP_CAPABLE MP_CAPABLE_WOCS
+%token <reserved> MP_JOIN_SYN MP_JOIN_SYN_BACKUP MP_JOIN_SYN_ACK_BACKUP MP_JOIN_ACK MP_JOIN_SYN_ACK
+%token <reserved> DSS DACK4 DSN4 DACK8 DSN8 FIN NOCS
 %token <reserved> FAST_OPEN
 %token <reserved> ECT0 ECT1 CE ECT01 NO_ECN
 %token <reserved> ICMP UDP MTU
@@ -488,7 +500,7 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 %type <syscall> syscall_spec
 %type <command> command_spec
 %type <code> code_spec
-%type <integer> opt_icmp_mtu socket_fd_spec
+%type <integer> opt_icmp_mtu socket_fd_spec fin dss_no_checksum
 %type <string> icmp_type opt_icmp_code flags
 %type <string> opt_tcp_fast_open_cookie tcp_fast_open_cookie
 %type <string> opt_note note word_list
@@ -496,6 +508,8 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 %type <window> opt_window
 %type <sequence_number> opt_ack
 %type <tcp_sequence_info> seq opt_icmp_echoed
+%type <mptcp_dsn_info> dsn
+%type <mptcp_dack> dack
 %type <tcp_options> opt_tcp_options tcp_option_list
 %type <tcp_option> tcp_option sack_block_list sack_block
 %type <string> function_name
@@ -858,6 +872,45 @@ tcp_fast_open_cookie
 | INTEGER { $$ = strdup(yytext); }
 ;
 
+//TODO bison guru can refactor this
+dsn
+: {$$.type = -1;}
+| DSN4 INTEGER ':' INTEGER '(' INTEGER ')' {
+	$$.type = 4;
+	$$.seq_a = $2;
+	$$.seq_b = $4;
+	$$.length = $6;
+}
+| DSN8 INTEGER ':' INTEGER '(' INTEGER ')' {
+	$$.type = 8;
+	$$.seq_a = $2;
+	$$.seq_b = $4;
+	$$.length = $6;
+}
+;
+
+dack
+: {$$.type = -1;}
+| DACK4 INTEGER {
+	$$.type = 4;
+	$$.dack = $2;
+}
+| DACK8 INTEGER {
+	$$.type = 8;
+	$$.dack = $2;
+}
+;
+
+fin
+: {$$ = 0;}
+| FIN {$$ = 1;}
+;
+
+dss_no_checksum
+: {$$ = 0;}
+| NOCS {$$ = 1;}
+;
+
 tcp_option
 :
   NOP              { $$ = tcp_option_new(TCPOPT_NOP, 1); }
@@ -914,7 +967,7 @@ tcp_option
 				            TCPOLEN_MP_CAPABLE);
     $$->data.mp_capable.version = MPTCP_VERSION;
     $$->data.mp_capable.subtype = MP_CAPABLE_SUBTYPE;
-    $$->data.mp_capable.flags = MP_CAPABLE_FLAGS;
+    $$->data.mp_capable.flags = MP_CAPABLE_FLAGS_CS;
     //Note: we put keys before injecting packet in kernel
     //since we don't know yet receiver key.
     if(enqueue_var($2) || enqueue_var($3))
@@ -925,49 +978,153 @@ tcp_option
 | MP_CAPABLE WORD {
 	$$ = tcp_option_new(TCPOPT_MPTCP,
 			TCPOLEN_MP_CAPABLE_SYN);
-	$$->data.mp_capable_syn.version = MPTCP_VERSION;
-	$$->data.mp_capable_syn.subtype = MP_CAPABLE_SUBTYPE;
-	$$->data.mp_capable_syn.flags = MP_CAPABLE_FLAGS;
+	$$->data.mp_capable.version = MPTCP_VERSION;
+	$$->data.mp_capable.subtype = MP_CAPABLE_SUBTYPE;
+	$$->data.mp_capable.flags = MP_CAPABLE_FLAGS_CS;
 	if(enqueue_var($2))
 		semantic_error("MPTCP variables queue is full, increase queue size.");
 }
 
-//TODO address_id as script param
+| MP_CAPABLE_WOCS WORD WORD {
+	$$ = tcp_option_new(TCPOPT_MPTCP,
+				            TCPOLEN_MP_CAPABLE);
+    $$->data.mp_capable.version = MPTCP_VERSION;
+    $$->data.mp_capable.subtype = MP_CAPABLE_SUBTYPE;
+    $$->data.mp_capable.flags = MP_CAPABLE_FLAGS;
+    //Note: we put keys before injecting packet in kernel
+    //since we don't know yet receiver key.
+    if(enqueue_var($2) || enqueue_var($3))
+    	semantic_error("MPTCP variables queue is full, increase queue size.");
+}
+
+| MP_CAPABLE_WOCS WORD {
+	$$ = tcp_option_new(TCPOPT_MPTCP,
+			TCPOLEN_MP_CAPABLE_SYN);
+	$$->data.mp_capable.version = MPTCP_VERSION;
+	$$->data.mp_capable.subtype = MP_CAPABLE_SUBTYPE;
+	$$->data.mp_capable.flags = MP_CAPABLE_FLAGS;
+	if(enqueue_var($2))
+		semantic_error("MPTCP variables queue is full, increase queue size.");
+}
+
+//TODO address_id as script param?
 | MP_JOIN_SYN {
 	$$ = tcp_option_new(TCPOPT_MPTCP,
 			TCPOLEN_MP_JOIN_SYN); 
-	$$->data.mp_join_syn.subtype = MP_JOIN_SUBTYPE;
-	$$->data.mp_join_syn.flags = MP_JOIN_SYN_FLAGS_NO_BACKUP;
+	$$->data.mp_join.syn.subtype = MP_JOIN_SUBTYPE;
+	$$->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_NO_BACKUP;
 }
 
 //TODO address_id as script param
 | MP_JOIN_SYN_BACKUP {
 	$$ = tcp_option_new(TCPOPT_MPTCP,
 			TCPOLEN_MP_JOIN_SYN);
-	$$->data.mp_join_syn.subtype = MP_JOIN_SUBTYPE;
-	$$->data.mp_join_syn.flags = MP_JOIN_SYN_FLAGS_BACKUP;
+	$$->data.mp_join.syn.subtype = MP_JOIN_SUBTYPE;
+	$$->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_BACKUP;
 }
 
 | MP_JOIN_SYN_ACK {
 	$$ = tcp_option_new(TCPOPT_MPTCP,
 			TCPOLEN_MP_JOIN_SYN_ACK); 
-	$$->data.mp_join_syn_ack.subtype = MP_JOIN_SUBTYPE;
-	$$->data.mp_join_syn_ack.flags = MP_JOIN_SYN_FLAGS_NO_BACKUP;
+	$$->data.mp_join.syn.subtype = MP_JOIN_SUBTYPE;
+	$$->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_NO_BACKUP;
 }
 
 | MP_JOIN_SYN_ACK_BACKUP {
 	$$ = tcp_option_new(TCPOPT_MPTCP,
 			TCPOLEN_MP_JOIN_SYN_ACK); 
-	$$->data.mp_join_syn_ack.subtype = MP_JOIN_SUBTYPE;
-	$$->data.mp_join_syn_ack.flags = MP_JOIN_SYN_FLAGS_BACKUP;
+	$$->data.mp_join.syn.subtype = MP_JOIN_SUBTYPE;
+	$$->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_BACKUP;
 }
 
 | MP_JOIN_ACK {
 	$$ = tcp_option_new(TCPOPT_MPTCP,
 				TCPOLEN_MP_JOIN_ACK);
-	$$->data.mp_join_ack.reserved = 0;
-	$$->data.mp_join_ack.reserved_next_bits = 0;
-	$$->data.mp_join_ack.subtype = MP_JOIN_SUBTYPE;
+	$$->data.mp_join.no_syn.reserved_first_bits = 0;
+	$$->data.mp_join.no_syn.reserved_last_bits = 0;
+	$$->data.mp_join.no_syn.subtype = MP_JOIN_SUBTYPE;
+}
+
+| DSS dsn dack dss_no_checksum fin {
+	
+	//Check input correctness	
+	if($2.type == -1 && $3.type == -1)
+		semantic_error("MPTCP DSS should contain at least a data ack or a data sequence number.");
+	
+	if($2.type != -1){
+		if($2.type == 4){
+			if(!is_valid_u32($2.seq_a) ||
+					!is_valid_u32($2.seq_b) ||
+					!is_valid_u32($2.length))
+				semantic_error("DSS DSN out of range.");
+		}
+		else if($2.type == 8){
+			if(!is_valid_u64($2.seq_a) ||
+					!is_valid_u64($2.seq_b) ||
+					!is_valid_u64($2.length))
+				semantic_error("DSS DSN out of range.");
+		}
+		else{
+			semantic_error("Unexpected DSS DSN type.");
+		}
+	}
+	
+	if($3.type != -1){
+		if($3.type == 4){
+			if(!is_valid_u32($3.dack))
+				semantic_error("DSS DACK out of range.");				
+		}
+		else if($3.type == 8){
+			if(!is_valid_u64($3.dack))
+				semantic_error("DSS DACK out of range.");
+		}
+		else{
+			semantic_error("Unexpected DSS DACK type.");
+		}
+	}
+	
+	u32 mptcp_opt_length = 4;
+	
+	//flags
+	u8 dsn = 0;
+	u8 dsn8 = 0;
+	u8 dack = 0;
+	u8 dack8 = 0;
+	
+	if($2.type != -1){
+		dsn = 1;
+		mptcp_opt_length += 10;
+		if($2.type == 8){
+			dsn8 = 1;
+			mptcp_opt_length += 4;
+		}
+		if(!$4)
+			mptcp_opt_length += 2;
+	}
+	
+	if($3.type != -1){
+		dack = 1;
+		mptcp_opt_length += 4;
+		if($3.type == 8){
+			dack8 = 1;
+			mptcp_opt_length += 4;
+		}
+	}	
+	
+	$$ = tcp_option_new(TCPOPT_MPTCP, mptcp_opt_length);
+	$$->data.dss.flag_dsn = dsn;
+	$$->data.dss.flag_dsn8 = dsn8;
+	$$->data.dss.flag_dack = dack;
+	$$->data.dss.flag_dack8 = dack8;
+	$$->data.dss.subtype = DSS_SUBTYPE;
+	$$->data.dss.reserved_first_bits = DSS_RESERVED;
+	$$->data.dss.reserved_last_bits = DSS_RESERVED;
+	if($5){
+		$$->data.dss.flag_data_fin = 1;
+	}
+	else{
+		$$->data.dss.flag_data_fin = 0;
+	}
 }
 ;
 
