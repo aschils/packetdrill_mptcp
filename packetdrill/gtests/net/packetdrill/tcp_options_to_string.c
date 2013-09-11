@@ -124,13 +124,13 @@ int tcp_options_to_string(struct packet *packet,
         		//TODO refactor this ugly piece of code
         		if(option->length == TCPOLEN_MP_CAPABLE){
         			fprintf(s, "mp_capable (20 bytes) sender key: %lu receiver key: %lu, flags %u",
-        					(unsigned long)be64toh(option->data.mp_capable.no_syn.sender_key),
-        					(unsigned long)be64toh(option->data.mp_capable.no_syn.receiver_key),
+        					(unsigned long)option->data.mp_capable.no_syn.sender_key,
+        					(unsigned long)option->data.mp_capable.no_syn.receiver_key,
         					option->data.mp_capable.flags);
         		}
         		else if(option->length == TCPOLEN_MP_CAPABLE_SYN){
         			fprintf(s, "mp_capable (12 bytes) key: %lu, flags: %u",
-        					(unsigned long)be64toh(option->data.mp_capable.syn.key),
+        					(unsigned long)option->data.mp_capable.syn.key,
         					option->data.mp_capable.flags);
         		}
         		else{
@@ -200,7 +200,7 @@ int tcp_options_to_string(struct packet *packet,
         			fprintf(s, "mp_join_syn flags: %u, address id: %u, receiver token: %u",
         					option->data.mp_join.syn.flags,
         					option->data.mp_join.syn.address_id,
-        					ntohl(option->data.mp_join.syn.no_ack.receiver_token)
+        					option->data.mp_join.syn.no_ack.receiver_token
         					);
         		}
 
