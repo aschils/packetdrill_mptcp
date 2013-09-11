@@ -450,9 +450,7 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 	} tcp_sequence_info;
 	struct {
 		int type; //4 or 8 octects mptcp DSN or -1 (none)
-		u64 seq_a;
-		u64 seq_b;
-		u64 length;
+		u64 val;
 	} mptcp_dsn_info;
 	struct {
 		int type; //4 or 8 octects mptcp DACK or -1 (none)
@@ -875,17 +873,13 @@ tcp_fast_open_cookie
 //TODO bison guru can refactor this
 dsn
 : {$$.type = -1;}
-| DSN4 INTEGER ':' INTEGER '(' INTEGER ')' {
+| DSN4 INTEGER {
 	$$.type = 4;
-	$$.seq_a = $2;
-	$$.seq_b = $4;
-	$$.length = $6;
+	$$.val = $2;
 }
-| DSN8 INTEGER ':' INTEGER '(' INTEGER ')' {
+| DSN8 INTEGER {
 	$$.type = 8;
-	$$.seq_a = $2;
-	$$.seq_b = $4;
-	$$.length = $6;
+	$$.val = $2;
 }
 ;
 
@@ -1046,26 +1040,19 @@ tcp_option
 }
 
 | DSS dsn dack dss_no_checksum fin {
-	
+	//TODO find a way to refactor to have cleaner code
 	//Check input correctness	
 	if($2.type == -1 && $3.type == -1)
 		semantic_error("MPTCP DSS should contain at least a data ack or a data sequence number.");
 	
 	if($2.type != -1){
 		if($2.type == 4){
-			if(!is_valid_u32($2.seq_a) ||
-					!is_valid_u32($2.seq_b) ||
-					!is_valid_u32($2.length))
+			if(!is_valid_u32($2.val))
 				semantic_error("DSS DSN out of range.");
 		}
 		else if($2.type == 8){
-			if(!is_valid_u64($2.seq_a) ||
-					!is_valid_u64($2.seq_b) ||
-					!is_valid_u64($2.length))
+			if(!is_valid_u64($2.val))
 				semantic_error("DSS DSN out of range.");
-		}
-		else{
-			semantic_error("Unexpected DSS DSN type.");
 		}
 	}
 	
@@ -1125,6 +1112,39 @@ tcp_option
 	else{
 		$$->data.dss.flag_data_fin = 0;
 	}
+	
+	//Save script dsn value
+	if($2.type != -1){
+		if($3.type == -1){
+			if($2.type == 4)
+				$$->data.dss.dsn.data_seq_nbr_4oct = $2.val;
+			else if($2.type == 8)
+				$$->data.dss.dsn.data_seq_nbr_8oct = $2.val;
+		}
+		else if($3.type != -1){
+			if($2.type == 4)
+				$$->data.dss.dack_dsn.dsn.data_seq_nbr_4oct = $2.val;
+			else if($2.type == 8)
+				$$->data.dss.dack_dsn.dsn.data_seq_nbr_8oct = $2.val;
+		}
+	}
+	
+	//Save script dack value
+	if($3.type != -1){
+		if($2.type == -1){
+			if($3.type == 4)
+				$$->data.dss.dack.data_ack_4oct = $3.dack;
+			else if($3.type == 8)
+				$$->data.dss.dack.data_ack_8oct = $3.dack;
+		}
+		else if($2.type != -1){
+			if($3.type == 4)
+				$$->data.dss.dack_dsn.dack.data_ack_4oct = $3.dack;
+			else if($3.type == 8)
+				$$->data.dss.dack_dsn.dack.data_ack_8oct = $3.dack;
+		}
+	}
+	
 }
 ;
 
