@@ -99,6 +99,18 @@ static int get_expected_tcp_option_length(struct tcp_option *opt, u8 *expected_l
 			case TCPOLEN_DSS_DACK8_DSN8:
 				*expected_length = TCPOLEN_DSS_DACK8_DSN8;
 				break;
+			case TCPOLEN_DSS_DSN4_WOCS:
+				*expected_length = TCPOLEN_DSS_DSN4_WOCS;
+				break;
+			case TCPOLEN_DSS_DSN8_WOCS: //could also be TCPOLEN_DSS_DACK4_DSN4_WOCS
+				*expected_length = TCPOLEN_DSS_DSN8_WOCS;
+				break;
+			case TCPOLEN_DSS_DACK4_DSN8_WOCS: // could also be TCPOLEN_DSS_DACK8_DSN4_WOCS
+				*expected_length = TCPOLEN_DSS_DACK4_DSN8_WOCS;
+				break;
+			case TCPOLEN_DSS_DACK8_DSN8_WOCS:
+				*expected_length = TCPOLEN_DSS_DACK8_DSN8_WOCS;
+				break;
 			default:
 				asprintf(error, "unexpected MPTCP dss length: %u", opt->length);
 				return STATUS_ERR;
