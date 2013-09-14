@@ -472,6 +472,69 @@ int mptcp_subtype_mp_capable(struct packet *packet_to_modify,
 }
 
 /**
+ * Set appropriate receiver token value in tcp_option.
+ *
+ */
+static void mp_join_syn_rcv_token_inb(struct tcp_option *tcp_opt_to_modify,
+		struct mp_join_info *mp_join_script_info)
+{
+	if(mp_join_script_info->syn.token_script_defined){
+
+		if(mp_join_script_info->syn.token_is_var){
+			struct mp_var *var = find_mp_var(mp_join_script_info->syn.token_var);
+			tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
+					htonl(sha1_least_32bits(*(u64*)var->value));
+		}
+		else{
+			tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
+					htonl(mp_join_script_info->syn.token_u32);
+		}
+	}
+
+	else{
+		tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
+				htonl(sha1_least_32bits(mp_state.kernel_key));
+	}
+}
+
+/**
+ * Manage the case when packetdrill send a mp_join_syn to the kernel.
+ *
+ */
+static int mp_join_syn_inbound(struct packet *packet_to_modify,
+		struct tcp_option *tcp_opt_to_modify,
+		struct mp_join_info *mp_join_script_info)
+{
+	struct mp_subflow *subflow = new_subflow_inbound(packet_to_modify);
+	if(!subflow)
+		return STATUS_ERR;
+
+	mp_join_syn_rcv_token_inb(tcp_opt_to_modify, mp_join_script_info);
+
+	//Set sender random number value
+	if(mp_join_script_info->syn.rand_script_defined){
+		tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
+				mp_join_script_info->syn.rand;
+		subflow->packetdrill_rand_nbr = mp_join_script_info->syn.rand;
+	}
+	else{
+		tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
+				subflow->packetdrill_rand_nbr;
+	}
+
+	//Set address_id value
+	if(mp_join_script_info->syn.address_id_script_defined){
+		tcp_opt_to_modify->data.mp_join.syn.address_id =
+				mp_join_script_info->syn.address_id;
+	}
+	else{
+		tcp_opt_to_modify->data.mp_join.syn.address_id =
+				subflow->packetdrill_addr_id;
+	}
+	return STATUS_OK;
+}
+
+/**
  * Update mptcp subflows state according to sent/sniffed mp_join packets.
  * Insert appropriate values retrieved from this up-to-date state in inbound
  * and outbound packets.
@@ -481,56 +544,18 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 						struct tcp_option *tcp_opt_to_modify,
 						unsigned direction)
 {
+	struct mp_join_info *mp_join_script_info;
+	if(queue_dequeue(&mp_state.vars_queue, (void**)&mp_join_script_info))
+		return STATUS_ERR;
 
 	if(direction == DIRECTION_INBOUND &&
 			!packet_to_modify->tcp->ack &&
 			packet_to_modify->tcp->syn &&
 			tcp_opt_to_modify->length == TCPOLEN_MP_JOIN_SYN){
 
-
-		struct mp_join_info *mp_join_script_info;
-
-		if(queue_dequeue(&mp_state.vars_queue, (void**)&mp_join_script_info))
-			return STATUS_ERR;
-
-		struct mp_subflow *subflow = new_subflow_inbound(packet_to_modify);
-		if(!subflow)
-			return STATUS_ERR;
-
-		if(mp_join_script_info->syn.token_script_defined){
-			if(mp_join_script_info->syn.token_is_var){
-				struct mp_var *var = find_mp_var(mp_join_script_info->syn.token_var);
-				tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
-								htonl(sha1_least_32bits(*(u64*)var->value));
-			}
-			else{
-				tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
-						htonl(mp_join_script_info->syn.token_u32);
-			}
-		}
-		else{
-			tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
-				htonl(sha1_least_32bits(mp_state.kernel_key));
-		}
-
-		if(mp_join_script_info->syn.rand_script_defined){
-			tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
-					mp_join_script_info->syn.rand; //CPAASCH should I htonl?
-			subflow->packetdrill_rand_nbr = mp_join_script_info->syn.rand;
-		}
-		else{
-			tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
-				subflow->packetdrill_rand_nbr;
-		}
-
-		if(mp_join_script_info->syn.address_id_script_defined){
-			tcp_opt_to_modify->data.mp_join.syn.address_id =
-					mp_join_script_info->syn.address_id;
-		}
-		else{
-			tcp_opt_to_modify->data.mp_join.syn.address_id =
-				subflow->packetdrill_addr_id;
-		}
+		mp_join_syn_inbound(packet_to_modify,
+				tcp_opt_to_modify,
+				mp_join_script_info);
 	}
 
 	else if(direction == DIRECTION_OUTBOUND &&

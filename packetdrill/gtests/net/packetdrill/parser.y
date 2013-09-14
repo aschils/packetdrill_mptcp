@@ -1084,39 +1084,47 @@ tcp_option
 }
 
 | MP_JOIN_SYN is_backup address_id mptcp_token rand {
+	
 	$$ = tcp_option_new(TCPOPT_MPTCP,
 			TCPOLEN_MP_JOIN_SYN); 
 	$$->data.mp_join.syn.subtype = MP_JOIN_SUBTYPE;
+	
+	//Set backup flag
 	if($2)
 		$$->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_BACKUP;
 	else
 		$$->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_NO_BACKUP;
 	
-	struct mp_join_info *mji = malloc(sizeof(struct mp_join_info));
+	struct mp_join_info *mp_join_script_info = malloc(sizeof(struct mp_join_info));
 	
-	mji->syn.address_id_script_defined = ($3 != -1);
+	/* Save user defined values in mp_state.vars_queue */
 	
-	if(mji->syn.address_id_script_defined)
-		mji->syn.address_id = $3;
+	//address_id
+	mp_join_script_info->syn.address_id_script_defined = ($3 != -1);
 	
-	mji->syn.token_script_defined = !$4.auto_conf;
+	if(mp_join_script_info->syn.address_id_script_defined)
+		mp_join_script_info->syn.address_id = $3;
+	
+	//token
+	mp_join_script_info->syn.token_script_defined = !$4.auto_conf;
 	if(!$4.auto_conf){
-		mji->syn.token_is_var = !$4.is_integer;
+		mp_join_script_info->syn.token_is_var = !$4.is_integer;
 		if($4.is_integer)
-			mji->syn.token_u32 = $4.token_int;
+			mp_join_script_info->syn.token_u32 = $4.token_int;
 		else{
 			u32 token_var_length = strlen($4.token_str);
 			if(token_var_length>253)
 				semantic_error("Too big token variable name, mptcp - mp_join_syn");
-			memcpy(mji->syn.token_var, $4.token_str, token_var_length+1);
+			memcpy(mp_join_script_info->syn.token_var, $4.token_str, token_var_length+1);
 		}
 	}
 	
-	mji->syn.rand_script_defined = ($5 != -1);
-	if(mji->syn.rand_script_defined)
-		mji->syn.rand = $5;
-	queue_enqueue(&mp_state.vars_queue, mji);
+	//sender random number
+	mp_join_script_info->syn.rand_script_defined = ($5 != -1);
+	if(mp_join_script_info->syn.rand_script_defined)
+		mp_join_script_info->syn.rand = $5;
 	
+	queue_enqueue(&mp_state.vars_queue, mp_join_script_info);	
 }
 
 | MP_JOIN_SYN_ACK {
