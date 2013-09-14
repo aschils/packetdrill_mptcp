@@ -200,7 +200,7 @@ int tcp_options_to_string(struct packet *packet,
         			fprintf(s, "mp_join_syn flags: %u, address id: %u, receiver token: %u",
         					option->data.mp_join.syn.flags,
         					option->data.mp_join.syn.address_id,
-        					option->data.mp_join.syn.no_ack.receiver_token
+        					ntohl(option->data.mp_join.syn.no_ack.receiver_token)
         					);
         		}
 
