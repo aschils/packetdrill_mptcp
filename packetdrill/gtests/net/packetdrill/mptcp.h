@@ -68,22 +68,24 @@
 #define KEY 0
 #define SCRIPT_DEFINED 1
 
-//Key types
-#define SND_KEY true
-#define RCV_KEY false
-
-//A script mptcp variable: name and value
-struct mp_var{
+//A script mptcp variable bring additional information from user script to
+//mptcp.c.
+struct mp_var {
 	char *name;
 	void *value;
-	u8 type;
+	u8 mptcp_subtype;
+	union {
+		struct {
+			bool script_defined;
+		} mp_capable_info;
+	};
 	UT_hash_handle hh;
 };
 
 /**
  * Keep all info specific to a mptcp subflow
  */
-struct mp_subflow{
+struct mp_subflow {
 	struct ip_address src_ip;
 	struct ip_address dst_ip;
 	u16 src_port;

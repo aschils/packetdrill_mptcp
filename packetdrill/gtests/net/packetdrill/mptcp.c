@@ -89,7 +89,8 @@ void add_mp_var_key(char *name, u64 *key)
 	struct mp_var *var = malloc(sizeof(struct mp_var));
 	save_mp_var_name(name, var);
 	var->value = key;
-	var->type = KEY;
+	var->mptcp_subtype = MP_CAPABLE_SUBTYPE;
+	var->mp_capable_info.script_defined = false;
 	add_mp_var(var);
 }
 
@@ -105,7 +106,8 @@ void add_mp_var_script_defined(char *name, void *value, u32 length)
 	save_mp_var_name(name, var);
 	var->value = malloc(length);
 	memcpy(var->value, value, length);
-	var->type = SCRIPT_DEFINED;
+	var->mptcp_subtype = MP_CAPABLE_SUBTYPE;
+	var->mp_capable_info.script_defined = true;
 	add_mp_var(var);
 }
 
@@ -142,7 +144,7 @@ u64 *find_next_key(){
 	struct mp_var *var = find_mp_var(var_name);
 	free(var_name);
 
-	if(!var || (var->type != KEY && var->type != SCRIPT_DEFINED)){
+	if(!var || var->mptcp_subtype != MP_CAPABLE_SUBTYPE){
 		return NULL;
 	}
 	return (u64*)var->value;
@@ -160,9 +162,11 @@ void free_vars()
 	while(var){
 		next = var->hh.next;
 		free(var->name);
+		if(var->mptcp_subtype == MP_CAPABLE_SUBTYPE){
+			if(var->mp_capable_info.script_defined)
+				free(var->value);
+		}
 		free(var);
-		if(var->type == SCRIPT_DEFINED)
-			free(var->value);
 		var = next;
 	}
 }
@@ -330,7 +334,8 @@ int mptcp_gen_key()
 	//we generate a mptcp key ourselves?
 	struct mp_var *snd_var = find_mp_var(snd_var_name);
 
-	if(snd_var && snd_var->type == SCRIPT_DEFINED)
+	if(snd_var && snd_var->mptcp_subtype == MP_CAPABLE_SUBTYPE &&
+			snd_var->mp_capable_info.script_defined)
 		set_packetdrill_key(*(u64*)snd_var->value);
 
 	//First inbound mp_capable, generate new key
@@ -395,7 +400,8 @@ static int extract_and_set_kernel_key(
 	char *var_name;
 	if(!queue_front(&mp_state.vars_queue, (void**)&var_name)){
 		struct mp_var *var = find_mp_var(var_name);
-		if(var && var->type == SCRIPT_DEFINED)
+		if(var && var->mptcp_subtype == MP_CAPABLE_SUBTYPE &&
+				var->mp_capable_info.script_defined)
 			set_kernel_key(*(u64*)var->value);
 	}
 
