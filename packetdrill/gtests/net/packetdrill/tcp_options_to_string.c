@@ -161,8 +161,8 @@ int tcp_options_to_string(struct packet *packet,
         				}
         				else {
         					fprintf(s, "ssn %u, dll %u, no_checksum",
-        							option->data.dss.dsn.wo_cs.subflow_seq_nbr,
-        							option->data.dss.dsn.wo_cs.data_level_length);
+        							ntohl(option->data.dss.dsn.wo_cs.subflow_seq_nbr),
+        							ntohs(option->data.dss.dsn.wo_cs.data_level_length));
         				}
         			}
 
