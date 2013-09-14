@@ -10,8 +10,6 @@ void init_mp_state()
 	mp_state.kernel_key_set = false;
 	queue_init(&mp_state.vars_queue);
 	mp_state.vars = NULL; //Init hashmap
-	mp_state.dack = 0;
-	mp_state.dsn = 0;
 	mp_state.last_packetdrill_addr_id = 0;
 }
 
@@ -71,6 +69,13 @@ void free_var_queue()
 
 /* hashmap functions */
 
+void save_mp_var_name(char *name, struct mp_var *var)
+{
+	unsigned name_length = strlen(name);
+	var->name = malloc(sizeof(char)*(name_length+1));
+	memcpy(var->name, name, (name_length+1)); //+1 to copy '/0' too
+}
+
 /**
  *
  * Save a variable <name, value> in variables hashmap.
@@ -82,11 +87,25 @@ void free_var_queue()
 void add_mp_var_key(char *name, u64 *key)
 {
 	struct mp_var *var = malloc(sizeof(struct mp_var));
-	unsigned name_length = strlen(name);
-	var->name = malloc(sizeof(char)*(name_length+1));
-	memcpy(var->name, name, (name_length+1)); //+1 to copy '/0' too
+	save_mp_var_name(name, var);
 	var->value = key;
 	var->type = KEY;
+	add_mp_var(var);
+}
+
+/**
+ * Save a variable <name, value> in variables hashmap.
+ * Value is copied in a newly allocated pointer and will be freed when
+ * free_vars function will be executed.
+ *
+ */
+void add_mp_var_script_defined(char *name, void *value, u32 length)
+{
+	struct mp_var *var = malloc(sizeof(struct mp_var));
+	save_mp_var_name(name, var);
+	var->value = malloc(length);
+	memcpy(var->value, value, length);
+	var->type = SCRIPT_DEFINED;
 	add_mp_var(var);
 }
 
@@ -123,16 +142,15 @@ u64 *find_next_key(){
 	struct mp_var *var = find_mp_var(var_name);
 	free(var_name);
 
-	if(!var || var->type != KEY){
+	if(!var || (var->type != KEY && var->type != SCRIPT_DEFINED)){
 		return NULL;
 	}
 	return (u64*)var->value;
 }
 
-
 /**
- * Iterate through hashmap, free mp_var structs and mp_var->name,
- * value is not freed since values come from stack.
+ * Iterate through hashmap, free mp_var structs and mp_var->name.
+ * Value is not freed for KEY type, since values come from stack.
  */
 void free_vars()
 {
@@ -143,6 +161,8 @@ void free_vars()
 		next = var->hh.next;
 		free(var->name);
 		free(var);
+		if(var->type == SCRIPT_DEFINED)
+			free(var->value);
 		var = next;
 	}
 }
@@ -296,15 +316,22 @@ void free_flows(){
 /**
  * Generate a mptcp packetdrill side key and save it for later reference in
  * the script.
+ *
  */
 int mptcp_gen_key()
 {
 
 	//Retrieve variable name parsed by bison.
 	char *snd_var_name;
-	if(queue_front(&mp_state.vars_queue, (void**)&snd_var_name)){
+	if(queue_front(&mp_state.vars_queue, (void**)&snd_var_name))
 		return STATUS_ERR;
-	}
+
+	//Is that var has already a value assigned in the script by user, or should
+	//we generate a mptcp key ourselves?
+	struct mp_var *snd_var = find_mp_var(snd_var_name);
+
+	if(snd_var && snd_var->type == SCRIPT_DEFINED)
+		set_packetdrill_key(*(u64*)snd_var->value);
 
 	//First inbound mp_capable, generate new key
 	//and save corresponding variable
@@ -364,8 +391,14 @@ static int extract_and_set_kernel_key(
 	if(!mpcap_opt)
 		return STATUS_ERR;
 
+	//Check if kernel key hasn't been specified by user in script
+	char *var_name;
+	if(!queue_front(&mp_state.vars_queue, (void**)&var_name)){
+		struct mp_var *var = find_mp_var(var_name);
+		if(var && var->type == SCRIPT_DEFINED)
+			set_kernel_key(*(u64*)var->value);
+	}
 
-	//12 bytes MPTCP capable option?
 	if(!mp_state.kernel_key_set){
 
 		//Set found kernel key
@@ -380,7 +413,6 @@ static int extract_and_set_kernel_key(
 
 	return STATUS_OK;
 }
-
 
 /**
  * Insert appropriate key in mp_capable mptcp option.
@@ -410,8 +442,7 @@ int mptcp_subtype_mp_capable(struct packet *packet_to_modify,
 			!packet_to_modify->tcp->syn &&
 			packet_to_modify->tcp->ack){
 		error = mptcp_set_mp_cap_keys(tcp_opt_to_modify);
-		//Choose initial dsn
-		mp_state.dsn = rand_64();
+		mp_state.initial_dsn = sha1_least_64bits(mp_state.packetdrill_key);
 		if(direction == DIRECTION_INBOUND)
 			new_subflow_inbound(packet_to_modify);
 		else if(direction == DIRECTION_OUTBOUND)
@@ -455,7 +486,7 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 			return STATUS_ERR;
 
 		tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
-				get_token_32(mp_state.kernel_key);
+				htonl(sha1_least_32bits(mp_state.kernel_key));
 		tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
 				subflow->packetdrill_rand_nbr;
 		tcp_opt_to_modify->data.mp_join.syn.address_id =
@@ -532,7 +563,7 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 				16,
 				(char*)msg,
 				8,
-				sender_hmac);
+				(unsigned char*)sender_hmac);
 
 		memcpy(tcp_opt_to_modify->data.mp_join.no_syn.sender_hmac,
 			   sender_hmac,
@@ -551,7 +582,7 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 		tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
 				htonl(subflow->kernel_rand_nbr);
 		tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
-				htonl(get_token_32(mp_state.kernel_key));
+				htonl(sha1_least_32bits(mp_state.kernel_key));
 	}
 
 	else if(direction == DIRECTION_INBOUND &&
@@ -621,7 +652,7 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 				16,
 				(char*)msg,
 				8,
-				sender_hmac);
+				(unsigned char*)sender_hmac);
 
 		memcpy(tcp_opt_to_modify->data.mp_join.no_syn.sender_hmac,
 				sender_hmac,
@@ -641,27 +672,31 @@ int mptcp_subtype_dss(struct packet *packet_to_modify,
 
 	if(direction == DIRECTION_INBOUND){
 
-		if(tcp_opt_to_modify->data.dss.flag_dsn){
+		if(tcp_opt_to_modify->data.dss.flag_dsn &&
+				tcp_opt_to_modify->length == TCPOLEN_DSS_DSN8){
 
 			//Computer tcp payload length
-			u32 packet_total_length = packet_to_modify->ip_bytes;
-			u32 tcp_header_length = packet_to_modify->tcp->doff*4;
-			u32 ip_header_length = packet_to_modify->ipv4->ihl*8;
-			u32 tcp_header_wo_options = 20;
-			u32 tcp_payload_length = packet_total_length-ip_header_length-
+			u16 packet_total_length = packet_to_modify->ip_bytes;
+			u16 tcp_header_length = packet_to_modify->tcp->doff*4;
+			u16 ip_header_length = packet_to_modify->ipv4->ihl*8;
+			u16 tcp_header_wo_options = 20;
+			u16 tcp_payload_length = packet_total_length-ip_header_length-
 					(tcp_header_length-tcp_header_wo_options);
 
-			//Compute dsn fields values
-			mp_state.dsn += tcp_payload_length;
-			struct mp_subflow *subflow =
-					find_subflow_matching_inbound_packet(packet_to_modify);
-			subflow->subflow_sequence_number += tcp_payload_length;
+			//Set dsn being value specified in script + initial dsn
+			tcp_opt_to_modify->data.dss.dsn.data_seq_nbr_8oct =
+					htobe64(mp_state.initial_dsn+
+							tcp_opt_to_modify->data.dss.dsn.data_seq_nbr_8oct);
 
-			tcp_opt_to_modify->data.dss.dsn.data_seq_nbr_8oct = htobe64(mp_state.dsn);
 			tcp_opt_to_modify->data.dss.dsn.w_cs.data_level_length =
 					htons(tcp_payload_length);
+
+			struct mp_subflow *subflow =
+					find_subflow_matching_inbound_packet(packet_to_modify);
 			tcp_opt_to_modify->data.dss.dsn.w_cs.subflow_seq_nbr =
 					htonl(subflow->subflow_sequence_number);
+			subflow->subflow_sequence_number += tcp_payload_length;
+
 			struct {
 				u64 dsn;
 				u32 ssn;
@@ -669,18 +704,56 @@ int mptcp_subtype_dss(struct packet *packet_to_modify,
 				u16 zeros;
 			} buffer_checksum;
 
+			//Compute checksum
 			buffer_checksum.dsn = tcp_opt_to_modify->data.dss.dsn.data_seq_nbr_8oct;
 			buffer_checksum.ssn =
 					tcp_opt_to_modify->data.dss.dsn.w_cs.subflow_seq_nbr;
 			buffer_checksum.dll =
 					tcp_opt_to_modify->data.dss.dsn.w_cs.data_level_length;
 			buffer_checksum.zeros = 0;
+			//tcp_opt_to_modify->data.dss.dsn.w_cs.checksum =
+			//		checksum((u16*)&buffer_checksum, sizeof(buffer_checksum));
+			tcp_opt_to_modify->data.dss.dsn.w_cs.checksum = 0;
 			tcp_opt_to_modify->data.dss.dsn.w_cs.checksum =
-					htons(checksum((u16*)&buffer_checksum, sizeof(buffer_checksum)));
+					checksum((u16*)packet_to_modify->tcp, packet_to_modify->ip_bytes - packet_ip_header_len(packet_to_modify)) +
+					checksum((u16*)&buffer_checksum, sizeof(buffer_checksum));
+			printf("checksum %u\n",tcp_opt_to_modify->data.dss.dsn.w_cs.checksum);
+		}
+
+		else if(tcp_opt_to_modify->data.dss.flag_dsn &&
+				tcp_opt_to_modify->length == TCPOLEN_DSS_DSN8_WOCS){
+			//Computer tcp payload length
+			u16 packet_total_length = packet_to_modify->ip_bytes;
+			u16 tcp_header_length = packet_to_modify->tcp->doff*4;
+			u16 ip_header_length = packet_to_modify->ipv4->ihl*8;
+			u16 tcp_header_wo_options = 20;
+			u16 tcp_payload_length = packet_total_length-ip_header_length-
+					(tcp_header_length-tcp_header_wo_options);
+
+			//Set dsn being value specified in script + initial dsn
+
+			//works for payload length = 0 or 1
+			tcp_opt_to_modify->data.dss.dsn.data_seq_nbr_8oct =
+								htobe64(mp_state.initial_dsn+
+										tcp_opt_to_modify->data.dss.dsn.data_seq_nbr_8oct+1);
+
+			tcp_opt_to_modify->data.dss.dsn.wo_cs.data_level_length =
+					htons(tcp_payload_length);
+
+			struct mp_subflow *subflow =
+					find_subflow_matching_inbound_packet(packet_to_modify);
+			tcp_opt_to_modify->data.dss.dsn.wo_cs.subflow_seq_nbr =
+					htonl(subflow->subflow_sequence_number);
+			subflow->subflow_sequence_number += tcp_payload_length;
+
 		}
 
 		if(tcp_opt_to_modify->data.dss.flag_dack){
-
+			//TODO set DACK when receiving DSS packets
+			tcp_opt_to_modify->data.dss.dack.data_ack_8oct =
+					htobe64(mp_state.initial_dack +  //CPAASCH htobe64?
+					tcp_opt_to_modify->data.dss.dack.data_ack_8oct); //Which initial value for mp_state.initial_dack? received dsn + received payload length
+			//CPAASCH comment gérer le mélange entre dack et dsn 32 et 64 bits?
 		}
 	}
 

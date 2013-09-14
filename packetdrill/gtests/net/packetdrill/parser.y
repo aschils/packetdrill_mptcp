@@ -995,10 +995,23 @@ tcp_option
 	if(enqueue_var($2.name))
 		semantic_error("MPTCP variables queue is full, increase queue size.");
 	
+	if($2.script_assigned){
+		if(!is_valid_u64($2.value))
+			semantic_error("Value assigned to first mptcp variable is not a valid u64.");
+		add_mp_var_script_defined($2.name, &$2.value, 8);
+	}
+
 	if($3.exist){
 		mp_capable_length = TCPOLEN_MP_CAPABLE;
+		
 		if(enqueue_var($3.name))
 			semantic_error("MPTCP variables queue is full, increase queue size.");
+		
+		if($3.script_assigned){
+			if(!is_valid_u64($3.value))
+				semantic_error("Value assigned to second mptcp variable is not a valid u64.");
+			add_mp_var_script_defined($3.name, &$3.value, 8);
+		}
 	}
 	
 	$$ = tcp_option_new(TCPOPT_MPTCP, mp_capable_length);

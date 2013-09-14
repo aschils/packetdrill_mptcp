@@ -1,0 +1,17 @@
+//mp_capable keys are defined by user in script
+0   socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0  setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+
++0  bind(3, ..., ...) = 0
++0  listen(3, 1) = 0
+
+//Var a or b can be user defined. Last value specified in script will be the
+//value used for every Var name occurence. Thus code below will send both
+//syn and ack packets with mp_capable a=34. Same apply for kernel key, which
+//can also be defined here by user.
++0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable a=12>
++0  > S. 0:0(0) ack 1 win 14400 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
++0.1  < . 1:1(0) ack 1 win 257 <mp_capable a=34 b=4533838>
+
++0  accept(3, ..., ...) = 4
+

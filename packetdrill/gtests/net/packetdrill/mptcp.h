@@ -20,6 +20,7 @@
 #include "tcp_options_iterator.h"
 #include "tcp_packet.h"
 #include "run.h"
+#include "packet_checksum.h"
 
 #define MPTCP_VERSION 0
 
@@ -65,6 +66,7 @@
 
 //Variable types
 #define KEY 0
+#define SCRIPT_DEFINED 1
 
 //Key types
 #define SND_KEY true
@@ -120,8 +122,8 @@ struct mp_state_s {
 
     unsigned last_packetdrill_addr_id;
 
-    u64 dack;
-    u64 dsn;
+    u64 initial_dack;
+    u64 initial_dsn;
 };
 
 typedef struct mp_state_s mp_state_t;
@@ -169,6 +171,14 @@ void free_var_queue();
  *
  */
 void add_mp_var_key(char *name, u64 *key);
+
+/**
+ * Save a variable <name, value> in variables hashmap.
+ * Value is copied in a newly allocated pointer and will be freed when
+ * free_vars function will be executed.
+ *
+ */
+void add_mp_var_script_defined(char *name, void *value, u32 length);
 
 /**
  * Add var to the variable hashmap.
