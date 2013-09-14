@@ -163,7 +163,7 @@ dss			return DSS;
 eol			return EOL;
 ecr			return ECR;
 mp_capable  return MP_CAPABLE;
-mp_capable_wocs return MP_CAPABLE_WOCS;
+mp_capable_no_cs return MP_CAPABLE_NO_CS;
 mp_join_syn		return MP_JOIN_SYN;
 mp_join_syn_backup return MP_JOIN_SYN_BACKUP;
 mp_join_syn_ack return MP_JOIN_SYN_ACK;

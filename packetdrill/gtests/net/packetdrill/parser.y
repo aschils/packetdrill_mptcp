@@ -456,6 +456,12 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 		int type; //4 or 8 octects mptcp DACK or -1 (none)
 		u64 dack;
 	} mptcp_dack;
+	struct {
+		char *name;
+		bool script_assigned;
+		u64 value;
+		bool exist;
+	} mptcp_var;
 	struct option_list *option;
 	struct event *event;
 	struct packet *packet;
@@ -478,7 +484,7 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 %token <reserved> MSG_NAME MSG_IOV MSG_FLAGS
 %token <reserved> FD EVENTS REVENTS ONOFF LINGER
 %token <reserved> ACK ECR EOL MSS NOP SACK SACKOK TIMESTAMP VAL WIN WSCALE PRO SOCK
-%token <reserved> MP_CAPABLE MP_CAPABLE_WOCS
+%token <reserved> MP_CAPABLE MP_CAPABLE_NO_CS
 %token <reserved> MP_JOIN_SYN MP_JOIN_SYN_BACKUP MP_JOIN_SYN_ACK_BACKUP MP_JOIN_ACK MP_JOIN_SYN_ACK
 %token <reserved> DSS DACK4 DSN4 DACK8 DSN8 FIN NOCS
 %token <reserved> FAST_OPEN
@@ -498,7 +504,7 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 %type <syscall> syscall_spec
 %type <command> command_spec
 %type <code> code_spec
-%type <integer> opt_icmp_mtu socket_fd_spec fin dss_no_checksum
+%type <integer> opt_icmp_mtu socket_fd_spec fin dss_no_checksum mp_capable_no_cs
 %type <string> icmp_type opt_icmp_code flags
 %type <string> opt_tcp_fast_open_cookie tcp_fast_open_cookie
 %type <string> opt_note note word_list
@@ -508,6 +514,7 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 %type <tcp_sequence_info> seq opt_icmp_echoed
 %type <mptcp_dsn_info> dsn
 %type <mptcp_dack> dack
+%type <mptcp_var> mptcp_var mptcp_var_or_empty
 %type <tcp_options> opt_tcp_options tcp_option_list
 %type <tcp_option> tcp_option sack_block_list sack_block
 %type <string> function_name
@@ -895,6 +902,32 @@ dack
 }
 ;
 
+mptcp_var_or_empty
+: {$$.exist = false;}
+| mptcp_var
+;
+
+mptcp_var
+:
+WORD {
+	$$.exist = true;
+	$$.name = $1;
+	$$.script_assigned = false;
+}
+| WORD '=' INTEGER {
+	$$.exist = true;
+	$$.name = $1;
+	$$.script_assigned = true;
+	$$.value = $3;
+}
+;
+
+mp_capable_no_cs
+:
+MP_CAPABLE {$$ = false;}
+| MP_CAPABLE_NO_CS {$$ = true;}
+;
+
 fin
 : {$$ = 0;}
 | FIN {$$ = 1;}
@@ -955,50 +988,27 @@ tcp_option
 	}
 }
 
-//20 bytes mp_capable mptcp option
-| MP_CAPABLE WORD WORD {
-	$$ = tcp_option_new(TCPOPT_MPTCP,
-				            TCPOLEN_MP_CAPABLE);
-    $$->data.mp_capable.version = MPTCP_VERSION;
-    $$->data.mp_capable.subtype = MP_CAPABLE_SUBTYPE;
-    $$->data.mp_capable.flags = MP_CAPABLE_FLAGS_CS;
-    //Note: we put keys before injecting packet in kernel
-    //since we don't know yet receiver key.
-    if(enqueue_var($2) || enqueue_var($3))
-    	semantic_error("MPTCP variables queue is full, increase queue size.");
-}
-
-//12 bytes mp_capable mptcp option
-| MP_CAPABLE WORD {
-	$$ = tcp_option_new(TCPOPT_MPTCP,
-			TCPOLEN_MP_CAPABLE_SYN);
+| mp_capable_no_cs mptcp_var mptcp_var_or_empty {
+		
+	unsigned mp_capable_length = TCPOLEN_MP_CAPABLE_SYN;
+	
+	if(enqueue_var($2.name))
+		semantic_error("MPTCP variables queue is full, increase queue size.");
+	
+	if($3.exist){
+		mp_capable_length = TCPOLEN_MP_CAPABLE;
+		if(enqueue_var($3.name))
+			semantic_error("MPTCP variables queue is full, increase queue size.");
+	}
+	
+	$$ = tcp_option_new(TCPOPT_MPTCP, mp_capable_length);
 	$$->data.mp_capable.version = MPTCP_VERSION;
 	$$->data.mp_capable.subtype = MP_CAPABLE_SUBTYPE;
-	$$->data.mp_capable.flags = MP_CAPABLE_FLAGS_CS;
-	if(enqueue_var($2))
-		semantic_error("MPTCP variables queue is full, increase queue size.");
-}
-
-| MP_CAPABLE_WOCS WORD WORD {
-	$$ = tcp_option_new(TCPOPT_MPTCP,
-				            TCPOLEN_MP_CAPABLE);
-    $$->data.mp_capable.version = MPTCP_VERSION;
-    $$->data.mp_capable.subtype = MP_CAPABLE_SUBTYPE;
-    $$->data.mp_capable.flags = MP_CAPABLE_FLAGS;
-    //Note: we put keys before injecting packet in kernel
-    //since we don't know yet receiver key.
-    if(enqueue_var($2) || enqueue_var($3))
-    	semantic_error("MPTCP variables queue is full, increase queue size.");
-}
-
-| MP_CAPABLE_WOCS WORD {
-	$$ = tcp_option_new(TCPOPT_MPTCP,
-			TCPOLEN_MP_CAPABLE_SYN);
-	$$->data.mp_capable.version = MPTCP_VERSION;
-	$$->data.mp_capable.subtype = MP_CAPABLE_SUBTYPE;
-	$$->data.mp_capable.flags = MP_CAPABLE_FLAGS;
-	if(enqueue_var($2))
-		semantic_error("MPTCP variables queue is full, increase queue size.");
+	
+	if($1)
+		$$->data.mp_capable.flags = MP_CAPABLE_FLAGS;
+	else
+		$$->data.mp_capable.flags = MP_CAPABLE_FLAGS_CS;
 }
 
 //TODO address_id as script param?
