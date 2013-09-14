@@ -462,6 +462,12 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 		u64 value;
 		bool exist;
 	} mptcp_var;
+	struct {
+		bool auto_conf;
+		bool is_integer;
+		u32 token_int;
+		char *token_str;
+	} mptcp_token;
 	struct option_list *option;
 	struct event *event;
 	struct packet *packet;
@@ -486,7 +492,7 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 %token <reserved> ACK ECR EOL MSS NOP SACK SACKOK TIMESTAMP VAL WIN WSCALE PRO SOCK
 %token <reserved> MP_CAPABLE MP_CAPABLE_NO_CS
 %token <reserved> MP_JOIN_SYN MP_JOIN_SYN_BACKUP MP_JOIN_SYN_ACK_BACKUP MP_JOIN_ACK MP_JOIN_SYN_ACK
-%token <reserved> DSS DACK4 DSN4 DACK8 DSN8 FIN NOCS
+%token <reserved> DSS DACK4 DSN4 DACK8 DSN8 FIN NOCS ADDRESS_ID BACKUP TOKEN AUTO RAND SHA1_
 %token <reserved> FAST_OPEN
 %token <reserved> ECT0 ECT1 CE ECT01 NO_ECN
 %token <reserved> ICMP UDP MTU
@@ -504,7 +510,8 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 %type <syscall> syscall_spec
 %type <command> command_spec
 %type <code> code_spec
-%type <integer> opt_icmp_mtu socket_fd_spec fin dss_no_checksum mp_capable_no_cs
+%type <integer> opt_icmp_mtu socket_fd_spec fin dss_no_checksum
+%type <integer> mp_capable_no_cs is_backup address_id rand
 %type <string> icmp_type opt_icmp_code flags
 %type <string> opt_tcp_fast_open_cookie tcp_fast_open_cookie
 %type <string> opt_note note word_list
@@ -515,6 +522,7 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 %type <mptcp_dsn_info> dsn
 %type <mptcp_dack> dack
 %type <mptcp_var> mptcp_var mptcp_var_or_empty
+%type <mptcp_token> mptcp_token
 %type <tcp_options> opt_tcp_options tcp_option_list
 %type <tcp_option> tcp_option sack_block_list sack_block
 %type <string> function_name
@@ -928,6 +936,57 @@ MP_CAPABLE {$$ = false;}
 | MP_CAPABLE_NO_CS {$$ = true;}
 ;
 
+is_backup
+: BACKUP '=' INTEGER
+  {
+	if($3>1)
+		semantic_error("MPTCP backup flag should be set to 1 or 0.");
+	$$ = $3;
+  }
+;
+
+address_id
+:
+ADDRESS_ID '=' INTEGER
+  {
+	if(!is_valid_u8($3))
+		semantic_error("MPTCP mp_join address_id should be a 8 bits unsigned integer.");
+	$$ = $3;
+  }
+| ADDRESS_ID '=' AUTO
+{
+	$$ = -1;
+}
+;
+
+mptcp_token
+:
+TOKEN '=' INTEGER {
+	if(!is_valid_u32($3))
+		semantic_error("mptcp_token is not a valid u32.");
+	$$.auto_conf = false;
+	$$.is_integer = true;
+	$$.token_int = $3;
+}
+| TOKEN '=' SHA1_ '(' WORD ')' {
+	$$.auto_conf = false;
+	$$.is_integer = false;
+	$$.token_str = $5;
+}
+| TOKEN '=' AUTO {
+	$$.auto_conf = true;
+}
+;
+
+rand
+: {$$ = -1;}
+| RAND '=' INTEGER {
+	if(!is_valid_u32($3))
+		semantic_error("rand is not a valid u32.");
+	$$ = $3;
+}
+;
+
 fin
 : {$$ = 0;}
 | FIN {$$ = 1;}
@@ -1024,20 +1083,40 @@ tcp_option
 		$$->data.mp_capable.flags = MP_CAPABLE_FLAGS_CS;
 }
 
-//TODO address_id as script param?
-| MP_JOIN_SYN {
+| MP_JOIN_SYN is_backup address_id mptcp_token rand {
 	$$ = tcp_option_new(TCPOPT_MPTCP,
 			TCPOLEN_MP_JOIN_SYN); 
 	$$->data.mp_join.syn.subtype = MP_JOIN_SUBTYPE;
-	$$->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_NO_BACKUP;
-}
-
-//TODO address_id as script param
-| MP_JOIN_SYN_BACKUP {
-	$$ = tcp_option_new(TCPOPT_MPTCP,
-			TCPOLEN_MP_JOIN_SYN);
-	$$->data.mp_join.syn.subtype = MP_JOIN_SUBTYPE;
-	$$->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_BACKUP;
+	if($2)
+		$$->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_BACKUP;
+	else
+		$$->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_NO_BACKUP;
+	
+	struct mp_join_info *mji = malloc(sizeof(struct mp_join_info));
+	
+	mji->syn.address_id_script_defined = ($3 != -1);
+	
+	if(mji->syn.address_id_script_defined)
+		mji->syn.address_id = $3;
+	
+	mji->syn.token_script_defined = !$4.auto_conf;
+	if(!$4.auto_conf){
+		mji->syn.token_is_var = !$4.is_integer;
+		if($4.is_integer)
+			mji->syn.token_u32 = $4.token_int;
+		else{
+			u32 token_var_length = strlen($4.token_str);
+			if(token_var_length>253)
+				semantic_error("Too big token variable name, mptcp - mp_join_syn");
+			memcpy(mji->syn.token_var, $4.token_str, token_var_length+1);
+		}
+	}
+	
+	mji->syn.rand_script_defined = ($5 != -1);
+	if(mji->syn.rand_script_defined)
+		mji->syn.rand = $5;
+	queue_enqueue(&mp_state.vars_queue, mji);
+	
 }
 
 | MP_JOIN_SYN_ACK {

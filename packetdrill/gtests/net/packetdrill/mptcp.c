@@ -487,16 +487,49 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 			packet_to_modify->tcp->syn &&
 			tcp_opt_to_modify->length == TCPOLEN_MP_JOIN_SYN){
 
+
+		struct mp_join_info *mp_join_script_info;
+
+		if(queue_dequeue(&mp_state.vars_queue, (void**)&mp_join_script_info))
+			return STATUS_ERR;
+
 		struct mp_subflow *subflow = new_subflow_inbound(packet_to_modify);
 		if(!subflow)
 			return STATUS_ERR;
 
-		tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
+		if(mp_join_script_info->syn.token_script_defined){
+			if(mp_join_script_info->syn.token_is_var){
+				struct mp_var *var = find_mp_var(mp_join_script_info->syn.token_var);
+				tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
+								htonl(sha1_least_32bits(*(u64*)var->value));
+			}
+			else{
+				tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
+						htonl(mp_join_script_info->syn.token_u32);
+			}
+		}
+		else{
+			tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
 				htonl(sha1_least_32bits(mp_state.kernel_key));
-		tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
+		}
+
+		if(mp_join_script_info->syn.rand_script_defined){
+			tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
+					mp_join_script_info->syn.rand; //CPAASCH should I htonl?
+		}
+		else{
+			tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
 				subflow->packetdrill_rand_nbr;
-		tcp_opt_to_modify->data.mp_join.syn.address_id =
+		}
+
+		if(mp_join_script_info->syn.address_id_script_defined){
+			tcp_opt_to_modify->data.mp_join.syn.address_id =
+					mp_join_script_info->syn.address_id;
+		}
+		else{
+			tcp_opt_to_modify->data.mp_join.syn.address_id =
 				subflow->packetdrill_addr_id;
+		}
 	}
 
 	else if(direction == DIRECTION_OUTBOUND &&

@@ -68,6 +68,23 @@
 #define KEY 0
 #define SCRIPT_DEFINED 1
 
+struct mp_join_info {
+	union {
+		struct {
+		bool address_id_script_defined;
+		u8 address_id;
+		bool token_script_defined;
+		bool token_is_var;
+		union {
+			char token_var[255]; //TODO warning to input length
+			u32 token_u32;
+		};
+		bool rand_script_defined;
+		u32 rand;
+		} syn;
+	};
+};
+
 //A script mptcp variable bring additional information from user script to
 //mptcp.c.
 struct mp_var {
