@@ -516,6 +516,7 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 		if(mp_join_script_info->syn.rand_script_defined){
 			tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
 					mp_join_script_info->syn.rand; //CPAASCH should I htonl?
+			subflow->packetdrill_rand_nbr = mp_join_script_info->syn.rand;
 		}
 		else{
 			tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
