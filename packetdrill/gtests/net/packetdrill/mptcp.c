@@ -476,7 +476,8 @@ int mptcp_subtype_mp_capable(struct packet *packet_to_modify,
  *
  */
 static void mp_join_syn_rcv_token_inb(struct tcp_option *tcp_opt_to_modify,
-		struct mp_join_info *mp_join_script_info)
+		struct mp_join_info *mp_join_script_info,
+		unsigned direction)
 {
 	if(mp_join_script_info->syn.token_script_defined){
 
@@ -490,8 +491,11 @@ static void mp_join_syn_rcv_token_inb(struct tcp_option *tcp_opt_to_modify,
 					htonl(mp_join_script_info->syn.token_u32);
 		}
 	}
-
-	else{
+	else if(direction == DIRECTION_INBOUND){
+		tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
+				htonl(sha1_least_32bits(mp_state.kernel_key));
+	}
+	else if(direction == DIRECTION_OUTBOUND){
 		tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
 				htonl(sha1_least_32bits(mp_state.kernel_key));
 	}
@@ -501,15 +505,21 @@ static void mp_join_syn_rcv_token_inb(struct tcp_option *tcp_opt_to_modify,
  * Manage the case when packetdrill send a mp_join_syn to the kernel.
  *
  */
-static int mp_join_syn_inbound(struct packet *packet_to_modify,
+static int mp_join_syn(struct packet *packet_to_modify,
+		struct packet *live_packet,
 		struct tcp_option *tcp_opt_to_modify,
-		struct mp_join_info *mp_join_script_info)
+		struct mp_join_info *mp_join_script_info,
+		unsigned direction)
 {
-	struct mp_subflow *subflow = new_subflow_inbound(packet_to_modify);
+	struct mp_subflow *subflow;
+	if(direction == DIRECTION_INBOUND)
+		subflow = new_subflow_inbound(packet_to_modify);
+	else if(direction == DIRECTION_OUTBOUND)
+		subflow = new_subflow_outbound(live_packet);
 	if(!subflow)
 		return STATUS_ERR;
 
-	mp_join_syn_rcv_token_inb(tcp_opt_to_modify, mp_join_script_info);
+	mp_join_syn_rcv_token_inb(tcp_opt_to_modify, mp_join_script_info, DIRECTION_INBOUND);
 
 	//Set sender random number value
 	if(mp_join_script_info->syn.rand_script_defined){
@@ -517,9 +527,13 @@ static int mp_join_syn_inbound(struct packet *packet_to_modify,
 				mp_join_script_info->syn.rand;
 		subflow->packetdrill_rand_nbr = mp_join_script_info->syn.rand;
 	}
-	else{
+	else if(direction == DIRECTION_INBOUND){
 		tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
 				subflow->packetdrill_rand_nbr;
+	}
+	else if(direction == DIRECTION_OUTBOUND){
+		tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
+				htonl(subflow->kernel_rand_nbr);
 	}
 
 	//Set address_id value
@@ -527,9 +541,13 @@ static int mp_join_syn_inbound(struct packet *packet_to_modify,
 		tcp_opt_to_modify->data.mp_join.syn.address_id =
 				mp_join_script_info->syn.address_id;
 	}
-	else{
+	else if(direction == DIRECTION_INBOUND){
 		tcp_opt_to_modify->data.mp_join.syn.address_id =
 				subflow->packetdrill_addr_id;
+	}
+	else if(direction == DIRECTION_OUTBOUND){
+		tcp_opt_to_modify->data.mp_join.syn.address_id =
+				subflow->kernel_addr_id;
 	}
 	return STATUS_OK;
 }
@@ -553,9 +571,11 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 			packet_to_modify->tcp->syn &&
 			tcp_opt_to_modify->length == TCPOLEN_MP_JOIN_SYN){
 
-		mp_join_syn_inbound(packet_to_modify,
+		mp_join_syn(packet_to_modify,
+				live_packet,
 				tcp_opt_to_modify,
-				mp_join_script_info);
+				mp_join_script_info,
+				DIRECTION_INBOUND);
 	}
 
 	else if(direction == DIRECTION_OUTBOUND &&
@@ -640,14 +660,11 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 			packet_to_modify->tcp->syn &&
 			tcp_opt_to_modify->length == TCPOLEN_MP_JOIN_SYN){
 
-		struct mp_subflow *subflow = new_subflow_outbound(live_packet);
-
-		tcp_opt_to_modify->data.mp_join.syn.address_id =
-				subflow->kernel_addr_id;
-		tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
-				htonl(subflow->kernel_rand_nbr);
-		tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
-				htonl(sha1_least_32bits(mp_state.kernel_key));
+		mp_join_syn(packet_to_modify,
+				live_packet,
+				tcp_opt_to_modify,
+				mp_join_script_info,
+				DIRECTION_OUTBOUND);
 	}
 
 	else if(direction == DIRECTION_INBOUND &&
