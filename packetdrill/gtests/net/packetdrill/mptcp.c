@@ -430,7 +430,6 @@ int mptcp_subtype_mp_capable(struct packet *packet_to_modify,
 {
 	int error;
 	if(tcp_opt_to_modify->length == TCPOLEN_MP_CAPABLE_SYN &&
-			packet_to_modify->tcp->syn &&
 			direction == DIRECTION_INBOUND &&
 			!packet_to_modify->tcp->ack){
 		error = mptcp_gen_key();
@@ -438,15 +437,12 @@ int mptcp_subtype_mp_capable(struct packet *packet_to_modify,
 	}
 
 	else if(tcp_opt_to_modify->length == TCPOLEN_MP_CAPABLE_SYN &&
-			packet_to_modify->tcp->syn &&
 			direction == DIRECTION_OUTBOUND){
 		error = extract_and_set_kernel_key(live_packet);
 		error = mptcp_set_mp_cap_syn_key(tcp_opt_to_modify);
 	}
 
-	else if(tcp_opt_to_modify->length == TCPOLEN_MP_CAPABLE &&
-			!packet_to_modify->tcp->syn &&
-			packet_to_modify->tcp->ack){
+	else if(tcp_opt_to_modify->length == TCPOLEN_MP_CAPABLE){
 		error = mptcp_set_mp_cap_keys(tcp_opt_to_modify);
 		mp_state.initial_dsn = sha1_least_64bits(mp_state.packetdrill_key);
 		if(direction == DIRECTION_INBOUND)
@@ -458,7 +454,6 @@ int mptcp_subtype_mp_capable(struct packet *packet_to_modify,
 	}
 
 	else if(tcp_opt_to_modify->length == TCPOLEN_MP_CAPABLE_SYN &&
-			packet_to_modify->tcp->syn &&
 			direction == DIRECTION_INBOUND &&
 			packet_to_modify->tcp->ack){
 		error = mptcp_gen_key();
@@ -475,20 +470,20 @@ int mptcp_subtype_mp_capable(struct packet *packet_to_modify,
  * Set appropriate receiver token value in tcp_option.
  *
  */
-static void mp_join_syn_rcv_token_inb(struct tcp_option *tcp_opt_to_modify,
+static void mp_join_syn_rcv_token(struct tcp_option *tcp_opt_to_modify,
 		struct mp_join_info *mp_join_script_info,
 		unsigned direction)
 {
-	if(mp_join_script_info->syn.token_script_defined){
+	if(mp_join_script_info->syn_or_syn_ack.is_script_defined){
 
-		if(mp_join_script_info->syn.token_is_var){
-			struct mp_var *var = find_mp_var(mp_join_script_info->syn.token_var);
+		if(mp_join_script_info->syn_or_syn_ack.is_var){
+			struct mp_var *var = find_mp_var(mp_join_script_info->syn_or_syn_ack.var);
 			tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
 					htonl(sha1_least_32bits(*(u64*)var->value));
 		}
 		else{
 			tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
-					htonl(mp_join_script_info->syn.token_u32);
+					htonl(mp_join_script_info->syn_or_syn_ack.hash);
 		}
 	}
 	else if(direction == DIRECTION_INBOUND){
@@ -497,7 +492,52 @@ static void mp_join_syn_rcv_token_inb(struct tcp_option *tcp_opt_to_modify,
 	}
 	else if(direction == DIRECTION_OUTBOUND){
 		tcp_opt_to_modify->data.mp_join.syn.no_ack.receiver_token =
-				htonl(sha1_least_32bits(mp_state.kernel_key));
+				htonl(sha1_least_32bits(mp_state.packetdrill_key));
+	}
+}
+
+static void mp_join_syn_address_id(struct tcp_option *tcp_opt_to_modify,
+		struct mp_join_info *mp_join_script_info,
+		struct mp_subflow *subflow,
+		unsigned direction)
+{
+	if(mp_join_script_info->syn_or_syn_ack.address_id_script_defined){
+		u8 script_addr_id = mp_join_script_info->syn_or_syn_ack.address_id;
+		if(direction == DIRECTION_INBOUND )
+			subflow->packetdrill_addr_id = script_addr_id;
+		else
+			subflow->kernel_addr_id = script_addr_id;
+	}
+	if(direction == DIRECTION_INBOUND){
+		tcp_opt_to_modify->data.mp_join.syn.address_id =
+				subflow->packetdrill_addr_id;
+	}
+	else if(direction == DIRECTION_OUTBOUND){
+		tcp_opt_to_modify->data.mp_join.syn.address_id =
+				subflow->kernel_addr_id;
+	}
+}
+
+static void mp_join_syn_rand(struct tcp_option *tcp_opt_to_modify,
+		struct mp_join_info *mp_join_script_info,
+		struct mp_subflow *subflow,
+		unsigned direction)
+{
+	//Set sender random number value
+	if(mp_join_script_info->syn_or_syn_ack.rand_script_defined){
+		u32 script_rand = mp_join_script_info->syn_or_syn_ack.rand;
+		if(direction == DIRECTION_INBOUND)
+			subflow->packetdrill_rand_nbr = script_rand;
+		else
+			subflow->kernel_rand_nbr = script_rand;
+	}
+	if(direction == DIRECTION_INBOUND){
+		tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
+				subflow->packetdrill_rand_nbr;
+	}
+	else if(direction == DIRECTION_OUTBOUND){
+		tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
+				htonl(subflow->kernel_rand_nbr);
 	}
 }
 
@@ -519,35 +559,128 @@ static int mp_join_syn(struct packet *packet_to_modify,
 	if(!subflow)
 		return STATUS_ERR;
 
-	mp_join_syn_rcv_token_inb(tcp_opt_to_modify, mp_join_script_info, DIRECTION_INBOUND);
+	mp_join_syn_rcv_token(tcp_opt_to_modify, mp_join_script_info, direction);
+	mp_join_syn_rand(tcp_opt_to_modify,
+			mp_join_script_info,
+			subflow,
+			direction);
+	mp_join_syn_address_id(tcp_opt_to_modify,
+			mp_join_script_info,
+			subflow,
+			direction);
 
-	//Set sender random number value
-	if(mp_join_script_info->syn.rand_script_defined){
-		tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
-				mp_join_script_info->syn.rand;
-		subflow->packetdrill_rand_nbr = mp_join_script_info->syn.rand;
-	}
-	else if(direction == DIRECTION_INBOUND){
-		tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
-				subflow->packetdrill_rand_nbr;
-	}
-	else if(direction == DIRECTION_OUTBOUND){
-		tcp_opt_to_modify->data.mp_join.syn.no_ack.sender_random_number =
-				htonl(subflow->kernel_rand_nbr);
+	return STATUS_OK;
+}
+
+void mp_join_syn_ack_sender_hmac(struct tcp_option *tcp_opt_to_modify,
+		u64 key1, u64 key2, u32 msg1, u32 msg2)
+{
+	//Build key for HMAC-SHA1
+	unsigned char hmac_key[16];
+	unsigned long *key_a = (unsigned long*)hmac_key;
+	unsigned long *key_b = (unsigned long*)&(hmac_key[8]);
+	*key_a = key1;
+	*key_b = key2;
+
+	//Build message for HMAC-SHA1
+	u32 msg[2];
+	msg[0] = msg1;
+	msg[1] = msg2;
+	tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac =
+			htobe64(hmac_sha1_truncat_64(hmac_key,
+					16,
+					(char*)msg,
+					8));
+}
+
+static int mp_join_syn_ack(struct packet *packet_to_modify,
+		struct packet *live_packet,
+		struct tcp_option *tcp_opt_to_modify,
+		struct mp_join_info *mp_join_script_info,
+		unsigned direction)
+{
+	if(direction == DIRECTION_INBOUND){
+		struct mp_subflow *subflow =
+				find_subflow_matching_inbound_packet(packet_to_modify);
+
+		if(!subflow)
+			return STATUS_ERR;
+
+		subflow->packetdrill_rand_nbr = generate_32();
+
+		mp_join_syn_address_id(tcp_opt_to_modify,
+				mp_join_script_info,
+				subflow,
+				direction);
+		mp_state.last_packetdrill_addr_id++;
+
+		if(mp_join_script_info->syn_or_syn_ack.rand_script_defined)
+			subflow->packetdrill_rand_nbr =
+					mp_join_script_info->syn_or_syn_ack.rand;
+
+		tcp_opt_to_modify->data.mp_join.syn.ack.sender_random_number =
+				htonl(subflow->packetdrill_rand_nbr);
+
+		if(mp_join_script_info->syn_or_syn_ack.is_script_defined){
+			if(mp_join_script_info->syn_or_syn_ack.is_var){
+				struct mp_var *var =
+						find_mp_var(mp_join_script_info->syn_or_syn_ack.var);
+				struct mp_var *var2 =
+						find_mp_var(mp_join_script_info->syn_or_syn_ack.var2);
+				mp_join_syn_ack_sender_hmac(tcp_opt_to_modify,
+									*(u64*)var->value,
+									*(u64*)var2->value,
+									subflow->packetdrill_rand_nbr,
+									subflow->kernel_rand_nbr);
+
+			}
+		}
+		else{
+			mp_join_syn_ack_sender_hmac(tcp_opt_to_modify,
+					mp_state.packetdrill_key,
+					mp_state.kernel_key,
+					subflow->packetdrill_rand_nbr,
+					subflow->kernel_rand_nbr);
+		}
 	}
 
-	//Set address_id value
-	if(mp_join_script_info->syn.address_id_script_defined){
-		tcp_opt_to_modify->data.mp_join.syn.address_id =
-				mp_join_script_info->syn.address_id;
-	}
-	else if(direction == DIRECTION_INBOUND){
-		tcp_opt_to_modify->data.mp_join.syn.address_id =
-				subflow->packetdrill_addr_id;
-	}
 	else if(direction == DIRECTION_OUTBOUND){
+		struct mp_subflow *subflow =
+				find_subflow_matching_outbound_packet(live_packet);
+		struct tcp_option *live_mp_join =
+				get_tcp_option(live_packet, TCPOPT_MPTCP);
+
+		if(!subflow || !live_mp_join)
+			return STATUS_ERR;
+
+		//Update mptcp packetdrill state
+		subflow->kernel_addr_id =
+				live_mp_join->data.mp_join.syn.address_id;
+		subflow->kernel_rand_nbr =
+				live_mp_join->data.mp_join.syn.ack.sender_random_number;
+
+		//Build key for HMAC-SHA1
+		unsigned char hmac_key[16];
+		unsigned long *key_b = (unsigned long*)hmac_key;
+		unsigned long *key_a = (unsigned long*)&(hmac_key[8]);
+		*key_b = mp_state.kernel_key;
+		*key_a = mp_state.packetdrill_key;
+
+		//Build message for HMAC-SHA1
+		unsigned msg[2];
+		msg[0] = subflow->kernel_rand_nbr;
+		msg[1] = subflow->packetdrill_rand_nbr;
+
+		//Update script packet mp_join option fields
 		tcp_opt_to_modify->data.mp_join.syn.address_id =
-				subflow->kernel_addr_id;
+				live_mp_join->data.mp_join.syn.address_id;
+		tcp_opt_to_modify->data.mp_join.syn.ack.sender_random_number =
+				live_mp_join->data.mp_join.syn.ack.sender_random_number;
+		tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac =
+				hmac_sha1_truncat_64(hmac_key,
+						16,
+						(char*)msg,
+						8);
 	}
 	return STATUS_OK;
 }
@@ -672,6 +805,12 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 			packet_to_modify->tcp->syn &&
 			tcp_opt_to_modify->length == TCPOLEN_MP_JOIN_SYN_ACK){
 
+		mp_join_syn_ack(packet_to_modify,
+				live_packet,
+				tcp_opt_to_modify,
+				mp_join_script_info,
+				DIRECTION_INBOUND);
+		/*
 		struct mp_subflow *subflow =
 				find_subflow_matching_inbound_packet(packet_to_modify);
 
@@ -702,7 +841,7 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 				htobe64(hmac_sha1_truncat_64(hmac_key,
 						16,
 						(char*)msg,
-						8));
+						8));*/
 	}
 
 	else if(direction == DIRECTION_OUTBOUND &&

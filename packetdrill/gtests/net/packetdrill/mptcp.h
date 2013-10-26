@@ -73,15 +73,14 @@ struct mp_join_info {
 		struct {
 		bool address_id_script_defined;
 		u8 address_id;
-		bool token_script_defined;
-		bool token_is_var;
-		union {
-			char token_var[255]; //TODO warning to input length
-			u32 token_u32;
-		};
+		bool is_script_defined;
+		bool is_var;
+		char var[255];
+		char var2[255]; //TODO warning to input length
+		u64 hash;
 		bool rand_script_defined;
 		u32 rand;
-		} syn;
+		} syn_or_syn_ack;
 	};
 };
 
