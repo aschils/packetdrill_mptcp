@@ -73,7 +73,7 @@ u64 sha1_least_64bits(u64 key)
 	key64 key_arr = get_barray_from_key64(key);
 	uint8_t hash[SHA_DIGEST_LENGTH];
 	hash_key_sha1(hash, key_arr);
-	return be64toh(*((u64*)hash)); //CPAASCH said [12]
+	return be64toh(*((u64*)&hash[12]));
 }
 
 u16 checksum(u16 *buffer, int size)
