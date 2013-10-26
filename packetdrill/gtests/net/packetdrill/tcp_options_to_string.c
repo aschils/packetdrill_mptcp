@@ -197,10 +197,11 @@ int tcp_options_to_string(struct packet *packet,
         	case MP_JOIN_SUBTYPE:
 
         		if(option->length == TCPOLEN_MP_JOIN_SYN){
-        			fprintf(s, "mp_join_syn flags: %u, address id: %u, receiver token: %u",
+        			fprintf(s, "mp_join_syn flags: %u, address id: %u, receiver token: %u, sender random number: %u",
         					option->data.mp_join.syn.flags,
         					option->data.mp_join.syn.address_id,
-        					ntohl(option->data.mp_join.syn.no_ack.receiver_token)
+        					ntohl(option->data.mp_join.syn.no_ack.receiver_token),
+        					option->data.mp_join.syn.no_ack.sender_random_number
         					);
         		}
 
