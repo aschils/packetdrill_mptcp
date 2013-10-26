@@ -425,6 +425,66 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 	return option;
 }
 
+struct tcp_option *mp_join_syn_or_syn_ack(bool is_backup,
+		int address_id,
+		bool auto_conf,
+		bool is_integer,
+		u64 hash,
+		char *str,
+		char *str2,
+		bool is_syn_ack,
+		long rand)
+{
+
+	struct tcp_option *opt = tcp_option_new(TCPOPT_MPTCP,
+			TCPOLEN_MP_JOIN_SYN); 
+	opt->data.mp_join.syn.subtype = MP_JOIN_SUBTYPE;
+
+	//Set backup flag
+	if(is_backup)
+		opt->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_BACKUP;
+	else
+		opt->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_NO_BACKUP;
+
+	struct mp_join_info *mp_join_script_info = malloc(sizeof(struct mp_join_info));
+
+	/* Save user defined values in mp_state.vars_queue */
+
+	//address_id
+	mp_join_script_info->syn_or_syn_ack.address_id_script_defined = (address_id != -1);
+
+	if(mp_join_script_info->syn_or_syn_ack.address_id_script_defined)
+		mp_join_script_info->syn_or_syn_ack.address_id = address_id;
+
+	//token
+	mp_join_script_info->syn_or_syn_ack.is_script_defined = !auto_conf;
+	if(!auto_conf){
+		mp_join_script_info->syn_or_syn_ack.is_var = !is_integer;
+		if(is_integer)
+			mp_join_script_info->syn_or_syn_ack.hash = hash;
+		else{
+			u32 var_length = strlen(str);
+			if(var_length>253) //TODO REFACTOR
+				semantic_error("Too big token variable name, mptcp - mp_join");
+			memcpy(mp_join_script_info->syn_or_syn_ack.var, str, var_length+1);
+			if(is_syn_ack){
+				u32 var2_length = strlen(str2);
+				if(var2_length>253)
+					semantic_error("Too big token variable name, mptcp - mp_join");
+				memcpy(mp_join_script_info->syn_or_syn_ack.var2, str2, var2_length+1);		
+			}
+				
+		}
+	}
+
+	//sender random number
+	mp_join_script_info->syn_or_syn_ack.rand_script_defined = (rand != -1);
+	if(mp_join_script_info->syn_or_syn_ack.rand_script_defined)
+		mp_join_script_info->syn_or_syn_ack.rand = rand;
+
+	queue_enqueue(&mp_state.vars_queue, mp_join_script_info);
+	return opt;
+}
 %}
 
 %locations
@@ -465,9 +525,10 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 	struct {
 		bool auto_conf;
 		bool is_integer;
-		u32 token_int;
-		char *token_str;
-	} mptcp_token;
+		u64 hash;
+		char *str;
+		char *str2;
+	} mptcp_token_or_hmac;
 	struct option_list *option;
 	struct event *event;
 	struct packet *packet;
@@ -492,7 +553,8 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 %token <reserved> ACK ECR EOL MSS NOP SACK SACKOK TIMESTAMP VAL WIN WSCALE PRO SOCK
 %token <reserved> MP_CAPABLE MP_CAPABLE_NO_CS
 %token <reserved> MP_JOIN_SYN MP_JOIN_SYN_BACKUP MP_JOIN_SYN_ACK_BACKUP MP_JOIN_ACK MP_JOIN_SYN_ACK
-%token <reserved> DSS DACK4 DSN4 DACK8 DSN8 FIN NOCS ADDRESS_ID BACKUP TOKEN AUTO RAND SHA1_
+%token <reserved> DSS DACK4 DSN4 DACK8 DSN8 FIN NOCS ADDRESS_ID BACKUP TOKEN AUTO RAND SHA1_32
+%token <reserved> SENDER_TRUNC_HMAC TRUNC_HMAC
 %token <reserved> FAST_OPEN
 %token <reserved> ECT0 ECT1 CE ECT01 NO_ECN
 %token <reserved> ICMP UDP MTU
@@ -522,7 +584,7 @@ static struct tcp_option *new_tcp_fast_open_option(const char *cookie_string,
 %type <mptcp_dsn_info> dsn
 %type <mptcp_dack> dack
 %type <mptcp_var> mptcp_var mptcp_var_or_empty
-%type <mptcp_token> mptcp_token
+%type <mptcp_token_or_hmac> mptcp_token trunc_hmac
 %type <tcp_options> opt_tcp_options tcp_option_list
 %type <tcp_option> tcp_option sack_block_list sack_block
 %type <string> function_name
@@ -966,12 +1028,32 @@ TOKEN '=' INTEGER {
 		semantic_error("mptcp_token is not a valid u32.");
 	$$.auto_conf = false;
 	$$.is_integer = true;
-	$$.token_int = $3;
+	$$.hash = $3;
 }
-| TOKEN '=' SHA1_ '(' WORD ')' {
+| TOKEN '=' SHA1_32 '(' WORD ')' {
 	$$.auto_conf = false;
 	$$.is_integer = false;
-	$$.token_str = $5;
+	$$.str = $5;
+}
+| TOKEN '=' AUTO {
+	$$.auto_conf = true;
+}
+;
+
+trunc_hmac
+:
+SENDER_TRUNC_HMAC '=' TRUNC_HMAC '(' INTEGER ')' {
+	if(!is_valid_u64($5))
+		semantic_error("mptcp trunc_hmac is not a valid u64.");
+	$$.auto_conf = false;
+	$$.is_integer = true;
+	$$.hash = $5;
+}
+| SENDER_TRUNC_HMAC '=' TRUNC_HMAC '(' WORD WORD ')' {
+	$$.auto_conf = false;
+	$$.is_integer = false;
+	$$.str = $5;
+	$$.str2 = $6;
 }
 | TOKEN '=' AUTO {
 	$$.auto_conf = true;
@@ -1084,61 +1166,13 @@ tcp_option
 }
 
 | MP_JOIN_SYN is_backup address_id mptcp_token rand {
-	
-	$$ = tcp_option_new(TCPOPT_MPTCP,
-			TCPOLEN_MP_JOIN_SYN); 
-	$$->data.mp_join.syn.subtype = MP_JOIN_SUBTYPE;
-	
-	//Set backup flag
-	if($2)
-		$$->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_BACKUP;
-	else
-		$$->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_NO_BACKUP;
-	
-	struct mp_join_info *mp_join_script_info = malloc(sizeof(struct mp_join_info));
-	
-	/* Save user defined values in mp_state.vars_queue */
-	
-	//address_id
-	mp_join_script_info->syn.address_id_script_defined = ($3 != -1);
-	
-	if(mp_join_script_info->syn.address_id_script_defined)
-		mp_join_script_info->syn.address_id = $3;
-	
-	//token
-	mp_join_script_info->syn.token_script_defined = !$4.auto_conf;
-	if(!$4.auto_conf){
-		mp_join_script_info->syn.token_is_var = !$4.is_integer;
-		if($4.is_integer)
-			mp_join_script_info->syn.token_u32 = $4.token_int;
-		else{
-			u32 token_var_length = strlen($4.token_str);
-			if(token_var_length>253)
-				semantic_error("Too big token variable name, mptcp - mp_join_syn");
-			memcpy(mp_join_script_info->syn.token_var, $4.token_str, token_var_length+1);
-		}
-	}
-	
-	//sender random number
-	mp_join_script_info->syn.rand_script_defined = ($5 != -1);
-	if(mp_join_script_info->syn.rand_script_defined)
-		mp_join_script_info->syn.rand = $5;
-	
-	queue_enqueue(&mp_state.vars_queue, mp_join_script_info);	
+	$$ = mp_join_syn_or_syn_ack($2, $3, $4.auto_conf, $4.is_integer, $4.hash,
+			$4.str, $4.str2, false, $5);
 }
 
-| MP_JOIN_SYN_ACK {
-	$$ = tcp_option_new(TCPOPT_MPTCP,
-			TCPOLEN_MP_JOIN_SYN_ACK); 
-	$$->data.mp_join.syn.subtype = MP_JOIN_SUBTYPE;
-	$$->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_NO_BACKUP;
-}
-
-| MP_JOIN_SYN_ACK_BACKUP {
-	$$ = tcp_option_new(TCPOPT_MPTCP,
-			TCPOLEN_MP_JOIN_SYN_ACK); 
-	$$->data.mp_join.syn.subtype = MP_JOIN_SUBTYPE;
-	$$->data.mp_join.syn.flags = MP_JOIN_SYN_FLAGS_BACKUP;
+| MP_JOIN_SYN_ACK is_backup address_id trunc_hmac rand {
+	$$ = mp_join_syn_or_syn_ack($2, $3, $4.auto_conf, $4.is_integer, $4.hash,
+			$4.str, $4.str2, true, $5);
 }
 
 | MP_JOIN_ACK {
