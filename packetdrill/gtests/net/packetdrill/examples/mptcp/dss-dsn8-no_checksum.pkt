@@ -1,0 +1,29 @@
+// A simple server-side test that sends exactly an initial window (IW10)
+// worth of packets.
+
+// disable checksum tests
+`sysctl -w net.mptcp.mptcp_checksum=0`
+
+0.000 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+0.000 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+0.000 bind(3, ..., ...) = 0
+0.000 listen(3, 1) = 0
+
+
+// Connection, mss = 1000 data + 20 DSS + 8 Add_address (if one IF is already up)
+0.100  < S 0:0(0) win 32792 <mss 1028,sackOK,nop,nop,nop,wscale 7,mp_capable_no_cs a> sock(3)
+0.100  > S. 0:0(0) ack 1 win 14400 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable_no_cs b> sock(3)
+0.200  < . 1:1(0) ack 1 win 257 <mp_capable_no_cs a b> sock(3)// put again the checksum
+0.200  accept(3, ..., ...) = 4
+
+// Send 1 data segment 
++0  write(4, ..., 1000) = 1000
++0  > P. 1:1001(1000) ack 1 win 225  <dss dsn8 4294967296 nocs, nop, nop>  sock(4)
++.1 < . 1:1(0) ack 1001 win 257 
+
+0.400 close(4) = 0
+0.401 > F. 1001:1001(0) ack 1  <...> sock(4)
+0.501 < F. 1:1(0) ack 14602 win 257 
+0.502 > . 1002:1002(0) ack 2 
+
+0.600 `sysctl -w net.mptcp.mptcp_checksum=1`
