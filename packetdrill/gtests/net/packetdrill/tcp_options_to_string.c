@@ -206,10 +206,11 @@ int tcp_options_to_string(struct packet *packet,
         		}
 
         		else if(option->length == TCPOLEN_MP_JOIN_SYN_ACK){
-        			fprintf(s, "mp_join_syn_ack flags: %u, address id: %u, sender hmac: %lu",
+        			fprintf(s, "mp_join_syn_ack flags: %u, address id: %u, sender hmac: %lu, sender random number: %u",
         					option->data.mp_join.syn.flags,
         					option->data.mp_join.syn.address_id,
-        					(unsigned long)option->data.mp_join.syn.ack.sender_hmac);
+        					(unsigned long)option->data.mp_join.syn.ack.sender_hmac,
+        					option->data.mp_join.syn.ack.sender_random_number);
         		}
 
         		else if(option->length == TCPOLEN_MP_JOIN_ACK){

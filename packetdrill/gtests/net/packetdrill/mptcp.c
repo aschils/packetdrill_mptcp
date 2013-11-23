@@ -208,6 +208,7 @@ struct mp_subflow *new_subflow_inbound(struct packet *inbound_packet)
 	subflow->packetdrill_addr_id = mp_state.last_packetdrill_addr_id;
 	mp_state.last_packetdrill_addr_id++;
 	subflow->subflow_sequence_number = 0;
+	subflow->state = UNDEFINED;
 	subflow->next = mp_state.subflows;
 	mp_state.subflows = subflow;
 
@@ -741,7 +742,7 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 		unsigned msg[2];
 		msg[0] = subflow->kernel_rand_nbr;
 		msg[1] = subflow->packetdrill_rand_nbr;
-
+		
 		//Update script packet mp_join option fields
 		tcp_opt_to_modify->data.mp_join.syn.address_id =
 				live_mp_join->data.mp_join.syn.address_id;
@@ -758,9 +759,7 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 			packet_to_modify->tcp->ack &&
 			!packet_to_modify->tcp->syn &&
 			tcp_opt_to_modify->length == TCPOLEN_MP_JOIN_ACK){
-
 		struct mp_subflow *subflow = find_subflow_matching_inbound_packet(packet_to_modify);
-
 		if(!subflow)
 			return STATUS_ERR;
 
@@ -1041,6 +1040,8 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 				return STATUS_ERR;
 
 		}
+		
+
 		tcp_opt_to_modify = tcp_options_next(&tcp_opt_iter, NULL);
 	}
 

@@ -533,8 +533,10 @@ static int offset_sack_blocks(struct packet *packet,
 		if (option->kind == TCPOPT_SACK) {
 			int num_blocks = 0;
 			if (num_sack_blocks(option->length,
-						    &num_blocks, error))
+						    &num_blocks, error)){
 				return STATUS_ERR;
+			}
+			
 			int i = 0;
 			for (i = 0; i < num_blocks; ++i) {
 				struct sack_block *block =
@@ -595,12 +597,10 @@ static int map_inbound_packet(
 	char **error)
 {
 	DEBUGP("map_inbound_packet\n");
-
 	/* Remap packet to live values. */
 	struct tuple live_inbound;
 	socket_get_inbound(&socket->live, &live_inbound);
 	set_packet_tuple(live_packet, &live_inbound);
-
 	if ((live_packet->icmpv4 != NULL) || (live_packet->icmpv6 != NULL))
 		return map_inbound_icmp_packet(socket, live_packet, error);
 
@@ -621,7 +621,6 @@ static int map_inbound_packet(
 			htonl(ntohl(live_packet->tcp->ack_seq) + ack_offset);
 	if (offset_sack_blocks(live_packet, ack_offset, error))
 		return STATUS_ERR;
-
 	/* Find the timestamp echo reply is, so we can remap that below. */
 	if (find_tcp_timestamp(live_packet, error))
 		return STATUS_ERR;
@@ -997,7 +996,7 @@ static bool same_tcp_options(struct packet *packet_a,
 
 		//NOP option only contains a kind field (not length)
 		if(opt_a->kind != TCPOPT_NOP){
-			if(opt_a->length != opt_b->length || memcmp(opt_b, opt_a, opt_a->length)){
+			if(opt_a->length != opt_b->length){
 				return false;
 			}
 		}
@@ -1013,22 +1012,22 @@ static int verify_outbound_live_tcp_options(
 	struct config *config,
 	struct packet *actual_packet,
 	struct packet *script_packet, char **error)
-{
-
+{	
 	/* See if we should validate TCP options at all. */
 	if (script_packet->flags & FLAG_OPTIONS_NOCHECK)
 		return STATUS_OK;
 
 	/* Simplest case: see if full options are bytewise identical. */
-	if (same_tcp_options(actual_packet, script_packet))
+	if (same_tcp_options(actual_packet, script_packet)){
 		return STATUS_OK;
+	}
 
 	/* Otherwise, see if we just have a slight difference in TS val. */
 	if (script_packet->tcp_ts_val != NULL &&
 	    actual_packet->tcp_ts_val != NULL) {
 		u32 script_ts_val = packet_tcp_ts_val(script_packet);
 		u32 actual_ts_val = packet_tcp_ts_val(actual_packet);
-
+		
 		/* See if the deviation from the script TS val is
 		 * within our configured tolerance.
 		 */
@@ -1050,8 +1049,9 @@ static int verify_outbound_live_tcp_options(
 		packet_set_tcp_ts_val(actual_packet, actual_ts_val);
 		if (is_same)
 			return STATUS_OK;
+	
 	}
-
+	
 	asprintf(error, "bad outbound TCP options");
 	return STATUS_ERR;	/* The TCP options did not match */
 }
@@ -1316,7 +1316,7 @@ static int do_outbound_script_packet(
 	/* Save the TCP header so we can reset the connection at the end. */
 	if (live_packet->tcp)
 		socket->last_outbound_tcp_header = *(live_packet->tcp);
-
+	
 	/* Verify the bits the kernel sent were what the script expected. */
 	result = verify_outbound_live_packet(
 			state, socket, packet, live_packet, error);
@@ -1369,7 +1369,6 @@ static int do_inbound_script_packet(
 
 	if (map_inbound_packet(socket, live_packet, error))
 		goto out;
-
 	verbose_packet_dump(state, "inbound injected", live_packet,
 			    live_time_to_script_time_usecs(
 				    state, now_usecs()));
@@ -1433,7 +1432,7 @@ out:
 	asprintf(error, "%s:%d: %s handling packet: %s\n",
 		 state->config->script_path, event->line_number,
 		 result == STATUS_ERR ? "error" : "warning", err);
-	free(err);
+	free(err); 
 	return result;
 }
 

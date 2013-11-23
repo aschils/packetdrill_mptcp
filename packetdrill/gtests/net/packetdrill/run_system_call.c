@@ -1057,7 +1057,6 @@ static int mp_join_accept(struct state *state, struct syscall_spec *syscall,
 	}
 
 	return STATUS_OK;
-
 }
 
 static int syscall_accept(struct state *state, struct syscall_spec *syscall,

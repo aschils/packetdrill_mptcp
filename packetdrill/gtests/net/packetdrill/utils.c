@@ -56,8 +56,8 @@ u64 hmac_sha1_truncat_64(const unsigned char *key,
 {
 	unsigned char hash[20];
 	hmac_sha1(key, key_length, data, data_length, hash);
-	u64 truncated = *((u64*)hash);
-	return truncated;
+	return *((u64*)hash);
+//	return truncated;
 }
 
 u32 sha1_least_32bits(u64 key)
