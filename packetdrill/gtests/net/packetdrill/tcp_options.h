@@ -145,7 +145,7 @@ struct tcp_option {
 		} __packed mp_capable;
 
 		struct {
-		//	union {
+			union {
 				struct {
 					#if defined(__LITTLE_ENDIAN_BITFIELD)
 					__u8    flags:4,
@@ -179,8 +179,8 @@ struct tcp_option {
 			//		u8 reserved_last_bits; //TODO find better solution
 					u32 sender_hmac[5];
 				} __packed no_syn;
-		//	}; 
-		} mp_join;
+			}; 
+		} __packed mp_join;
 
 		struct {
 			#if defined(__LITTLE_ENDIAN_BITFIELD)

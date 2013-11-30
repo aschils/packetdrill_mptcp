@@ -38,7 +38,7 @@ struct packet *packet_new(u32 buffer_bytes)
 }
 
 void packet_free(struct packet *packet)
-{
+{	
 	free(packet->buffer);
 	memset(packet, 0, sizeof(*packet));  /* paranoia to help catch bugs */
 	free(packet);

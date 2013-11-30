@@ -208,7 +208,7 @@ struct mp_subflow *new_subflow_inbound(struct packet *inbound_packet)
 	subflow->packetdrill_addr_id = mp_state.last_packetdrill_addr_id;
 	mp_state.last_packetdrill_addr_id++;
 	subflow->subflow_sequence_number = 0;
-	subflow->state = UNDEFINED;
+//	subflow->state = UNDEFINED;  // TODO to define it and change the state after
 	subflow->next = mp_state.subflows;
 	mp_state.subflows = subflow;
 
@@ -781,7 +781,6 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 				(char*)msg,
 				8,
 				(unsigned char*)sender_hmac);
-
 		memcpy(tcp_opt_to_modify->data.mp_join.no_syn.sender_hmac,
 			   sender_hmac,
 				20);

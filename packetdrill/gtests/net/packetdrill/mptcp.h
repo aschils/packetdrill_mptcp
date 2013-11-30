@@ -76,16 +76,23 @@
 struct mp_join_info {
 	union {
 		struct {
-		bool address_id_script_defined;
-		u8 address_id;
-		bool is_script_defined;
-		bool is_var;
-		char var[255];
-		char var2[255]; //TODO warning to input length
-		u64 hash;
-		bool rand_script_defined;
-		u32 rand;
+			bool address_id_script_defined;
+			u8 address_id;
+			bool is_script_defined;
+			bool is_var;
+			char var[255];
+			char var2[255]; //TODO warning to input length
+			u64 hash;
+			bool rand_script_defined;
+			u32 rand;
 		} syn_or_syn_ack;
+		struct {
+			bool is_script_defined; 
+			bool is_var;
+			char var[255];
+			char var2[255]; 
+			u32 hash[5];
+		} ack;
 	};
 };
 
@@ -116,7 +123,7 @@ struct mp_subflow {
 	unsigned kernel_rand_nbr;
 	unsigned packetdrill_rand_nbr;
 	u32 subflow_sequence_number;
-	u8 state; // undefined, pre_established or established
+//	u8 state; // undefined, pre_established or established
 	struct mp_subflow *next;
 };
 
