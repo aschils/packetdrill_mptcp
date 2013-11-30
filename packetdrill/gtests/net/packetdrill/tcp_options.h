@@ -145,7 +145,7 @@ struct tcp_option {
 		} __packed mp_capable;
 
 		struct {
-			union {
+		//	union {
 				struct {
 					#if defined(__LITTLE_ENDIAN_BITFIELD)
 					__u8    flags:4,
@@ -170,18 +170,16 @@ struct tcp_option {
 				} __packed syn;
 				struct {
 					#if defined(__LITTLE_ENDIAN_BITFIELD)
-					__u8    reserved_first_bits:4,
-					subtype:4;
+					__u16    reserved:12, subtype:4;
 					#elif defined(__BIG_ENDIAN_BITFIELD)
-					__u8    subtype:4,
-					reserved_first_bits:4;
+					__u16    subtype:4,	 reserved:12;
 					#else
 					#error "Adjust your <asm/byteorder.h> defines"
 					#endif
-					u8 reserved_last_bits; //TODO find better solution
+			//		u8 reserved_last_bits; //TODO find better solution
 					u32 sender_hmac[5];
 				} __packed no_syn;
-			};
+		//	}; 
 		} mp_join;
 
 		struct {

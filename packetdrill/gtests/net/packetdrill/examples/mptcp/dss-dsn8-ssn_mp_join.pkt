@@ -16,7 +16,7 @@
 +0  bind(10, {sa_family = AF_INET, sin_port = htons(13002), sin_addr = inet_addr("192.168.0.1")}, ...) = 0
 +0  listen(10, 1) = 0
 
-+0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable key_a> sock(3)
++0  < S 0:0(0) win 32792 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable key_a> sock(3)
 +0  > S. 0:0(0) ack 1 win 14400 <mss 1460,nop,nop,sackOK,nop,wscale 7,mp_capable key_b> sock(3)
 +0  < . 1:1(0) ack 1 win 257 <mp_capable key_a key_b> sock(3)
 +0  accept(3, ..., ...) = 4
@@ -36,16 +36,16 @@
 +0  < . 1:1(0) ack 1 win 32792 <mp_join_ack sender_hmac=full_160_hmac(key_a key_b)> sock(10)
 +0 mp_join_accept(10) = 11
 
-+0 > . 1:1(0) ack 1 <...> sock(11)
++0  > . 1:1(0) ack 1 <...> sock(11)
 
 
 
-/*
 // Send 1 data segment 
 +0  write(4, ..., 1000) = 1000 
-+0  > P. 1:1001(1000) ack 1 win 225  <dss dsn8 429496729 > sock(3)
++0  > P. 1:1001(1000) ack 1 win 450  <dss dsn8 4294967296 > sock(11)
 +.1 < . 1:1(0) ack 1001 win 257  
 
+/*s
 +0  write(4, ..., 1) = 1
 +0  > P. 1001:1002(1) ack 1 win 225 <dss dsn8 429496729> sock(5)
 +.1 < . 1:1(0) ack 1002 win 257 

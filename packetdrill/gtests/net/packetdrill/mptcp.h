@@ -64,6 +64,11 @@
 #define MP_JOIN_SYN_FLAGS_NO_BACKUP 0
 #define DSS_RESERVED 0
 
+//SUBFLOW states
+#define ESTABLISHED 1 //for Subflow state
+#define PRE_ESTABLISHED 0 //Subflow state
+#define UNDEFINED -1  // Subflow state
+
 //Variable types
 #define KEY 0
 #define SCRIPT_DEFINED 1
@@ -111,6 +116,7 @@ struct mp_subflow {
 	unsigned kernel_rand_nbr;
 	unsigned packetdrill_rand_nbr;
 	u32 subflow_sequence_number;
+	u8 state; // undefined, pre_established or established
 	struct mp_subflow *next;
 };
 
