@@ -61,31 +61,32 @@ struct sack_block {
 	u32 right;  /* right edge: 1st sequence number just past block */
 };
 
-/* part of mptcp dss structures */
+/* part of mptcp dss option structures */
 struct dack {
 	union {
-		u32 data_ack_4oct;
-		u64 data_ack_8oct;
+		u32 dack4;
+		u64 dack8;
 	};
 };
 
 struct dsn {
 	union {
-		u32 data_seq_nbr_4oct;
-		u64 data_seq_nbr_8oct;
+		u32 dsn4;
+		u64 dsn8;
 	};
 	union {
 		struct {
-			u32 subflow_seq_nbr;
-			u16 data_level_length;
+			u32 ssn; //subflow sequence number
+			u16 dll; //data level length
 		} wo_cs;
 		struct {
-			u32 subflow_seq_nbr;
-			u16 data_level_length;
+			u32 ssn; //subflow sequence number
+			u16 dll; //data level length, TODO endianness
 			u16 checksum;
 		} w_cs;
 	};
 };
+
 
 /* Represents a single TCP option in its wire format. Note that for
  * EOL and NOP options the length and data field are not included in
@@ -183,29 +184,43 @@ struct tcp_option {
 		} __packed mp_join;
 
 		struct {
+
 			#if defined(__LITTLE_ENDIAN_BITFIELD)
-			__u8    reserved_first_bits:4,
-			subtype:4;
-			__u8 flag_dack:1,
-			flag_dack8:1,
-			flag_dsn:1,
-			flag_dsn8:1,
-			flag_data_fin:1,
-			reserved_last_bits:3;
+			__u8    reserved_first_bits:4, subtype:4;
+			__u8 	flag_A:1, // Data ACK present
+					flag_a:1, // Data ACK is 8 octets (if not set,4 octets)
+					flag_M:1, // DSN, SSN, DLL, CHCK is set
+					flag_m:1, // Data sequence number is 8 octets (4 otherwie)
+					flag_F:1, // Data Fin is present
+					reserved_last_bits:3;
 			#elif defined(__BIG_ENDIAN_BITFIELD)
-			__u8    subtype:4,
-			reserved_first_bits:4;
+			__u8    subtype:4, reserved_first_bits:4;
 			__u8	reserved_last_bits:3,
 			//flags: 5;
-			flag_data_fin:1,
-			flag_dsn8:1,
-			flag_dsn:1,
-			flag_dack8:1,
-			flag_dack:1;
+					flag_F:1, // Data Fin is present
+					flag_m:1, // Data sequence number is 8 octets (4 otherwie)
+					flag_M:1, // DSN, SSN, DLL, CHCK is set
+					flag_a:1, // Data ACK is 8 octets (if not set,4 octets)
+					flag_A:1; // Data ACK present
 			#else
 			#error "Adjust your <asm/byteorder.h> defines"
 			#endif
 
+			/*		Data Sequence Signal (DSS) Option
+							1               2                3
+			0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+			+---------------+---------------+-------+----------------------+
+			|     Kind      |    Length     |Subtype| (reserved) |F|m|M|a|A|
+			+---------------+---------------+-------+----------------------+
+			|           Data ACK (4 or 8 octets, depending on flags)       |
+			+--------------------------------------------------------------+
+			|   Data sequence number (4 or 8 octets, depending on flags)   |
+			+--------------------------------------------------------------+
+			|              Subflow Sequence Number (4 octets)              |
+			+-------------------------------+------------------------------+
+			|  Data-Level Length (2 octets) |      Checksum (2 octets)     |
+			+-------------------------------+------------------------------+
+			*/
 			union {
 				struct dack dack;
 				struct dsn dsn;

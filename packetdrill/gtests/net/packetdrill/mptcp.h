@@ -29,6 +29,11 @@
 #define MP_JOIN_SUBTYPE 1
 #define DSS_SUBTYPE 2
 #define ADD_ADDR_SUBTYPE 3
+#define REMOVE_ADDR 4 // TODO
+#define MP_PRIO 5 // TODO, Change Subflow Priority
+#define MP_FAIL 6 // TODO
+#define MP_FASTCLOSE 7 // TODO
+
 
 /* MPTCP options subtypes length */
 //MP_CAPABLE
@@ -95,6 +100,8 @@ struct mp_join_info {
 		} ack;
 	};
 };
+
+
 
 //A script mptcp variable bring additional information from user script to
 //mptcp.c.

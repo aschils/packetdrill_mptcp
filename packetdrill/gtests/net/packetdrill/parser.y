@@ -571,6 +571,54 @@ struct tcp_option *mp_join_do_ack(char *str, char *str2){
 	return opt;
 }
 
+struct tcp_option *dss_do_auto(bool no_checksum, bool fin_flag){
+	struct tcp_option *opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN8);
+	//flag_data_fin:1,flag_dsn8:1,flag_dsn:1,flag_dack8:1,flag_dack:1; F|m|M|a|A
+	
+	opt->data.dss.flag_M = (char)1;
+	opt->data.dss.flag_m = (char)1;
+	opt->data.dss.flag_A = (char)0;
+	opt->data.dss.flag_a = (char)0;
+	opt->data.dss.flag_F = (char)fin_flag;
+	opt->data.dss.subtype = DSS_SUBTYPE;
+	opt->data.dss.reserved_first_bits = DSS_RESERVED;
+	opt->data.dss.reserved_last_bits = DSS_RESERVED;
+	opt->data.mp_capable.subtype = DSS_SUBTYPE;
+	return opt;
+}
+struct tcp_option *dss_do_dsn_only(int type, int val, bool no_checksum, bool fin_flag){
+// TODO
+
+	return NULL;
+}
+
+
+struct tcp_option *dss_do_dack_only(int type, int val, bool fin_flag){
+	struct tcp_option *opt = NULL;
+	if(type==4){
+		opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4);
+	}else{
+		opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8);
+	}
+	opt->data.dss.flag_M = 0;
+	opt->data.dss.flag_m = (type==8);
+	opt->data.dss.flag_A = 1;
+	opt->data.dss.flag_a = 0;
+	opt->data.dss.flag_F = fin_flag;
+	opt->data.dss.subtype = DSS_SUBTYPE;
+	opt->data.dss.reserved_first_bits = DSS_RESERVED;
+	opt->data.dss.reserved_last_bits = DSS_RESERVED;
+	opt->data.mp_capable.subtype = DSS_SUBTYPE;
+	return opt;
+}
+
+struct tcp_option *dss_do_dsn_dack(int dsn_type, int dsn_val, int dack_type, 
+							int dack_val, bool no_checksum, bool fin_flag){
+// TODO
+	return NULL;
+}
+		
+		
 
 %}
 
@@ -1036,7 +1084,8 @@ tcp_fast_open_cookie
 
 //TODO bison guru can refactor this
 dsn
-: {$$.type = -1;}
+: {$$.type = -1;
+   $$.val = -1;}
 | DSN4 INTEGER {
 	$$.type = 4;
 	$$.val = $2;
@@ -1274,20 +1323,23 @@ tcp_option
 
 | MP_JOIN_ACK sender_hmac{
 	$$ = mp_join_do_ack($2.str, $2.str2);
-	/*
-	$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_MP_JOIN_ACK);
-	$$->data.mp_join.no_syn.reserved = 0;
-	$$->data.mp_join.no_syn.subtype = MP_JOIN_SUBTYPE; 
-//	$$->data.mp_capable.subtype = MP_JOIN_SUBTYPE;
-	*/
 }
 
 | DSS dsn dack dss_no_checksum fin {
-	//TODO find a way to refactor to have cleaner code
-	//Check input correctness	
-	if($2.type == -1 && $3.type == -1 )
-		semantic_error("MPTCP DSS should contain at least a data ack or a data sequence number.");
 	
+	if($2.type == -1 && $3.type == -1 )
+		$$ = dss_do_auto($4, $5);
+	else if($2.type == -1 && $3.type != -1)
+		$$ = dss_do_dack_only($3.type, $3.dack, $5);
+	else if($2.type != -1 && $3.type == -1)
+		$$ = dss_do_dsn_only($3.type, $3.dack, $4, $5);
+	else if($2.type != -1 && $3.type != -1)
+		$$ = dss_do_dsn_dack($2.type, $2.val, $3.type, $3.dack, $4, $5);
+	
+	/*
+	
+
+	// If dsn is defined
 	if($2.type != -1){
 		if($2.type == 4){
 			if(!is_valid_u32($2.val))
@@ -1301,6 +1353,7 @@ tcp_option
 		}
 	}
 	
+	// If dack is defined
 	if($3.type != -1){
 		if($3.type == 4){
 			if(!is_valid_u32($3.dack))
@@ -1347,19 +1400,22 @@ tcp_option
 	}
 	
 	$$ = tcp_option_new(TCPOPT_MPTCP, mptcp_opt_length);
-	$$->data.dss.flag_dsn = dsn;
-	$$->data.dss.flag_dsn8 = dsn8;
-	$$->data.dss.flag_dack = dack;
-	$$->data.dss.flag_dack8 = dack8;
+	//flag_data_fin:1,flag_dsn8:1,flag_dsn:1,flag_dack8:1,flag_dack:1; F|m|M|a|A
+	
+	$$->data.dss.flag_M = dsn;
+	$$->data.dss.flag_m = dsn8;
+	$$->data.dss.flag_A = dack;
+	$$->data.dss.flag_a = dack8;
 	$$->data.dss.subtype = DSS_SUBTYPE;
-	$$->data.dss.reserved_first_bits = DSS_RESERVED;
-	$$->data.dss.reserved_last_bits = DSS_RESERVED;
-	if($5){
-		$$->data.dss.flag_data_fin = 1;
-	}
-	else{
-		$$->data.dss.flag_data_fin = 0;
-	}
+	$$->data.mp_capable.subtype = DSS_SUBTYPE;
+	
+	$$->data.dss.reserved = DSS_RESERVED;
+	
+	if($5)
+		$$->data.dss.flag_F = 1;
+	else
+		$$->data.dss.flag_F = 0;
+	
 
 	//Save script dsn value
 	if($2.type != -1){
@@ -1392,6 +1448,7 @@ tcp_option
 				$$->data.dss.dack_dsn.dack.data_ack_8oct = $3.dack;
 		}
 	}
+	*/
 	
 }
 ;

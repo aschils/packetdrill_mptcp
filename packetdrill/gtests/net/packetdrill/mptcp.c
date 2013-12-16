@@ -888,13 +888,13 @@ int mptcp_subtype_dss(struct packet *packet_to_modify,
 						struct packet *live_packet,
 						struct tcp_option *tcp_opt_to_modify,
 						unsigned direction){
-
 	if(direction == DIRECTION_INBOUND){
 
-		if(tcp_opt_to_modify->data.dss.flag_dsn &&
+		if(tcp_opt_to_modify->data.dss.flag_M &&
 				tcp_opt_to_modify->length == TCPOLEN_DSS_DSN8){
+			printf("Handle inbound packet, dsn: %llu \n", tcp_opt_to_modify->data.dss.dsn.dsn8);
 
-			//Computer tcp payload length
+			//Compute tcp payload length
 			u16 packet_total_length = packet_to_modify->ip_bytes;
 			u16 tcp_header_length = packet_to_modify->tcp->doff*4;
 			u16 ip_header_length = packet_to_modify->ipv4->ihl*8;
@@ -903,16 +903,16 @@ int mptcp_subtype_dss(struct packet *packet_to_modify,
 					(tcp_header_length-tcp_header_wo_options);
 
 			//Set dsn being value specified in script + initial dsn
-			tcp_opt_to_modify->data.dss.dsn.data_seq_nbr_8oct =
+			tcp_opt_to_modify->data.dss.dsn.dsn8 =
 					htobe64(mp_state.initial_dsn+
-							tcp_opt_to_modify->data.dss.dsn.data_seq_nbr_8oct);
+							tcp_opt_to_modify->data.dss.dsn.dsn8);
 
-			tcp_opt_to_modify->data.dss.dsn.w_cs.data_level_length =
+			tcp_opt_to_modify->data.dss.dsn.w_cs.dll =
 					htons(tcp_payload_length);
 
 			struct mp_subflow *subflow =
 					find_subflow_matching_inbound_packet(packet_to_modify);
-			tcp_opt_to_modify->data.dss.dsn.w_cs.subflow_seq_nbr =
+			tcp_opt_to_modify->data.dss.dsn.w_cs.ssn =
 					htonl(subflow->subflow_sequence_number);
 			subflow->subflow_sequence_number += tcp_payload_length;
 
@@ -924,11 +924,11 @@ int mptcp_subtype_dss(struct packet *packet_to_modify,
 			} buffer_checksum;
 
 			//Compute checksum
-			buffer_checksum.dsn = tcp_opt_to_modify->data.dss.dsn.data_seq_nbr_8oct;
+			buffer_checksum.dsn = tcp_opt_to_modify->data.dss.dsn.dsn8;
 			buffer_checksum.ssn =
-					tcp_opt_to_modify->data.dss.dsn.w_cs.subflow_seq_nbr;
+					tcp_opt_to_modify->data.dss.dsn.w_cs.ssn;
 			buffer_checksum.dll =
-					tcp_opt_to_modify->data.dss.dsn.w_cs.data_level_length;
+					tcp_opt_to_modify->data.dss.dsn.w_cs.dll;
 			buffer_checksum.zeros = 0;
 			//tcp_opt_to_modify->data.dss.dsn.w_cs.checksum =
 			//		checksum((u16*)&buffer_checksum, sizeof(buffer_checksum));
@@ -938,8 +938,8 @@ int mptcp_subtype_dss(struct packet *packet_to_modify,
 					checksum((u16*)&buffer_checksum, sizeof(buffer_checksum));
 			printf("checksum %u\n",tcp_opt_to_modify->data.dss.dsn.w_cs.checksum);
 		}
-
-		else if(tcp_opt_to_modify->data.dss.flag_dsn &&
+		// DSN flag present without checksum
+		else if(tcp_opt_to_modify->data.dss.flag_M &&
 				tcp_opt_to_modify->length == TCPOLEN_DSS_DSN8_WOCS){
 			//Computer tcp payload length
 			u16 packet_total_length = packet_to_modify->ip_bytes;
@@ -952,31 +952,62 @@ int mptcp_subtype_dss(struct packet *packet_to_modify,
 			//Set dsn being value specified in script + initial dsn
 
 			//works for payload length = 0 or 1
-			tcp_opt_to_modify->data.dss.dsn.data_seq_nbr_8oct =
+			tcp_opt_to_modify->data.dss.dsn.dsn8 =
 								htobe64(mp_state.initial_dsn+
-										tcp_opt_to_modify->data.dss.dsn.data_seq_nbr_8oct+1);
+										tcp_opt_to_modify->data.dss.dsn.dsn8+1);
 
-			tcp_opt_to_modify->data.dss.dsn.wo_cs.data_level_length =
+			tcp_opt_to_modify->data.dss.dsn.wo_cs.dll =
 					htons(tcp_payload_length);
 
 			struct mp_subflow *subflow =
 					find_subflow_matching_inbound_packet(packet_to_modify);
-			tcp_opt_to_modify->data.dss.dsn.wo_cs.subflow_seq_nbr =
+			tcp_opt_to_modify->data.dss.dsn.wo_cs.ssn =
 					htonl(subflow->subflow_sequence_number);
 			subflow->subflow_sequence_number += tcp_payload_length;
-
 		}
-
-		if(tcp_opt_to_modify->data.dss.flag_dack){
+		// DACK flag present
+		if(tcp_opt_to_modify->data.dss.flag_A){
 			//TODO set DACK when receiving DSS packets
-			tcp_opt_to_modify->data.dss.dack.data_ack_8oct =
+			if(tcp_opt_to_modify->data.dss.flag_a){
+				tcp_opt_to_modify->data.dss.dack.dack8 =
 					htobe64(mp_state.initial_dack +  //CPAASCH htobe64?
-					tcp_opt_to_modify->data.dss.dack.data_ack_8oct); //Which initial value for mp_state.initial_dack? received dsn + received payload length
+					tcp_opt_to_modify->data.dss.dack.dack8); //Which initial value for mp_state.initial_dack? received dsn + received payload length
 			//CPAASCH comment gérer le mélange entre dack et dsn 32 et 64 bits?
+			}else{
+				tcp_opt_to_modify->data.dss.dack.dack4 =
+						htobe64(mp_state.initial_dack +  //CPAASCH htobe64?
+						tcp_opt_to_modify->data.dss.dack.dack4);
+			}
 		}
 	}
 
 	else if(direction == DIRECTION_OUTBOUND){
+		if(tcp_opt_to_modify->data.dss.flag_M &&
+						tcp_opt_to_modify->length == TCPOLEN_DSS_DSN8){
+
+			//Computer tcp payload length
+			u16 packet_total_length = packet_to_modify->ip_bytes;
+			u16 tcp_header_length = packet_to_modify->tcp->doff*4;
+			u16 ip_header_length = packet_to_modify->ipv4->ihl*8;
+			u16 tcp_header_wo_options = 20;
+			u16 tcp_payload_length = packet_total_length-ip_header_length-
+					(tcp_header_length-tcp_header_wo_options);
+
+			//Set dsn being value specified in script + initial dsn
+			tcp_opt_to_modify->data.dss.dsn.dsn8 =
+					htobe64(mp_state.initial_dsn+
+							tcp_opt_to_modify->data.dss.dsn.dsn8);
+
+			tcp_opt_to_modify->data.dss.dsn.w_cs.dll =
+					htons(tcp_payload_length);
+
+			struct mp_subflow *subflow =
+					find_subflow_matching_outbound_packet(live_packet);
+			tcp_opt_to_modify->data.dss.dsn.w_cs.ssn =
+					htonl(subflow->subflow_sequence_number);
+		}else{
+			printf("Handle outbound packet, wrong one, -> nog te doen\n");
+		}
 
 	}
 
@@ -1007,7 +1038,6 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 	while(tcp_opt_to_modify != NULL){
 
 		if(tcp_opt_to_modify->kind == TCPOPT_MPTCP){
-
 			switch(tcp_opt_to_modify->data.mp_capable.subtype){
 
 			case MP_CAPABLE_SUBTYPE:
@@ -1040,7 +1070,6 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 
 		}
 		
-
 		tcp_opt_to_modify = tcp_options_next(&tcp_opt_iter, NULL);
 	}
 
