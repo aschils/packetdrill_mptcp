@@ -576,20 +576,47 @@ struct tcp_option *dss_do_auto(bool no_checksum, bool fin_flag){
 	//flag_data_fin:1,flag_dsn8:1,flag_dsn:1,flag_dack8:1,flag_dack:1; F|m|M|a|A
 	
 	opt->data.dss.flag_M = (char)1;
-	opt->data.dss.flag_m = (char)1;
+	opt->data.dss.flag_m = (char)0;
 	opt->data.dss.flag_A = (char)0;
 	opt->data.dss.flag_a = (char)0;
 	opt->data.dss.flag_F = (char)fin_flag;
 	opt->data.dss.subtype = DSS_SUBTYPE;
+	opt->data.mp_capable.subtype = DSS_SUBTYPE;
 	opt->data.dss.reserved_first_bits = DSS_RESERVED;
 	opt->data.dss.reserved_last_bits = DSS_RESERVED;
-	opt->data.mp_capable.subtype = DSS_SUBTYPE;
 	return opt;
 }
-struct tcp_option *dss_do_dsn_only(int type, int val, bool no_checksum, bool fin_flag){
-// TODO
 
-	return NULL;
+struct tcp_option *dss_do_dsn_only(int type, int val, bool no_checksum, bool fin_flag){
+	struct tcp_option *opt;
+	if(type==4){
+		if(no_checksum){
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN4_WOCS);
+		}else{
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN4);
+		}
+		opt->data.dss.dsn.dsn4 = val;
+	}else{
+		if(no_checksum){
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN8_WOCS);
+		}else{
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN8);
+		}
+		opt->data.dss.dsn.dsn8 = val;
+	}
+	//flag_data_fin:1,flag_dsn8:1,flag_dsn:1,flag_dack8:1,flag_dack:1; F|m|M|a|A
+	
+	opt->data.dss.flag_M = 1;
+	opt->data.dss.flag_m = (type==8);
+	opt->data.dss.flag_A = 0;
+	opt->data.dss.flag_a = 0;
+	opt->data.dss.flag_F = fin_flag;
+	opt->data.dss.subtype = DSS_SUBTYPE;
+	opt->data.mp_capable.subtype = DSS_SUBTYPE;
+	opt->data.dss.reserved_first_bits = DSS_RESERVED;
+	opt->data.dss.reserved_last_bits = DSS_RESERVED;
+
+	return opt;
 }
 
 
@@ -597,13 +624,15 @@ struct tcp_option *dss_do_dack_only(int type, int val, bool fin_flag){
 	struct tcp_option *opt = NULL;
 	if(type==4){
 		opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4);
+		opt->data.dss.dack.dack4 = val;
 	}else{
 		opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8);
+		opt->data.dss.dack.dack8 = val;
 	}
 	opt->data.dss.flag_M = 0;
-	opt->data.dss.flag_m = (type==8);
+	opt->data.dss.flag_m = 0;
 	opt->data.dss.flag_A = 1;
-	opt->data.dss.flag_a = 0;
+	opt->data.dss.flag_a = (type==8);
 	opt->data.dss.flag_F = fin_flag;
 	opt->data.dss.subtype = DSS_SUBTYPE;
 	opt->data.dss.reserved_first_bits = DSS_RESERVED;
@@ -1082,30 +1111,20 @@ tcp_fast_open_cookie
 | INTEGER { $$ = strdup(yytext); }
 ;
 
-//TODO bison guru can refactor this
 dsn
-: {$$.type = -1;
-   $$.val = -1;}
-| DSN4 INTEGER {
-	$$.type = 4;
-	$$.val = $2;
-}
-| DSN8 INTEGER {
-	$$.type = 8;
-	$$.val = $2;
-}
+: 				{	$$.type = -1;   $$.val = -1;}
+| DSN4 INTEGER 	{ 	$$.type = 4;	$$.val = $2;}
+| DSN4 			{	$$.type = 4;	$$.val = -1;}
+| DSN8 INTEGER 	{	$$.type = 8;	$$.val = $2;}
+| DSN8 			{	$$.type = 8;	$$.val = -1;}
 ;
 
 dack
-: {$$.type = -1;}
-| DACK4 INTEGER {
-	$$.type = 4;
-	$$.dack = $2;
-}
-| DACK8 INTEGER {
-	$$.type = 8;
-	$$.dack = $2;
-}
+: 				{	$$.type = -1;	$$.dack = -1;}
+| DACK4 INTEGER {	$$.type = 4;	$$.dack = $2;}
+| DACK4 		{	$$.type = 4;	$$.dack = -1;}
+| DACK8 INTEGER {	$$.type = 8;	$$.dack = $2;}
+| DACK8  		{	$$.type = 8;	$$.dack = -1;}
 ;
 
 mptcp_var_or_empty
@@ -1328,127 +1347,13 @@ tcp_option
 | DSS dsn dack dss_no_checksum fin {
 	
 	if($2.type == -1 && $3.type == -1 )
-		$$ = dss_do_auto($4, $5);
+		$$ = dss_do_auto($4, $5); // TODO
 	else if($2.type == -1 && $3.type != -1)
-		$$ = dss_do_dack_only($3.type, $3.dack, $5);
+		$$ = dss_do_dack_only($3.type, $3.dack, $5);  	// En cours
 	else if($2.type != -1 && $3.type == -1)
-		$$ = dss_do_dsn_only($3.type, $3.dack, $4, $5);
-	else if($2.type != -1 && $3.type != -1)
-		$$ = dss_do_dsn_dack($2.type, $2.val, $3.type, $3.dack, $4, $5);
-	
-	/*
-	
-
-	// If dsn is defined
-	if($2.type != -1){
-		if($2.type == 4){
-			if(!is_valid_u32($2.val))
-				semantic_error("DSS DSN4 out of range.");
-		}
-		else if($2.type == 8){
-			if(!is_valid_u64($2.val))
-				semantic_error("DSS DSN8 out of range.");
-		}else{
-			semantic_error("Unexpected DSS DSN type.");
-		}
-	}
-	
-	// If dack is defined
-	if($3.type != -1){
-		if($3.type == 4){
-			if(!is_valid_u32($3.dack))
-				semantic_error("DSS DACK4 out of range.");				
-		}
-		else if($3.type == 8){
-			if(!is_valid_u64($3.dack))
-				semantic_error("DSS DACK8 out of range.");
-		}
-		else{
-			semantic_error("Unexpected DSS DACK type.");
-		}
-	}
-	
-	u32 mptcp_opt_length = 4;
-	
-	//flags
-	u8 dsn = 0;
-	u8 dsn8 = 0;
-	u8 dack = 0;
-	u8 dack8 = 0;
-	
-	if($2.type != -1){
-		dsn = 1;
-		mptcp_opt_length += 10;
-		
-		if($2.type == 8){
-			dsn8 = 1;
-			mptcp_opt_length += 4;
-		}
-		if(!$4)
-			mptcp_opt_length += 2;
-	}else{
-		semantic_error("DSN is not defined");
-	}
-	
-	if($3.type != -1){
-		dack = 1;
-		mptcp_opt_length += 4;
-		if($3.type == 8){
-			dack8 = 1;
-			mptcp_opt_length += 4;
-		}
-	}
-	
-	$$ = tcp_option_new(TCPOPT_MPTCP, mptcp_opt_length);
-	//flag_data_fin:1,flag_dsn8:1,flag_dsn:1,flag_dack8:1,flag_dack:1; F|m|M|a|A
-	
-	$$->data.dss.flag_M = dsn;
-	$$->data.dss.flag_m = dsn8;
-	$$->data.dss.flag_A = dack;
-	$$->data.dss.flag_a = dack8;
-	$$->data.dss.subtype = DSS_SUBTYPE;
-	$$->data.mp_capable.subtype = DSS_SUBTYPE;
-	
-	$$->data.dss.reserved = DSS_RESERVED;
-	
-	if($5)
-		$$->data.dss.flag_F = 1;
-	else
-		$$->data.dss.flag_F = 0;
-	
-
-	//Save script dsn value
-	if($2.type != -1){
-		if($3.type == -1){
-			if($2.type == 4)
-				$$->data.dss.dsn.data_seq_nbr_4oct = $2.val;
-			else if($2.type == 8)
-				$$->data.dss.dsn.data_seq_nbr_8oct = $2.val;
-		}
-		else if($3.type != -1){
-			if($2.type == 4)
-				$$->data.dss.dack_dsn.dsn.data_seq_nbr_4oct = $2.val;
-			else if($2.type == 8)
-				$$->data.dss.dack_dsn.dsn.data_seq_nbr_8oct = $2.val;
-		}
-	}
-	
-	//Save script dack value
-	if($3.type != -1){
-		if($2.type == -1){
-			if($3.type == 4)
-				$$->data.dss.dack.data_ack_4oct = $3.dack;
-			else if($3.type == 8)
-				$$->data.dss.dack.data_ack_8oct = $3.dack;
-		}
-		else if($2.type != -1){
-			if($3.type == 4)
-				$$->data.dss.dack_dsn.dack.data_ack_4oct = $3.dack;
-			else if($3.type == 8)
-				$$->data.dss.dack_dsn.dack.data_ack_8oct = $3.dack;
-		}
-	}
-	*/
+		$$ = dss_do_dsn_only($2.type, $2.val, $4, $5); 	// En cours
+	else if($2.type != -1 && $3.type != -1) 
+		$$ = dss_do_dsn_dack($2.type, $2.val, $3.type, $3.dack, $4, $5); // TODO
 	
 }
 ;

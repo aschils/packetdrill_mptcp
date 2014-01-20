@@ -129,7 +129,7 @@ struct mp_subflow {
 	u8 kernel_addr_id;
 	unsigned kernel_rand_nbr;
 	unsigned packetdrill_rand_nbr;
-	u32 subflow_sequence_number;
+	u32 ssn;
 //	u8 state; // undefined, pre_established or established
 	struct mp_subflow *next;
 };
@@ -160,15 +160,16 @@ struct mp_state_s {
 
     unsigned last_packetdrill_addr_id;
 
-    u64 initial_dack;
-    u64 initial_dsn;
+    u64 remote_idsn; 	// least 64 bits of Hash(kernel_key)
+    u64 idsn;			// least 64 bits of Hash(packetdrill_key)
+    u64 nb_pkt_rcvd;	// number of packets already received from kernel
 };
 
 typedef struct mp_state_s mp_state_t;
 
 mp_state_t mp_state;
 
-void init_mp_state();
+void init_mp_state(); //TODO init the initiail_dsn to -1
 
 void free_mp_state();
 
