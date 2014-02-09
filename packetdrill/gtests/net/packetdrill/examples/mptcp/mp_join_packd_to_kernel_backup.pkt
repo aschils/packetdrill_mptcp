@@ -21,8 +21,8 @@
 +0  accept(3, ..., ...) = 4
 
 //First subflow
-+0  < S 0:0(0) win 32792 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_join_syn_backup> sock(5)
-+0  > S. 0:0(0) ack 1 win 14400 <mss 1460,nop,nop,sackOK,nop,wscale 7,mp_join_syn_ack> sock(5)
++0  < S 0:0(0) win 32792 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_join_syn backup=1> sock(5)
++0  > S. 0:0(0) ack 1 win 14400 <mss 1460,nop,nop,sackOK,nop,wscale 7,mp_join_syn_ack > sock(5)
 +0  < . 1:1(0) ack 1 win 32792 <mss 1460,nop,nop,sackOK,nop,wscale 7,mp_join_ack> sock(5)
 +0 mp_join_accept(5) = 6
 

@@ -56,7 +56,8 @@ u64 hmac_sha1_truncat_64(const unsigned char *key,
 {
 	unsigned char hash[20];
 	hmac_sha1(key, key_length, data, data_length, hash);
-	return (u64)be64toh(*((u64*)hash));
+	return *((u64*)hash);
+//	return truncated;
 }
 
 u32 sha1_least_32bits(u64 key)
@@ -64,7 +65,7 @@ u32 sha1_least_32bits(u64 key)
 	key64 key_arr = get_barray_from_key64(key);
 	u8 hash[SHA_DIGEST_LENGTH];
 	hash_key_sha1(hash, key_arr);
-	return  (u32)be32toh(*((u32*)&hash[16])); // ntohl(*((u32*)hash));
+	return (u32)be32toh(*((u32*)hash)); // = ntohl
 }
 
 u64 sha1_least_64bits(u64 key)

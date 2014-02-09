@@ -10,7 +10,7 @@
 //syn and ack packets with mp_capable a=34. Same apply for kernel key, which
 //can also be defined here by user.
 +0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable a=12>
-+0  > S. 0:0(0) ack 1 win 14400 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
++0  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
 +0.1  < . 1:1(0) ack 1 win 257 <mp_capable a=34 b>
 
 +0  accept(3, ..., ...) = 4
