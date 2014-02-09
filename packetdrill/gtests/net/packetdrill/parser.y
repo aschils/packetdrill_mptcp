@@ -629,15 +629,15 @@ struct tcp_option *dss_do_dack_only(int type, int val, bool fin_flag){
 		opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8);
 		opt->data.dss.dack.dack8 = val;
 	}
-	opt->data.dss.flag_M = 0;
-	opt->data.dss.flag_m = 0;
-	opt->data.dss.flag_A = 1;
-	opt->data.dss.flag_a = (type==8);
-	opt->data.dss.flag_F = fin_flag;
-	opt->data.dss.subtype = DSS_SUBTYPE;
-	opt->data.dss.reserved_first_bits = DSS_RESERVED;
-	opt->data.dss.reserved_last_bits = DSS_RESERVED;
-	opt->data.mp_capable.subtype = DSS_SUBTYPE;
+	opt->data.dss.flag_M 	= 0;
+	opt->data.dss.flag_m 	= 0;
+	opt->data.dss.flag_A 	= 1;
+	opt->data.dss.flag_a 	= (type==8);
+	opt->data.dss.flag_F 	= fin_flag;
+	opt->data.dss.subtype 	= DSS_SUBTYPE;
+	opt->data.dss.reserved_first_bits 	= DSS_RESERVED;
+	opt->data.dss.reserved_last_bits 	= DSS_RESERVED;
+	opt->data.mp_capable.subtype 		= DSS_SUBTYPE;
 	return opt;
 }
 
@@ -717,8 +717,8 @@ struct tcp_option *dss_do_dsn_dack(int dsn_type, int dsn_val, int dack_type,
 %token <reserved> ACK ECR EOL MSS NOP SACK SACKOK TIMESTAMP VAL WIN WSCALE PRO SOCK
 %token <reserved> MP_CAPABLE MP_CAPABLE_NO_CS
 %token <reserved> MP_JOIN_SYN MP_JOIN_SYN_BACKUP MP_JOIN_SYN_ACK_BACKUP MP_JOIN_ACK MP_JOIN_SYN_ACK
-%token <reserved> DSS DACK4 DSN4 DACK8 DSN8 FIN NOCS ADDRESS_ID BACKUP TOKEN AUTO RAND SHA1_32
-%token <reserved> SENDER_HMAC TRUNC_L64_HMAC FULL_160_HMAC
+%token <reserved> DSS DACK4 DSN4 DACK8 DSN8 FIN NOCS ADDRESS_ID BACKUP TOKEN AUTO RAND TRUNC_R64_HMAC
+%token <reserved> SENDER_HMAC TRUNC_L64_HMAC FULL_160_HMAC SHA1_32
 %token <reserved> FAST_OPEN
 %token <reserved> ECT0 ECT1 CE ECT01 NO_ECN
 %token <reserved> ICMP UDP MTU
@@ -1112,19 +1112,41 @@ tcp_fast_open_cookie
 ;
 
 dsn
-: 				{	$$.type = -1;   $$.val = -1;}
-| DSN4 INTEGER 	{ 	$$.type = 4;	$$.val = $2;}
-| DSN4 			{	$$.type = 4;	$$.val = -1;}
-| DSN8 INTEGER 	{	$$.type = 8;	$$.val = $2;}
-| DSN8 			{	$$.type = 8;	$$.val = -1;}
+: 				{	$$.type = UNDEFINED;   $$.val = UNDEFINED;}
+| DSN4 '=' INTEGER 	{ 	$$.type = 4;	$$.val = $3;}
+| DSN4 '=' TRUNC_R64_HMAC '('  INTEGER ')'	
+	{
+		if(!is_valid_u64($5))
+			semantic_error("mptcp trunc_r64_hmac is not a valid u64.");
+		$$.type = 4;	
+		$$.val = $5;
+	}
+
+| DSN4 			{	$$.type = 4;	$$.val = UNDEFINED;}
+| DSN8 '=' INTEGER 	{	$$.type = 8;	$$.val = $3;}
+| DSN8 			{	$$.type = 8;	$$.val = UNDEFINED;}
 ;
 
 dack
-: 				{	$$.type = -1;	$$.dack = -1;}
-| DACK4 INTEGER {	$$.type = 4;	$$.dack = $2;}
-| DACK4 		{	$$.type = 4;	$$.dack = -1;}
-| DACK8 INTEGER {	$$.type = 8;	$$.dack = $2;}
-| DACK8  		{	$$.type = 8;	$$.dack = -1;}
+: 					{	$$.type = UNDEFINED;	$$.dack = UNDEFINED;}
+| DACK4 '=' INTEGER {	$$.type = 4;	$$.dack = $3;}
+| DACK4 			{	$$.type = 4;	$$.dack = UNDEFINED;}
+| DACK4 '=' TRUNC_R64_HMAC '(' INTEGER ')'	{
+	if(!is_valid_u64($5))
+		semantic_error("mptcp trunc_r64_hmac is not a valid u64. XXX");
+	$$.type = 4;
+	$$.dack = sha1_least_64bits($5);
+}
+| DACK4 '=' TRUNC_R64_HMAC '('  WORD ')' 	{
+	$$.type = 4;
+	$$.dack = SCRIPT_DEFINED; // to be added using the variable name
+	if(queue_enqueue(&mp_state.vars_queue, $5)==STATUS_ERR)
+		semantic_error("Too many variables are used in script"); 
+	printf("variable %s added\n", $5);
+		
+}
+| DACK8 '=' INTEGER {	$$.type = 8;	$$.dack = $3;}
+| DACK8  		{	$$.type = 8;	$$.dack = UNDEFINED;}
 ;
 
 mptcp_var_or_empty
@@ -1349,9 +1371,9 @@ tcp_option
 	if($2.type == -1 && $3.type == -1 )
 		$$ = dss_do_auto($4, $5); // TODO
 	else if($2.type == -1 && $3.type != -1)
-		$$ = dss_do_dack_only($3.type, $3.dack, $5);  	// En cours
+		$$ = dss_do_dack_only($3.type, $3.dack, $5);  	// XXX
 	else if($2.type != -1 && $3.type == -1)
-		$$ = dss_do_dsn_only($2.type, $2.val, $4, $5); 	// En cours
+		$$ = dss_do_dsn_only($2.type, $2.val, $4, $5); 	// TODO
 	else if($2.type != -1 && $3.type != -1) 
 		$$ = dss_do_dsn_dack($2.type, $2.val, $3.type, $3.dack, $4, $5); // TODO
 	

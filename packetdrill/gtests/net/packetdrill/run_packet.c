@@ -176,9 +176,8 @@ struct socket *find_socket_matching_packet_script_fd(
 		const struct packet *packet)
 {
 
-	if(packet->socket_script_fd == SOCKET_FD_NOT_DEFINED){
+	if(packet->socket_script_fd == SOCKET_FD_NOT_DEFINED)
 		return state->sockets;
-	}
 
 	return find_socket_matching_packet(state, packet,
 			is_equals_script_fd_socket_and_packet);
@@ -828,8 +827,10 @@ static int verify_outbound_live_ipv4(
 			(ntohs(script_packet->ipv4->tot_len) +
 			 tcp_options_allowance(actual_packet,
 					       script_packet)),
-			ntohs(actual_packet->ipv4->tot_len), error))
+			ntohs(actual_packet->ipv4->tot_len), error)){
+		printf("[run_packet.c 832]Error detected 832 \n");
 		return STATUS_ERR;
+	}
 
 	if (verify_outbound_live_ecn(script_packet->ecn,
 				     ipv4_ecn_bits(actual_packet->ipv4),

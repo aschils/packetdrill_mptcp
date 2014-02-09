@@ -39,6 +39,7 @@
 //MP_CAPABLE
 #define TCPOLEN_MP_CAPABLE_SYN 12 /* Size of the first and second steps of the three way handshake. */
 #define TCPOLEN_MP_CAPABLE 20 /* Size of the third step of the three way handshake. */
+#define TCPOLEN_MP_CAPABLE_DACK 28 /* Third packet with first DSS packet */
 //MP_JOIN
 #define TCPOLEN_MP_JOIN_SYN 12
 #define TCPOLEN_MP_JOIN_SYN_ACK 16

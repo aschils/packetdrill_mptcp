@@ -56,8 +56,7 @@ u64 hmac_sha1_truncat_64(const unsigned char *key,
 {
 	unsigned char hash[20];
 	hmac_sha1(key, key_length, data, data_length, hash);
-	return *((u64*)hash);
-//	return truncated;
+	return (u64)be64toh(*((u64*)hash));
 }
 
 u32 sha1_least_32bits(u64 key)
@@ -65,7 +64,7 @@ u32 sha1_least_32bits(u64 key)
 	key64 key_arr = get_barray_from_key64(key);
 	u8 hash[SHA_DIGEST_LENGTH];
 	hash_key_sha1(hash, key_arr);
-	return ntohl(*((u32*)hash));
+	return  (u32)be32toh(*((u32*)&hash[16])); // ntohl(*((u32*)hash));
 }
 
 u64 sha1_least_64bits(u64 key)
@@ -73,7 +72,11 @@ u64 sha1_least_64bits(u64 key)
 	key64 key_arr = get_barray_from_key64(key);
 	uint8_t hash[SHA_DIGEST_LENGTH];
 	hash_key_sha1(hash, key_arr);
-	return be64toh(*((u64*)&hash[12]));
+//	printf("%x%x --- %x%x\n", *((u8*)&hash[0]), *((u8*)&hash[1]), *((u8*)&hash[18]), *((u8*)&hash[19]));
+//	printf("%llx%llx%x\n", (u64)be64toh(*((u64*)&hash[0])), (u64)be64toh(*((u64*)&hash[8])), (u32)be32toh(*((u32*)&hash[16])));
+//	printf("%llx \n", (u64)be64toh(*((u64*)&hash[12])));
+//	printf("%llx \n", (u64)le64toh(*((u64*)&hash[12])));
+	return (u64)be64toh(*((u64*)&hash[12]));
 }
 
 u16 checksum(u16 *buffer, int size)

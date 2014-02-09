@@ -184,6 +184,7 @@ sha1_32			return SHA1_32;
 sock		return SOCK;
 token		return TOKEN;
 trunc_l64_hmac	return TRUNC_L64_HMAC;
+trunc_r64_hmac	return TRUNC_R64_HMAC;
 full_160_hmac	return FULL_160_HMAC;
 TS			return TIMESTAMP;
 FO			return FAST_OPEN;

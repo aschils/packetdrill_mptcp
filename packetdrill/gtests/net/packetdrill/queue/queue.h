@@ -11,6 +11,7 @@
 #define __QUEUE_H__
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #define QUEUE_SIZE 255
 #define STATUS_OK 0
