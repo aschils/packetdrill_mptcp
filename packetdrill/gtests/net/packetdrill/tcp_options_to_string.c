@@ -143,18 +143,45 @@ int tcp_options_to_string(struct packet *packet,
 
         		if(option->data.dss.flag_M){
         			fprintf(s, "dsn");
+        			//if we have dsn8
 					if(option->data.dss.flag_m){
-						fprintf(s, "8: %llu, ",
-								(u64)be64toh(option->data.dss.dsn.dsn8));
-						fprintf(s, "ssn %u, dll %u",
+						fprintf(s, "8: %llu, ",	(u64)be64toh(option->data.dss.dsn.dsn8 ));
+						
+						if(option->length == TCPOLEN_DSS_DSN8 				||
+								option->length == TCPOLEN_DSS_DACK8_DSN8 	||
+								option->length == TCPOLEN_DSS_DACK4_DSN8 	){
+							fprintf(s, "ssn %u, dll %u", 
 								ntohl(option->data.dss.dsn.w_cs.ssn),
 								ntohs(option->data.dss.dsn.w_cs.dll));
-					}else{
-						fprintf(s, "4: %u, ",
-								ntohl(option->data.dss.dsn.dsn4));
-						fprintf(s, "ssn %u, dll %u",
+							
+						}else if(option->length == TCPOLEN_DSS_DSN8_WOCS 		||
+								option->length == TCPOLEN_DSS_DACK4_DSN8_WOCS 	||
+								option->length == TCPOLEN_DSS_DACK8_DSN8_WOCS 	){
+							fprintf(s, "ssn %u, dll %u", 
 								ntohl(option->data.dss.dsn.wo_cs.ssn),
 								ntohs(option->data.dss.dsn.wo_cs.dll));
+						}else{
+							fprintf(s, "[tcp_options_to_string.c:160]No option found to print a dsn8\n");
+						}
+					// we have dsn4
+					}else{
+						fprintf(s, "4: %u, ", ntohl(option->data.dss.dsn.dsn4));
+						
+						if(option->length==TCPOLEN_DSS_DSN4 ||
+								option->length == TCPOLEN_DSS_DACK4_DSN4 ||
+								option->length == TCPOLEN_DSS_DACK8_DSN4){
+							fprintf(s, "ssn %u, dll %u",
+								ntohl(option->data.dss.dsn.w_cs.ssn),
+								ntohs(option->data.dss.dsn.w_cs.dll));
+						}else if(option->length == TCPOLEN_DSS_DSN4_WOCS 		|| 
+								option->length == TCPOLEN_DSS_DACK4_DSN4_WOCS 	|| 
+								option->length == TCPOLEN_DSS_DACK8_DSN4_WOCS	){
+							fprintf(s, "ssn %u, dll %u",
+								ntohl(option->data.dss.dsn.wo_cs.ssn),
+								ntohs(option->data.dss.dsn.wo_cs.dll));
+						}else{
+							fprintf(s, "[tcp_options_to_string.c:160]No option found to print a dsn4\n");
+						}
 					}
 					if(option->length == TCPOLEN_DSS_DSN8 || option->length == TCPOLEN_DSS_DSN4) // == with checksum
 						fprintf(s, ", chk %u", ntohs(option->data.dss.dsn.w_cs.checksum));
