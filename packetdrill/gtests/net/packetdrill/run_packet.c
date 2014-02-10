@@ -828,7 +828,10 @@ static int verify_outbound_live_ipv4(
 			 tcp_options_allowance(actual_packet,
 					       script_packet)),
 			ntohs(actual_packet->ipv4->tot_len), error)){
-		printf("[run_packet.c 832]Error detected 832 \n");
+		printf("[run_packet.c 832]Error detected actual: %u == %u expected\n",
+				ntohs(actual_packet->ipv4->tot_len),
+				ntohs(script_packet->ipv4->tot_len) );
+
 		return STATUS_ERR;
 	}
 

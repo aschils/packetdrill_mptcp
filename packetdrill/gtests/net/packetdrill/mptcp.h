@@ -77,7 +77,8 @@
 
 //Variable types
 #define KEY 0
-#define SCRIPT_DEFINED 1
+#define SCRIPT_DEFINED 1 	// Need to be defined
+#define IGNORED -2			// Do not need to define
 
 struct mp_join_info {
 	union {
@@ -163,7 +164,8 @@ struct mp_state_s {
 
     u64 remote_idsn; 	// least 64 bits of Hash(kernel_key)
     u64 idsn;			// least 64 bits of Hash(packetdrill_key)
-    u64 nb_pkt_rcvd;	// number of packets already received from kernel
+    u64 remote_ssn;		// number of packets received from kernel
+    u64 last_dsn_rcvd;  // last dsn received from kernel
 };
 
 typedef struct mp_state_s mp_state_t;

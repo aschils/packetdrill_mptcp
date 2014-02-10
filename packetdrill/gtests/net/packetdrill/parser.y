@@ -605,6 +605,8 @@ struct tcp_option *dss_do_dsn_only(int type, int val, bool no_checksum, bool fin
 		opt->data.dss.dsn.dsn8 = val;
 	}
 	//flag_data_fin:1,flag_dsn8:1,flag_dsn:1,flag_dack8:1,flag_dack:1; F|m|M|a|A
+	opt->data.dss.dack.dack4 = IGNORED;
+	opt->data.dss.dack.dack8 = IGNORED;
 	
 	opt->data.dss.flag_M = 1;
 	opt->data.dss.flag_m = (type==8);
@@ -643,8 +645,44 @@ struct tcp_option *dss_do_dack_only(int type, int val, bool fin_flag){
 
 struct tcp_option *dss_do_dsn_dack(int dsn_type, int dsn_val, int dack_type, 
 							int dack_val, bool no_checksum, bool fin_flag){
-// TODO
-	return NULL;
+
+	struct tcp_option *opt;
+	// DSN 
+	if(dsn_type==4){
+		if(no_checksum){
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN4_WOCS);
+		}else{
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN4);
+		}
+		opt->data.dss.dsn.dsn4 = dsn_val;
+	}else{
+		if(no_checksum){
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN8_WOCS);
+		}else{
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN8);
+		}
+		opt->data.dss.dsn.dsn8 = dsn_val;
+	}
+	// DACK
+	if(dack_type==4)
+		opt->data.dss.dack.dack4 = dack_val;
+	else
+		opt->data.dss.dack.dack8 = dack_val;
+	
+	
+	//flag_data_fin:1,flag_dsn8:1,flag_dsn:1,flag_dack8:1,flag_dack:1; F|m|M|a|A
+	opt->data.dss.flag_M = 1;
+	opt->data.dss.flag_m = (dsn_type==8);
+	opt->data.dss.flag_A = 1;
+	opt->data.dss.flag_a = (dack_type==8);
+	opt->data.dss.flag_F = fin_flag;
+	opt->data.dss.subtype = DSS_SUBTYPE;
+	opt->data.mp_capable.subtype = DSS_SUBTYPE;
+	opt->data.dss.reserved_first_bits = DSS_RESERVED;
+	opt->data.dss.reserved_last_bits = DSS_RESERVED;
+
+
+	return opt;
 }
 		
 		
@@ -1119,7 +1157,7 @@ dsn
 		if(!is_valid_u64($5))
 			semantic_error("mptcp trunc_r64_hmac is not a valid u64.");
 		$$.type = 4;	
-		$$.val = $5;
+		$$.val = sha1_least_64bits($5);
 	}
 
 | DSN4 			{	$$.type = 4;	$$.val = UNDEFINED;}
@@ -1133,7 +1171,7 @@ dack
 | DACK4 			{	$$.type = 4;	$$.dack = UNDEFINED;}
 | DACK4 '=' TRUNC_R64_HMAC '(' INTEGER ')'	{
 	if(!is_valid_u64($5))
-		semantic_error("mptcp trunc_r64_hmac is not a valid u64. XXX");
+		semantic_error("mptcp trunc_r64_hmac is not a valid u64. ");
 	$$.type = 4;
 	$$.dack = sha1_least_64bits($5);
 }
@@ -1141,9 +1179,7 @@ dack
 	$$.type = 4;
 	$$.dack = SCRIPT_DEFINED; // to be added using the variable name
 	if(queue_enqueue(&mp_state.vars_queue, $5)==STATUS_ERR)
-		semantic_error("Too many variables are used in script"); 
-	printf("variable %s added\n", $5);
-		
+		semantic_error("Too many variables are used in script"); 		
 }
 | DACK8 '=' INTEGER {	$$.type = 8;	$$.dack = $3;}
 | DACK8  		{	$$.type = 8;	$$.dack = UNDEFINED;}
@@ -1371,11 +1407,11 @@ tcp_option
 	if($2.type == -1 && $3.type == -1 )
 		$$ = dss_do_auto($4, $5); // TODO
 	else if($2.type == -1 && $3.type != -1)
-		$$ = dss_do_dack_only($3.type, $3.dack, $5);  	// XXX
+		$$ = dss_do_dack_only($3.type, $3.dack, $5);  	// DONE
 	else if($2.type != -1 && $3.type == -1)
 		$$ = dss_do_dsn_only($2.type, $2.val, $4, $5); 	// TODO
 	else if($2.type != -1 && $3.type != -1) 
-		$$ = dss_do_dsn_dack($2.type, $2.val, $3.type, $3.dack, $4, $5); // TODO
+		$$ = dss_do_dsn_dack($2.type, $2.val, $3.type, $3.dack, $4, $5); // $2=dsn, $3=dack, $4=0|1, $5=0|1 XXX
 	
 }
 ;

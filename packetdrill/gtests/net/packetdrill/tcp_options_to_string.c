@@ -143,50 +143,31 @@ int tcp_options_to_string(struct packet *packet,
 
         		if(option->data.dss.flag_M){
         			fprintf(s, "dsn");
+					if(option->data.dss.flag_m){
+						fprintf(s, "8: %llu, ",
+								(u64)be64toh(option->data.dss.dsn.dsn8));
+						fprintf(s, "ssn %u, dll %u",
+								ntohl(option->data.dss.dsn.w_cs.ssn),
+								ntohs(option->data.dss.dsn.w_cs.dll));
+					}else{
+						fprintf(s, "4: %u, ",
+								ntohl(option->data.dss.dsn.dsn4));
+						fprintf(s, "ssn %u, dll %u",
+								ntohl(option->data.dss.dsn.wo_cs.ssn),
+								ntohs(option->data.dss.dsn.wo_cs.dll));
+					}
+					if(option->length == TCPOLEN_DSS_DSN8 || option->length == TCPOLEN_DSS_DSN4) // == with checksum
+						fprintf(s, ", chk %u", ntohs(option->data.dss.dsn.w_cs.checksum));
 
-        			if(!option->data.dss.flag_A){
-
-        				if(option->data.dss.flag_m)
-							fprintf(s, "8: %lu, ",
-									(unsigned long)be64toh(option->data.dss.dsn.dsn8));
-        				else
-        					fprintf(s, "4: %u, ",
-        							ntohl(option->data.dss.dsn.dsn4));
-
-        				if(option->length == TCPOLEN_DSS_DSN8){
-        					fprintf(s, "ssn %u, dll %u, checksum %u",
-        							ntohl(option->data.dss.dsn.w_cs.ssn),
-        							ntohs(option->data.dss.dsn.w_cs.dll),
-        							ntohs(option->data.dss.dsn.w_cs.checksum));
-        				}
-        				else {
-        					fprintf(s, "ssn %u, dll %u, no_checksum",
-        							ntohl(option->data.dss.dsn.wo_cs.ssn),
-        							ntohs(option->data.dss.dsn.wo_cs.dll));
-        				}
-        			}
-
-        			else{
-        				if(option->data.dss.flag_m)
-        					fprintf(s, "8: %lu, ",
-        							(unsigned long)option->data.dss.dack_dsn.dsn.dsn8);
-        				else
-        					fprintf(s, "8: %u, ",
-        							option->data.dss.dack_dsn.dsn.dsn4);
-
-        				if(option->length == TCPOLEN_DSS_DSN8){
-        					fprintf(s, "ssn %u, dll %u, checksum %u",
-        							option->data.dss.dack_dsn.dsn.w_cs.ssn,
-        							option->data.dss.dack_dsn.dsn.w_cs.dll,
-        							option->data.dss.dack_dsn.dsn.w_cs.checksum);
-        				}
-        				else {
-        					fprintf(s, "ssn %u, dll %u, no_checksum",
-        							option->data.dss.dack_dsn.dsn.wo_cs.ssn,
-        							option->data.dss.dack_dsn.dsn.wo_cs.dll);
-        				}
-        			}
-
+					if(option->data.dss.flag_A)
+						fprintf(s, ", ");
+        		}
+        		if(option->data.dss.flag_A){
+        			fprintf(s, "dack");
+        			if(option->data.dss.flag_a)
+						fprintf(s, "8: %llu ", (u64)be64toh(option->data.dss.dack.dack8));
+        			else
+        				fprintf(s, "4: %u ", (u32)be32toh(option->data.dss.dack.dack4));
         		}
         		break;
 
