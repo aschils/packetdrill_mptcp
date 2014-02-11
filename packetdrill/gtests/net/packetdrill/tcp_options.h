@@ -227,7 +227,7 @@ struct tcp_option {
 				struct {
 					struct dack dack;
 					struct dsn dsn;
-				} dack_dsn;
+				} __packed dack_dsn;
 			};
 		} __packed dss;
 		/*******END MPTCP options*********/

@@ -648,26 +648,39 @@ struct tcp_option *dss_do_dsn_dack(int dsn_type, int dsn_val, int dack_type,
 
 	struct tcp_option *opt;
 	// DSN 
-	if(dsn_type==4){
+	if(dsn_type==4 && dack_type==4){
 		if(no_checksum){
-			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN4_WOCS);
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN4_WOCS);
 		}else{
-			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN4);
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN4);
 		}
-		opt->data.dss.dsn.dsn4 = dsn_val;
-	}else{
+		opt->data.dss.dack_dsn.dsn.dsn4 = dsn_val;
+		opt->data.dss.dack_dsn.dack.dack4 = dack_val;
+	}else if(dsn_type==4 && dack_type==8){
 		if(no_checksum){
-			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN8_WOCS);
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN4_WOCS);
 		}else{
-			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN8);
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN4);
 		}
-		opt->data.dss.dsn.dsn8 = dsn_val;
+		opt->data.dss.dack_dsn.dsn.dsn4 = dsn_val;
+		opt->data.dss.dack_dsn.dack.dack8 = dack_val;
+	}else if(dsn_type==8 && dack_type==4){
+		if(no_checksum){
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN8_WOCS);
+		}else{
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN8);
+		}
+		opt->data.dss.dack_dsn.dsn.dsn8 = dsn_val;
+		opt->data.dss.dack_dsn.dack.dack4 = dack_val;
+	}else if(dsn_type==8 && dack_type==8){
+		if(no_checksum){
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN8_WOCS);
+		}else{
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN8);
+		}
+		opt->data.dss.dack_dsn.dsn.dsn8 = dsn_val;
+		opt->data.dss.dack_dsn.dack.dack8 = dack_val;
 	}
-	// DACK
-	if(dack_type==4)
-		opt->data.dss.dack.dack4 = dack_val;
-	else
-		opt->data.dss.dack.dack8 = dack_val;
 	
 	
 	//flag_data_fin:1,flag_dsn8:1,flag_dsn:1,flag_dack8:1,flag_dack:1; F|m|M|a|A
