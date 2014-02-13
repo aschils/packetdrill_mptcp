@@ -891,18 +891,31 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 	}
 	return STATUS_OK;
 }
+/*
+//Compute tcp payload length
+u16 get_tcp_payload_size(struct packet *packet){
+	u16 packet_total_length = packet->ip_bytes;
+	u16 tcp_header_length = packet->tcp->doff*4;
+	u16 ip_header_length = packet->ipv4->ihl*8;
+	u16 tcp_header_wo_options = 20;
+	return (packet_total_length-ip_header_length-
+			(tcp_header_length-tcp_header_wo_options));
+}
+*/
 
 
-
-
-
-int dss_inbound_parser(u16 tcp_payload_length, struct tcp_option *tcp_opt_to_modify){
+int dss_inbound_parser(struct packet *packet_to_modify,
+		struct packet *live_packet,
+		struct tcp_option *tcp_opt_to_modify){
 /*		struct mp_subflow *subflow =
 				find_subflow_matching_inbound_packet(packet_to_modify);
 		tcp_opt_to_modify->data.dss.dsn.w_cs.ssn =
 				htonl(subflow->ssn);
 		subflow->ssn += tcp_payload_length;
 */
+
+//	int tcp_payload_length = packet_payload_len(packet_to_modify);
+//	printf("Payload %u\n", tcp_payload_length);
 	// DSN8
 	if(tcp_opt_to_modify->data.dss.flag_M){
 		if(tcp_opt_to_modify->data.dss.flag_m){
@@ -1025,73 +1038,81 @@ int dss_inbound_parser(u16 tcp_payload_length, struct tcp_option *tcp_opt_to_mod
 					return STATUS_ERR;
 				mp_state.remote_idsn = sha1_least_32bits(*key);
 				tcp_opt_to_modify->data.dss.dack.dack4 = htobe32(sha1_least_32bits(*key)+mp_state.remote_ssn);
-				printf("[mptcp.c:1037]mp_state.remote_idsn: %llu\n", (u64)mp_state.remote_idsn);
+		//		printf("[mptcp.c:1037]mp_state.remote_idsn: %llu\n", (u64)mp_state.remote_idsn);
 			}
 		}
 	}
 	return 0;
 }
 
-int dss_outbound_parser(u16 tcp_payload_length, struct tcp_option *tcp_opt_to_modify){
-/*		
+int dss_outbound_parser(struct packet *packet_to_modify,
+		struct packet *live_packet,
+		struct tcp_option *tcp_opt_to_modify){
+		int tcp_payload_length = packet_payload_len(packet_to_modify);
+		printf("Payload dss outbound: %u\n", tcp_payload_length);
+
 	// if a packet is coming from kernel with DSN and DACK
 	if(tcp_opt_to_modify->data.dss.flag_M && tcp_opt_to_modify->data.dss.flag_A){
 		// if dsn4 and dack4
 		if(!tcp_opt_to_modify->data.dss.flag_m && !tcp_opt_to_modify->data.dss.flag_a){
+
 			struct tcp_option* dss_opt = get_tcp_option(live_packet, TCPOPT_MPTCP);
+			struct dack *dack_live	= (struct dack*)((u32*)dss_opt+1);
+		//	struct dack *dack_script= (struct dack*)((u32*)tcp_opt_to_modify+1);
+			struct dsn *dsn_live 	= (struct dsn*)((u32*)dss_opt+2);
+		//	struct dsn *dsn_script 	= (struct dsn*)((u32*)tcp_opt_to_modify+2);
+			u32 ssn = *((u32*)dsn_live + 1);
+			u32 dll_chk = (u32)*((u32*)dsn_live + 2);
+			u16 dll = (u16)dll_chk;
+			u16 chk = dll_chk >> 16;
+
+			printf("dack4: %u, dsn4: %u", ntohl(dack_live->dack4), ntohl(dsn_live->dsn4)); // OK
+			printf(", ssn: %u, dll: %u, chk: %u\n", ntohl(ssn), ntohs(dll), ntohs(chk));
+
 			//Set dsn being value specified in script + initial dsn
-			if(tcp_opt_to_modify->data.dss.dack_dsn.dsn->dsn4==UNDEFINED){
-				tcp_opt_to_modify->data.dss.dack_dsn.dsn->dsn4 = htonl(dss_opt->data.dss.dack_dsn.dsn->dsn4);
-				mp_state.last_dsn_rcvd  = ntohl(dss_opt->data.dss.dack_dsn.dsn->dsn4);
+			if(tcp_opt_to_modify->data.dss.dack_dsn.dsn.dsn4==UNDEFINED){
+				tcp_opt_to_modify = dss_opt ;
+			//	tcp_opt_to_modify->data.dss.dack_dsn.dsn.dsn4 = htonl(dsn_live->dsn4);
+				mp_state.last_dsn_rcvd  = ntohl(dsn_live->dsn4);
 				// printf("1053:last_dsn_received: %u\n", ntohl(dss_opt->data.dss.dack_dsn.dsn.dsn4));
 				//	htonl((u32)((u32)mp_state.remote_idsn + (u32)mp_state.remote_ssn)); // XXX how to convert u64 in u32
+			}else{
+				printf("----- dsn_script->dsn4 is defined=>error ------\n");
 			}
 			
-	//		printf("[mptcp.c:1087]dsn4: %u, ", htonl(tcp_opt_to_modify->data.dss.dack_dsn.dsn.dsn4));
-		//	struct mp_subflow *subflow = find_subflow_matching_outbound_packet(live_packet);
+			printf("[mptcp.c:1081]dsn4: %u, ", ntohl(tcp_opt_to_modify->data.dss.dack_dsn.dsn.dsn4));
+
 			// Do we have a checksum or not
 			if(tcp_opt_to_modify->length == TCPOLEN_DSS_DACK4_DSN4){
-				tcp_opt_to_modify->data.dss.dack_dsn.dsn->w_cs.ssn = htonl(dss_opt->data.dss.dack_dsn.dsn->w_cs.ssn); //htonl(mp_state.remote_ssn);
-				tcp_opt_to_modify->data.dss.dack_dsn.dsn->w_cs.dll = htons(dss_opt->data.dss.dack_dsn.dsn->w_cs.dll); //htons(tcp_payload_length);
-				tcp_opt_to_modify->data.dss.dack_dsn.dsn->w_cs.checksum = htons(dss_opt->data.dss.dack_dsn.dsn->w_cs.checksum); //htons(1111);
+				tcp_opt_to_modify->data.dss.dack_dsn.dsn.w_cs.ssn = htonl(dsn_live->w_cs.ssn); //htonl(mp_state.remote_ssn);
+				tcp_opt_to_modify->data.dss.dack_dsn.dsn.w_cs.dll = htons(dsn_live->w_cs.dll); //htons(tcp_payload_length);
+				tcp_opt_to_modify->data.dss.dack_dsn.dsn.w_cs.checksum = htons(dsn_live->w_cs.checksum); //htons(1111);
 				
 				// TODO compute checksum
-	//			printf("ssn: %u, dll: %u, chk: %u",
-	//					ntohl(tcp_opt_to_modify->data.dss.dack_dsn.dsn.w_cs.ssn),
-	//					ntohs(tcp_opt_to_modify->data.dss.dack_dsn.dsn.w_cs.dll),
-	//					ntohs(tcp_opt_to_modify->data.dss.dack_dsn.dsn.w_cs.checksum) );
+				printf("ssn: %u, dll: %u, chk: %u",
+						ntohl(tcp_opt_to_modify->data.dss.dack_dsn.dsn.w_cs.ssn),
+						ntohs(tcp_opt_to_modify->data.dss.dack_dsn.dsn.w_cs.dll),
+						ntohs(tcp_opt_to_modify->data.dss.dack_dsn.dsn.w_cs.checksum) );
 			}else if(tcp_opt_to_modify->length == TCPOLEN_DSS_DACK4_DSN4_WOCS){
-				tcp_opt_to_modify->data.dss.dack_dsn.dsn->wo_cs.ssn = htonl(dss_opt->data.dss.dack_dsn.dsn->wo_cs.ssn); //htonl(mp_state.remote_ssn);
-				tcp_opt_to_modify->data.dss.dack_dsn.dsn->wo_cs.dll = htons(dss_opt->data.dss.dack_dsn.dsn->wo_cs.dll); //htons(tcp_payload_length);
-				printf("ssn: %u, dll: %u",
-						ntohl(tcp_opt_to_modify->data.dss.dack_dsn.dsn->wo_cs.ssn),
-						ntohs(tcp_opt_to_modify->data.dss.dack_dsn.dsn->wo_cs.dll));
+				tcp_opt_to_modify->data.dss.dack_dsn.dsn.wo_cs.ssn = htonl(dsn_live->wo_cs.ssn); //htonl(mp_state.remote_ssn);
+				tcp_opt_to_modify->data.dss.dack_dsn.dsn.wo_cs.dll = htons(dsn_live->wo_cs.dll); //htons(tcp_payload_length);
 			}
+
 			// if we have an undefined dack4
-			if(tcp_opt_to_modify->data.dss.dack_dsn.dack->dack4 == UNDEFINED){
-				tcp_opt_to_modify->data.dss.dack_dsn.dack->dack4 = dss_opt->data.dss.dack_dsn.dack->dack4; //htonl((u32)(mp_state.idsn + subflow->ssn));
+			if(tcp_opt_to_modify->data.dss.dack_dsn.dack.dack4 == UNDEFINED){
+				tcp_opt_to_modify->data.dss.dack_dsn.dack.dack4 = ntohl(dack_live->dack4);
 			//	if(mp_state.last_dsn_rcvd < tcp_opt_to_modify->data.dss.dack.dack4)
 			//		mp_state.last_dsn_rcvd = tcp_opt_to_modify->data.dss.dack.dack4;
-			}else if(tcp_opt_to_modify->data.dss.dack_dsn.dack->dack4 == IGNORED){
+			}else if(tcp_opt_to_modify->data.dss.dack_dsn.dack.dack4 == IGNORED){
 				// Need it to do ? XXX
 			}
-	//		printf(", dack4: %u \n",ntohl(tcp_opt_to_modify->data.dss.dack_dsn.dack.dack4));
-			if(!dss_opt->data.dss.flag_a && !dss_opt->data.dss.flag_m){
-	//			printf("DSS_OPT=>dsn4: %u, ssn: %u, dll: %u, chk, %u, dack4: %u\n", 
-	//					htonl(dss_opt->data.dss.dack_dsn.dsn.dsn4),
-	//					htonl(dss_opt->data.dss.dack_dsn.dsn.w_cs.ssn),
-	//					htons(dss_opt->data.dss.dack_dsn.dsn.w_cs.dll),
-	//					htons(dss_opt->data.dss.dack_dsn.dsn.w_cs.checksum),
-	//					htonl(dss_opt->data.dss.dack_dsn.dack.dack4)
-				);
-			}else{
-				printf("A and M not deifned in dss_opt\n");
-			}
+			printf(", dack4: %u \n",ntohl(tcp_opt_to_modify->data.dss.dack_dsn.dack.dack4));
+
 		}
 	
 	// Only DSN is in the packet
 	}else if(tcp_opt_to_modify->data.dss.flag_M ){ // DSS
-
+/*
 		// if DSN is 8 octets
 		if(tcp_opt_to_modify->data.dss.flag_m){
 			//Set dsn being value specified in script + initial dsn
@@ -1191,7 +1212,7 @@ int dss_outbound_parser(u16 tcp_payload_length, struct tcp_option *tcp_opt_to_mo
 		printf("DSN8: %d, ", tcp_opt_to_modify->data.dss.flag_m);
 		printf("FIN: %d, ", tcp_opt_to_modify->data.dss.flag_F);
 ***
-
+*/
 	// if it's DACK only from kernel
 	}else if(tcp_opt_to_modify->data.dss.flag_A ){
 		printf("Handle outbound packet, wrong one, -> nog te doen\n");
@@ -1199,7 +1220,7 @@ int dss_outbound_parser(u16 tcp_payload_length, struct tcp_option *tcp_opt_to_mo
 
 	}
 //	mp_state.nb_pkt_rcvd += tcp_payload_length;
-*/	
+
 	return 0;
 }
 
@@ -1209,24 +1230,13 @@ int mptcp_subtype_dss(struct packet *packet_to_modify,
 						struct packet *live_packet,
 						struct tcp_option *tcp_opt_to_modify,
 						unsigned direction){
-	//Computer tcp payload length
-	u16 packet_total_length = packet_to_modify->ip_bytes;
-	u16 tcp_header_length = packet_to_modify->tcp->doff*4;
-	u16 ip_header_length = packet_to_modify->ipv4->ihl*8;
-	u16 tcp_header_wo_options = 20;
-	u16 tcp_payload_length = packet_total_length-ip_header_length-
-			(tcp_header_length-tcp_header_wo_options);
 
 	// injecting a packet to kernel
 	if(direction == DIRECTION_INBOUND){
-		dss_inbound_parser(tcp_payload_length, tcp_opt_to_modify);
-		
+		dss_inbound_parser(packet_to_modify, live_packet, tcp_opt_to_modify);
 	}else if(direction == DIRECTION_OUTBOUND){
-		dss_outbound_parser(tcp_payload_length, tcp_opt_to_modify);
-
-	}
-
-	else{
+		dss_outbound_parser(packet_to_modify, live_packet, tcp_opt_to_modify);
+	}else{
 		return STATUS_ERR;
 	}
 	return STATUS_OK;

@@ -87,10 +87,7 @@ struct dsn {
 	};
 }__packed;
 
-struct dack_dsn {
-	struct dack *dack;
-	struct dsn *dsn;
-}__packed; 
+
 
 /* Represents a single TCP option in its wire format. Note that for
  * EOL and NOP options the length and data field are not included in
@@ -224,14 +221,20 @@ struct tcp_option {
 			|  Data-Level Length (2 octets) |      Checksum (2 octets)     |
 			+-------------------------------+------------------------------+
 			*/
+
+		//	struct dsn dsn;
+		//	struct dack dack;
 			union {
 				struct dack dack;
 				struct dsn dsn;
-			//	struct dack_dsn dack_dsn; 
-				/*{
+				struct dack_dsn {
 					struct dack dack;
 					struct dsn dsn;
-				} __packed dack_dsn; */ // XXX
+				}__packed dack_dsn;
+				/*
+					struct dack dack;
+					struct dsn dsn;
+				} __packed ; */  // XXX
 			};
 		} __packed dss;
 		/*******END MPTCP options*********/
