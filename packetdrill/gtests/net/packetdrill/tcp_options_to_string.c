@@ -53,93 +53,92 @@ int print_dss_subtype(FILE *s, struct tcp_option *option){
 		fprintf(s, "dsn");
 		// if we have dsn4 ad dack4
 		if(!option->data.dss.flag_m && !option->data.dss.flag_a){
-			fprintf(s, "4: %u, ", ntohl(option->data.dss.dack_dsn.dsn.dsn4));
+			fprintf(s, "4: %u, ", ntohl(option->data.dss.dack_dsn.dsn->dsn4));
 			
 			if(option->length == TCPOLEN_DSS_DACK4_DSN4){
 				fprintf(s, "ssn %u, dll %u, checksum %u",
-					ntohl(option->data.dss.dack_dsn.dsn.w_cs.ssn),
-					ntohs(option->data.dss.dack_dsn.dsn.w_cs.dll),
-					ntohs(option->data.dss.dack_dsn.dsn.w_cs.checksum));
+					ntohl(option->data.dss.dack_dsn.dsn->w_cs.ssn),
+					ntohs(option->data.dss.dack_dsn.dsn->w_cs.dll),
+					ntohs(option->data.dss.dack_dsn.dsn->w_cs.checksum));
 				
 			}else if(option->length == TCPOLEN_DSS_DACK4_DSN4_WOCS){
 				fprintf(s, "ssn %u, dll %u",
-					ntohl(option->data.dss.dsn.wo_cs.ssn),
-					ntohs(option->data.dss.dsn.wo_cs.dll));
+					ntohl(option->data.dss.dack_dsn.dsn->wo_cs.ssn),
+					ntohs(option->data.dss.dack_dsn.dsn->wo_cs.dll));
 			}else{
 				fprintf(s, "[tcp_options_to_string.c:69]No option found to print a dsn4-dack4\n");
-				return 1;
+			//	return 1;
 			}
-			fprintf(s, ", dack4: %u, ", ntohl(option->data.dss.dack_dsn.dack.dack4));
+			fprintf(s, ", dack4: %u ", ntohl(option->data.dss.dack_dsn.dack->dack4));
 		//if we have dsn4-dack8
 		}else if(!option->data.dss.flag_m && option->data.dss.flag_a){
-			fprintf(s, "4: %u, ",	(u32)be32toh(option->data.dss.dack_dsn.dsn.dsn4 ));
+			fprintf(s, "4: %u, ",	(u32)be32toh(option->data.dss.dack_dsn.dsn->dsn4 ));
 			
 			if(option->length == TCPOLEN_DSS_DACK8_DSN4 ){
 				fprintf(s, "ssn %u, dll %u, checksum %u", 
-					ntohl(option->data.dss.dack_dsn.dsn.w_cs.ssn),
-					ntohs(option->data.dss.dack_dsn.dsn.w_cs.dll), 
-					ntohs(option->data.dss.dack_dsn.dsn.w_cs.checksum));
+					ntohl(option->data.dss.dack_dsn.dsn->w_cs.ssn),
+					ntohs(option->data.dss.dack_dsn.dsn->w_cs.dll), 
+					ntohs(option->data.dss.dack_dsn.dsn->w_cs.checksum));
 			}else if(option->length == TCPOLEN_DSS_DACK8_DSN4_WOCS){
 				fprintf(s, "ssn %u, dll %u", 
-					ntohl(option->data.dss.dack_dsn.dsn.wo_cs.ssn),
-					ntohs(option->data.dss.dack_dsn.dsn.wo_cs.dll));
+					ntohl(option->data.dss.dack_dsn.dsn->wo_cs.ssn),
+					ntohs(option->data.dss.dack_dsn.dsn->wo_cs.dll));
 			}else{
 				fprintf(s, "[tcp_options_to_string.c:89]No option found to print a dsn4-dack8\n");
-				return 1;
+		//		return 1;
 			}
-			fprintf(s, ", dack8: %llu, ", (u64)be64toh(option->data.dss.dack_dsn.dack.dack8));
+			fprintf(s, ", dack8: %llu ", (u64)be64toh(option->data.dss.dack_dsn.dack->dack8));
 
 		// we have dsn8 dack4
 		}else if(option->data.dss.flag_m && !option->data.dss.flag_a){
-			fprintf(s, "8: %llu, ",	(u64)be64toh(option->data.dss.dack_dsn.dsn.dsn8 ));
+			fprintf(s, "8: %llu, ",	(u64)be64toh(option->data.dss.dack_dsn.dsn->dsn8 ));
 			
 			if(option->length == TCPOLEN_DSS_DACK4_DSN8 ){
 				fprintf(s, "ssn %u, dll %u, checksum %u", 
-					ntohl(option->data.dss.dack_dsn.dsn.w_cs.ssn),
-					ntohs(option->data.dss.dack_dsn.dsn.w_cs.dll), 
-					ntohs(option->data.dss.dack_dsn.dsn.w_cs.checksum));
+					ntohl(option->data.dss.dack_dsn.dsn->w_cs.ssn),
+					ntohs(option->data.dss.dack_dsn.dsn->w_cs.dll), 
+					ntohs(option->data.dss.dack_dsn.dsn->w_cs.checksum));
 			}else if(option->length == TCPOLEN_DSS_DACK4_DSN8_WOCS){
 				fprintf(s, "ssn %u, dll %u", 
-					ntohl(option->data.dss.dack_dsn.dsn.wo_cs.ssn),
-					ntohs(option->data.dss.dack_dsn.dsn.wo_cs.dll));
+					ntohl(option->data.dss.dack_dsn.dsn->wo_cs.ssn),
+					ntohs(option->data.dss.dack_dsn.dsn->wo_cs.dll));
 			}else{
 				fprintf(s, "[tcp_options_to_string.c:89]No option found to print a dsn4-dack8\n");
-				return 1;
+//    					/	return 1;
 			}
-			fprintf(s, ", dack4: %u, ", (u32)be32toh(option->data.dss.dack_dsn.dack.dack4));
+			fprintf(s, ", dack4: %u ", (u32)be32toh(option->data.dss.dack_dsn.dack->dack4));
 
 		// we have dsn8 dack8
 		}else if(option->data.dss.flag_m && option->data.dss.flag_a){
-			fprintf(s, "8: %llu, ",	(u64)be64toh(option->data.dss.dack_dsn.dsn.dsn8 ));
+			fprintf(s, "8: %llu, ",	(u64)be64toh(option->data.dss.dack_dsn.dsn->dsn8 ));
 			
 			if(option->length == TCPOLEN_DSS_DACK8_DSN8 ){
 				fprintf(s, "ssn %u, dll %u, checksum %u", 
-					ntohl(option->data.dss.dack_dsn.dsn.w_cs.ssn),
-					ntohs(option->data.dss.dack_dsn.dsn.w_cs.dll), 
-					ntohs(option->data.dss.dack_dsn.dsn.w_cs.checksum));
+					ntohl(option->data.dss.dack_dsn.dsn->w_cs.ssn),
+					ntohs(option->data.dss.dack_dsn.dsn->w_cs.dll), 
+					ntohs(option->data.dss.dack_dsn.dsn->w_cs.checksum));
 			}else if(option->length == TCPOLEN_DSS_DACK8_DSN8_WOCS){
 				fprintf(s, "ssn %u, dll %u", 
-					ntohl(option->data.dss.dack_dsn.dsn.wo_cs.ssn),
-					ntohs(option->data.dss.dack_dsn.dsn.wo_cs.dll));
+					ntohl(option->data.dss.dack_dsn.dsn->wo_cs.ssn),
+					ntohs(option->data.dss.dack_dsn.dsn->wo_cs.dll));
 			}else{
 				fprintf(s, "[tcp_options_to_string.c:89]No option found to print a dsn4-dack8\n");
 				return 1;
 			}
-			fprintf(s, ", dack8: %llu, ", (u64)be64toh(option->data.dss.dack_dsn.dack.dack8));
+			fprintf(s, ", dack8: %llu ", (u64)be64toh(option->data.dss.dack_dsn.dack->dack8));
 
 		// we have dsn4 only
 		}
 	}else if(option->data.dss.flag_A){
 		fprintf(s, "dack");
 		if(option->data.dss.flag_a)
-			fprintf(s, "8: %llu ", (u64)be64toh(option->data.dss.dack_dsn.dack.dack8));
+			fprintf(s, "8: %llu ", (u64)be64toh(option->data.dss.dack_dsn.dack->dack8));
 		else
-			fprintf(s, "4: %u ", (u32)be32toh(option->data.dss.dack_dsn.dack.dack4));
-		printf("138:FLAG_A\n");
+			fprintf(s, "4: %u ", (u32)be32toh(option->data.dss.dack_dsn.dack->dack4));
+//		printf("138:FLAG_A\n");
 	}else if(option->data.dss.flag_M){
 		printf("140:Only DSN8\n");
 	}
-	
 	return 0;
 }
 
@@ -236,100 +235,7 @@ int tcp_options_to_string(struct packet *packet,
         		break;
 
         	case DSS_SUBTYPE:
-        		//if(!print_dss_subtype(s, option))
-        		//	goto out;
-        		fprintf(s, "dss ");
-
-    			if(option->data.dss.flag_M && option->data.dss.flag_A ){
-    				fprintf(s, "dsn");
-    				// if we have dsn4 ad dack4
-    				if(!option->data.dss.flag_m && !option->data.dss.flag_a){
-    					fprintf(s, "4: %u, ", ntohl(option->data.dss.dack_dsn.dsn.dsn4));
-    					
-    					if(option->length == TCPOLEN_DSS_DACK4_DSN4){
-    						fprintf(s, "ssn %u, dll %u, checksum %u",
-    							ntohl(option->data.dss.dack_dsn.dsn.w_cs.ssn),
-    							ntohs(option->data.dss.dack_dsn.dsn.w_cs.dll),
-    							ntohs(option->data.dss.dack_dsn.dsn.w_cs.checksum));
-    						
-    					}else if(option->length == TCPOLEN_DSS_DACK4_DSN4_WOCS){
-    						fprintf(s, "ssn %u, dll %u",
-    							ntohl(option->data.dss.dsn.wo_cs.ssn),
-    							ntohs(option->data.dss.dsn.wo_cs.dll));
-    					}else{
-    						fprintf(s, "[tcp_options_to_string.c:69]No option found to print a dsn4-dack4\n");
-    					//	return 1;
-    					}
-    					fprintf(s, ", dack4: %u, ", ntohl(option->data.dss.dack_dsn.dack.dack4));
-    				//if we have dsn4-dack8
-    				}else if(!option->data.dss.flag_m && option->data.dss.flag_a){
-    					fprintf(s, "4: %u, ",	(u32)be32toh(option->data.dss.dack_dsn.dsn.dsn4 ));
-    					
-    					if(option->length == TCPOLEN_DSS_DACK8_DSN4 ){
-    						fprintf(s, "ssn %u, dll %u, checksum %u", 
-    							ntohl(option->data.dss.dack_dsn.dsn.w_cs.ssn),
-    							ntohs(option->data.dss.dack_dsn.dsn.w_cs.dll), 
-    							ntohs(option->data.dss.dack_dsn.dsn.w_cs.checksum));
-    					}else if(option->length == TCPOLEN_DSS_DACK8_DSN4_WOCS){
-    						fprintf(s, "ssn %u, dll %u", 
-    							ntohl(option->data.dss.dack_dsn.dsn.wo_cs.ssn),
-    							ntohs(option->data.dss.dack_dsn.dsn.wo_cs.dll));
-    					}else{
-    						fprintf(s, "[tcp_options_to_string.c:89]No option found to print a dsn4-dack8\n");
-    				//		return 1;
-    					}
-    					fprintf(s, ", dack8: %llu, ", (u64)be64toh(option->data.dss.dack_dsn.dack.dack8));
-
-    				// we have dsn8 dack4
-    				}else if(option->data.dss.flag_m && !option->data.dss.flag_a){
-    					fprintf(s, "8: %llu, ",	(u64)be64toh(option->data.dss.dack_dsn.dsn.dsn8 ));
-    					
-    					if(option->length == TCPOLEN_DSS_DACK4_DSN8 ){
-    						fprintf(s, "ssn %u, dll %u, checksum %u", 
-    							ntohl(option->data.dss.dack_dsn.dsn.w_cs.ssn),
-    							ntohs(option->data.dss.dack_dsn.dsn.w_cs.dll), 
-    							ntohs(option->data.dss.dack_dsn.dsn.w_cs.checksum));
-    					}else if(option->length == TCPOLEN_DSS_DACK4_DSN8_WOCS){
-    						fprintf(s, "ssn %u, dll %u", 
-    							ntohl(option->data.dss.dack_dsn.dsn.wo_cs.ssn),
-    							ntohs(option->data.dss.dack_dsn.dsn.wo_cs.dll));
-    					}else{
-    						fprintf(s, "[tcp_options_to_string.c:89]No option found to print a dsn4-dack8\n");
-//    					/	return 1;
-    					}
-    					fprintf(s, ", dack4: %u, ", (u32)be32toh(option->data.dss.dack_dsn.dack.dack4));
-
-    				// we have dsn8 dack8
-    				}else if(option->data.dss.flag_m && option->data.dss.flag_a){
-    					fprintf(s, "8: %llu, ",	(u64)be64toh(option->data.dss.dack_dsn.dsn.dsn8 ));
-    					
-    					if(option->length == TCPOLEN_DSS_DACK8_DSN8 ){
-    						fprintf(s, "ssn %u, dll %u, checksum %u", 
-    							ntohl(option->data.dss.dack_dsn.dsn.w_cs.ssn),
-    							ntohs(option->data.dss.dack_dsn.dsn.w_cs.dll), 
-    							ntohs(option->data.dss.dack_dsn.dsn.w_cs.checksum));
-    					}else if(option->length == TCPOLEN_DSS_DACK8_DSN8_WOCS){
-    						fprintf(s, "ssn %u, dll %u", 
-    							ntohl(option->data.dss.dack_dsn.dsn.wo_cs.ssn),
-    							ntohs(option->data.dss.dack_dsn.dsn.wo_cs.dll));
-    					}else{
-    						fprintf(s, "[tcp_options_to_string.c:89]No option found to print a dsn4-dack8\n");
-    						return 1;
-    					}
-    					fprintf(s, ", dack8: %llu, ", (u64)be64toh(option->data.dss.dack_dsn.dack.dack8));
-
-    				// we have dsn4 only
-    				}
-    			}else if(option->data.dss.flag_A){
-    				fprintf(s, "dack");
-    				if(option->data.dss.flag_a)
-    					fprintf(s, "8: %llu ", (u64)be64toh(option->data.dss.dack_dsn.dack.dack8));
-    				else
-    					fprintf(s, "4: %u ", (u32)be32toh(option->data.dss.dack_dsn.dack.dack4));
-    				printf("138:FLAG_A\n");
-    			}else if(option->data.dss.flag_M){
-    				printf("140:Only DSN8\n");
-    			}
+        		print_dss_subtype(s, option);
         		break;
 
         	case ADD_ADDR_SUBTYPE:

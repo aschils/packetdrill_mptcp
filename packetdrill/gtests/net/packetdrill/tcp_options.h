@@ -67,7 +67,7 @@ struct dack {
 		u32 dack4;
 		u64 dack8;
 	};
-};
+}__packed;
 
 struct dsn {
 	union {
@@ -78,15 +78,19 @@ struct dsn {
 		struct {
 			u32 ssn; //subflow sequence number
 			u16 dll; //data level length
-		} wo_cs;
+		} __packed wo_cs;
 		struct {
 			u32 ssn; //subflow sequence number
-			u16 dll; //data level length, TODO endianness
+			u16 dll; //data level length
 			u16 checksum;
-		} w_cs;
+		} __packed w_cs;
 	};
-};
+}__packed;
 
+struct dack_dsn {
+	struct dack *dack;
+	struct dsn *dsn;
+}__packed; 
 
 /* Represents a single TCP option in its wire format. Note that for
  * EOL and NOP options the length and data field are not included in
@@ -177,7 +181,6 @@ struct tcp_option {
 					#else
 					#error "Adjust your <asm/byteorder.h> defines"
 					#endif
-			//		u8 reserved_last_bits; //TODO find better solution
 					u32 sender_hmac[5];
 				} __packed no_syn;
 			}; 
@@ -224,10 +227,11 @@ struct tcp_option {
 			union {
 				struct dack dack;
 				struct dsn dsn;
-				struct {
+			//	struct dack_dsn dack_dsn; 
+				/*{
 					struct dack dack;
 					struct dsn dsn;
-				} __packed dack_dsn;
+				} __packed dack_dsn; */ // XXX
 			};
 		} __packed dss;
 		/*******END MPTCP options*********/

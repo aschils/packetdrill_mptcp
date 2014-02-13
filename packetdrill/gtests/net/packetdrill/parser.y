@@ -640,12 +640,14 @@ struct tcp_option *dss_do_dack_only(int type, int val, bool fin_flag){
 	opt->data.dss.reserved_first_bits 	= DSS_RESERVED;
 	opt->data.dss.reserved_last_bits 	= DSS_RESERVED;
 	opt->data.mp_capable.subtype 		= DSS_SUBTYPE;
+	printf("Dack only ok \n");
 	return opt;
 }
 
 struct tcp_option *dss_do_dsn_dack(int dsn_type, int dsn_val, int dack_type, 
 							int dack_val, bool no_checksum, bool fin_flag){
-
+	printf("Dack only not ok \n");
+/*
 	struct tcp_option *opt;
 	// DSN 
 	if(dsn_type==4 && dack_type==4){
@@ -654,32 +656,34 @@ struct tcp_option *dss_do_dsn_dack(int dsn_type, int dsn_val, int dack_type,
 		}else{
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN4);
 		}
-		opt->data.dss.dack_dsn.dsn.dsn4 = dsn_val;
-		opt->data.dss.dack_dsn.dack.dack4 = dack_val;
+		opt->data.dss.dack_dsn.dsn = (struct dsn*)malloc(sizeof(struct dsn));
+		opt->data.dss.dack_dsn.dsn->dsn4 = dsn_val;
+		opt->data.dss.dack_dsn.dack = (struct dack*)malloc(sizeof(struct dack)); 
+		opt->data.dss.dack_dsn.dack->dack4 = dack_val;
 	}else if(dsn_type==4 && dack_type==8){
 		if(no_checksum){
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN4_WOCS);
 		}else{
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN4);
 		}
-		opt->data.dss.dack_dsn.dsn.dsn4 = dsn_val;
-		opt->data.dss.dack_dsn.dack.dack8 = dack_val;
+		opt->data.dss.dack_dsn.dsn->dsn4 = dsn_val;
+		opt->data.dss.dack_dsn.dack->dack8 = dack_val;
 	}else if(dsn_type==8 && dack_type==4){
 		if(no_checksum){
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN8_WOCS);
 		}else{
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN8);
 		}
-		opt->data.dss.dack_dsn.dsn.dsn8 = dsn_val;
-		opt->data.dss.dack_dsn.dack.dack4 = dack_val;
+		opt->data.dss.dack_dsn.dsn->dsn8 = dsn_val;
+		opt->data.dss.dack_dsn.dack->dack4 = dack_val;
 	}else if(dsn_type==8 && dack_type==8){
 		if(no_checksum){
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN8_WOCS);
 		}else{
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN8);
 		}
-		opt->data.dss.dack_dsn.dsn.dsn8 = dsn_val;
-		opt->data.dss.dack_dsn.dack.dack8 = dack_val;
+		opt->data.dss.dack_dsn.dsn->dsn8 = dsn_val;
+		opt->data.dss.dack_dsn.dack->dack8 = dack_val;
 	}
 	
 	
@@ -695,7 +699,8 @@ struct tcp_option *dss_do_dsn_dack(int dsn_type, int dsn_val, int dack_type,
 	opt->data.dss.reserved_last_bits = DSS_RESERVED;
 
 
-	return opt;
+	return opt; */
+	return NULL;
 }
 		
 		
