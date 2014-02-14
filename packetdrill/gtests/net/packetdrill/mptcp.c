@@ -903,7 +903,10 @@ u16 get_tcp_payload_size(struct packet *packet){
 }
 */
 
-
+/**
+ *  It will parse an inbound packet and modify the script packet 
+ *  in order to correspond with the sctipted tests from example folder. 
+ */
 int dss_inbound_parser(struct packet *packet_to_modify,
 		struct packet *live_packet,
 		struct tcp_option *tcp_opt_to_modify){
@@ -916,6 +919,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 
 //	int tcp_payload_length = packet_payload_len(packet_to_modify);
 //	printf("Payload %u\n", tcp_payload_length);
+	
 	// DSN8
 	if(tcp_opt_to_modify->data.dss.flag_M){
 		if(tcp_opt_to_modify->data.dss.flag_m){
@@ -1047,181 +1051,240 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 
 int dss_outbound_parser(struct packet *packet_to_modify,
 		struct packet *live_packet,
-		struct tcp_option *tcp_opt_to_modify){
-		int tcp_payload_length = packet_payload_len(packet_to_modify);
-		printf("Payload dss outbound: %u\n", tcp_payload_length);
-
+		struct tcp_option *dss_opt_script){
+//		int tcp_payload_length = packet_payload_len(packet_to_modify);
+	
+	struct tcp_option* dss_opt_live = get_tcp_option(live_packet, TCPOPT_MPTCP);
+	
 	// if a packet is coming from kernel with DSN and DACK
-	if(tcp_opt_to_modify->data.dss.flag_M && tcp_opt_to_modify->data.dss.flag_A){
+	if(dss_opt_script->data.dss.flag_M && dss_opt_script->data.dss.flag_A){
 		// if dsn4 and dack4
-		if(!tcp_opt_to_modify->data.dss.flag_m && !tcp_opt_to_modify->data.dss.flag_a){
+		if(!dss_opt_script->data.dss.flag_m && !dss_opt_script->data.dss.flag_a){
+			if(!(!dss_opt_script->data.dss.flag_m && !dss_opt_script->data.dss.flag_a))
+				return STATUS_ERR;
+			// get original information from live_packet
+			struct dack *dack_live	= (struct dack*)((u32*)dss_opt_live+1);
+			struct dsn *dsn_live 	= (struct dsn*)((u32*)dss_opt_live+2);
+			
+			// put information in script packet
+			if(dss_opt_script->data.dss.dack_dsn.dack.dack4 == UNDEFINED)
+				dss_opt_script->data.dss.dack_dsn.dack.dack4 = ntohl(dack_live->dack4);
+			
+			// get ssn, dll, and checksum from live_packet 
+			u32 ssn 	= *((u32*)dsn_live + 1);
+			u32 dll_chk = (u32)*((u32*)dsn_live + 2);
+			u16 dll 	= (u16)dll_chk;
+			u16 chk 	= dll_chk >> 16;
+			
+			u32 *script_dsn4 	= (u32*)dss_opt_script+2;   // jump over 64 bits to reach the dsn
+			
+			//Set dsn being value specified in script 
+			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4==UNDEFINED)
+				*script_dsn4 	= dsn_live->dsn4;
+			
+			// put ssn, dll, chk in script_packet
+			u32 *script_ssn 		= script_dsn4 + 1;
+			*script_ssn 			= ssn;
+			u32 *script_dll_chk 	= script_ssn + 1;
+			*script_dll_chk 		= dll_chk;
+			
+			printf("dack4: %u, dsn4: %u", ntohl(dack_live->dack4), ntohl(dsn_live->dsn4)); // OK
+			printf(", ssn: %u, dll: %u, chk: %u\n", ntohl(ssn), ntohs(dll), ntohs(chk));
+		
+		// DSN4 & DACK8
+		}else if(!dss_opt_script->data.dss.flag_m && dss_opt_script->data.dss.flag_a){
+			if(!(!dss_opt_live->data.dss.flag_m && dss_opt_live->data.dss.flag_a))
+				return STATUS_ERR;
+			// get original information from live_packet
+			struct dack *dack_live	= (struct dack*)((u32*)dss_opt_live+1); // to jump over  Kind | Length | Subtype | flags = u32
+			struct dsn *dsn_live 	= (struct dsn*)((u64*)dack_live+1); // dsn = 64 bits
+			
+			// put information in script packet
+			if(dss_opt_script->data.dss.dack_dsn.dack.dack8 == UNDEFINED)
+				dss_opt_script->data.dss.dack_dsn.dack.dack8 =  be64toh(dack_live->dack8); // be64toh
+			
+			u32 *script_dsn4 	= (u32*)dss_opt_script+3;
+			
+			//Set dsn being value specified in script test
+			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4==UNDEFINED)
+				*script_dsn4 	= dsn_live->dsn4;
 
-			struct tcp_option* dss_opt = get_tcp_option(live_packet, TCPOPT_MPTCP);
-			struct dack *dack_live	= (struct dack*)((u32*)dss_opt+1);
-		//	struct dack *dack_script= (struct dack*)((u32*)tcp_opt_to_modify+1);
-			struct dsn *dsn_live 	= (struct dsn*)((u32*)dss_opt+2);
-		//	struct dsn *dsn_script 	= (struct dsn*)((u32*)tcp_opt_to_modify+2);
+			// get ssn, dll, and checksum from live_packet 
 			u32 ssn = *((u32*)dsn_live + 1);
 			u32 dll_chk = (u32)*((u32*)dsn_live + 2);
 			u16 dll = (u16)dll_chk;
 			u16 chk = dll_chk >> 16;
-
-			printf("dack4: %u, dsn4: %u", ntohl(dack_live->dack4), ntohl(dsn_live->dsn4)); // OK
+			
+			// put ssn, dll, chk in script_packet
+			u32 *script_ssn 		= script_dsn4 + 1;
+			*script_ssn 			= ssn;
+			u32 *script_dll_chk 	= script_ssn + 1;
+			*script_dll_chk 		= dll_chk;
+			
+			printf("dack8: %u, dsn4: %u", ntohl(dack_live->dack8), ntohl(dsn_live->dsn4)); // OK
 			printf(", ssn: %u, dll: %u, chk: %u\n", ntohl(ssn), ntohs(dll), ntohs(chk));
 
-			//Set dsn being value specified in script + initial dsn
-			if(tcp_opt_to_modify->data.dss.dack_dsn.dsn.dsn4==UNDEFINED){
-				tcp_opt_to_modify = dss_opt ;
-			//	tcp_opt_to_modify->data.dss.dack_dsn.dsn.dsn4 = htonl(dsn_live->dsn4);
-				mp_state.last_dsn_rcvd  = ntohl(dsn_live->dsn4);
-				// printf("1053:last_dsn_received: %u\n", ntohl(dss_opt->data.dss.dack_dsn.dsn.dsn4));
-				//	htonl((u32)((u32)mp_state.remote_idsn + (u32)mp_state.remote_ssn)); // XXX how to convert u64 in u32
-			}else{
-				printf("----- dsn_script->dsn4 is defined=>error ------\n");
-			}
+			// DSN8 & DACK4
+		}else if(dss_opt_script->data.dss.flag_m && !dss_opt_script->data.dss.flag_a){
+			if(!(dss_opt_live->data.dss.flag_m && !dss_opt_live->data.dss.flag_a))
+				return STATUS_ERR;
 			
-			printf("[mptcp.c:1081]dsn4: %u, ", ntohl(tcp_opt_to_modify->data.dss.dack_dsn.dsn.dsn4));
+			// get original information from live_packet
+			struct dack *dack_live	= (struct dack*)((u32*)dss_opt_live+1);
+			struct dsn *dsn_live 	= (struct dsn*)((u32*)dack_live+1);
+			
+			// put information in script packet
+			if(dss_opt_script->data.dss.dack_dsn.dack.dack4 == UNDEFINED)
+				dss_opt_script->data.dss.dack_dsn.dack.dack4 = ntohl(dack_live->dack4);
+			
+			// get ssn, dll, and checksum from live_packet 
+			u32 ssn 	= *((u64*)dsn_live + 1);
+			u32 dll_chk = (u32)*((u32*)dsn_live + 2);
+			u16 dll 	= (u16)dll_chk;
+			u16 chk 	= dll_chk >> 16;
+			
+			u64 *script_dsn8 	= (u64*)((u32*)dss_opt_script+2);   
+			
+			//Set dsn being value specified in script 
+			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn8==UNDEFINED)
+				*script_dsn8 	= dsn_live->dsn8;
+			
+			// put ssn, dll, chk in script_packet
+			u32 *script_ssn 		= (u32*)((u64*)script_dsn8 + 1);
+			*script_ssn 			= ssn;
+			u32 *script_dll_chk 	= script_ssn + 1;
+			*script_dll_chk 		= dll_chk;
+			
+			printf("dack4: %u, dsn8: %u", ntohl(dack_live->dack4), ntohl(dsn_live->dsn8)); // OK
+			printf(", ssn: %u, dll: %u, chk: %u\n", ntohl(ssn), ntohs(dll), ntohs(chk));
+		// DSN8 & DACK8
+		}else if(dss_opt_script->data.dss.flag_m && dss_opt_script->data.dss.flag_a){
+			if(!(dss_opt_script->data.dss.flag_m && dss_opt_script->data.dss.flag_a))
+				return STATUS_ERR;
+			
+			// get original information from live_packet
+			struct dack *dack_live	= (struct dack*)((u32*)dss_opt_live+1);
+			struct dsn *dsn_live 	= (struct dsn*)((u32*)dack_live+2);
+			
+			// put information in script packet
+			if(dss_opt_script->data.dss.dack_dsn.dack.dack8 == UNDEFINED)
+				dss_opt_script->data.dss.dack_dsn.dack.dack8 = (u64)be64toh(dack_live->dack8);
+			
+			// get ssn, dll, and checksum from live_packet 
+			u32 ssn 	= (u32)*((u32*)dsn_live + 2);
+			u32 dll_chk = (u32)*((u32*)dsn_live + 3);
+			u16 dll 	= (u16)dll_chk;
+			u16 chk 	= dll_chk >> 16;
+			
+			u64 *script_dsn8 	= (u64*)((u32*)dss_opt_script+2);   
+			
+			//Set dsn being value specified in script 
+			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn8==UNDEFINED)
+				*script_dsn8 		= dsn_live->dsn8;
+			
+			// put ssn, dll, chk in script_packet
+			u32 *script_ssn 		= (u32*)((u64*)script_dsn8 + 1);
+			*script_ssn 			= ssn;
+			u32 *script_dll_chk 	= script_ssn + 1;
+			*script_dll_chk 		= dll_chk;
+			
+			printf("dack8: %llu, dsn8: %llu", (u64)be64toh(dack_live->dack8), (u64)be64toh(dsn_live->dsn8)); 
+			printf(", ssn: %u, dll: %u, chk: %u\n", ntohl(ssn), ntohs(dll), ntohs(chk));
 
-			// Do we have a checksum or not
-			if(tcp_opt_to_modify->length == TCPOLEN_DSS_DACK4_DSN4){
-				tcp_opt_to_modify->data.dss.dack_dsn.dsn.w_cs.ssn = htonl(dsn_live->w_cs.ssn); //htonl(mp_state.remote_ssn);
-				tcp_opt_to_modify->data.dss.dack_dsn.dsn.w_cs.dll = htons(dsn_live->w_cs.dll); //htons(tcp_payload_length);
-				tcp_opt_to_modify->data.dss.dack_dsn.dsn.w_cs.checksum = htons(dsn_live->w_cs.checksum); //htons(1111);
-				
-				// TODO compute checksum
-				printf("ssn: %u, dll: %u, chk: %u",
-						ntohl(tcp_opt_to_modify->data.dss.dack_dsn.dsn.w_cs.ssn),
-						ntohs(tcp_opt_to_modify->data.dss.dack_dsn.dsn.w_cs.dll),
-						ntohs(tcp_opt_to_modify->data.dss.dack_dsn.dsn.w_cs.checksum) );
-			}else if(tcp_opt_to_modify->length == TCPOLEN_DSS_DACK4_DSN4_WOCS){
-				tcp_opt_to_modify->data.dss.dack_dsn.dsn.wo_cs.ssn = htonl(dsn_live->wo_cs.ssn); //htonl(mp_state.remote_ssn);
-				tcp_opt_to_modify->data.dss.dack_dsn.dsn.wo_cs.dll = htons(dsn_live->wo_cs.dll); //htons(tcp_payload_length);
-			}
-
-			// if we have an undefined dack4
-			if(tcp_opt_to_modify->data.dss.dack_dsn.dack.dack4 == UNDEFINED){
-				tcp_opt_to_modify->data.dss.dack_dsn.dack.dack4 = ntohl(dack_live->dack4);
-			//	if(mp_state.last_dsn_rcvd < tcp_opt_to_modify->data.dss.dack.dack4)
-			//		mp_state.last_dsn_rcvd = tcp_opt_to_modify->data.dss.dack.dack4;
-			}else if(tcp_opt_to_modify->data.dss.dack_dsn.dack.dack4 == IGNORED){
-				// Need it to do ? XXX
-			}
-			printf(", dack4: %u \n",ntohl(tcp_opt_to_modify->data.dss.dack_dsn.dack.dack4));
-
+		}else{
+			// It means we have a difference of flags about what we waited for
+			return STATUS_ERR;
 		}
 	
 	// Only DSN is in the packet
-	}else if(tcp_opt_to_modify->data.dss.flag_M ){ // DSS
-/*
+	}else if(dss_opt_script->data.dss.flag_M ){ // DSS
+		if(!dss_opt_script->data.dss.flag_M)
+			return STATUS_ERR;
+		
+		// get original dsn from live_packet
+		struct dsn *dsn_live 	= (struct dsn*)((u32*)dss_opt_live+1);
+		
 		// if DSN is 8 octets
-		if(tcp_opt_to_modify->data.dss.flag_m){
-			//Set dsn being value specified in script + initial dsn
-	***
+		if(dss_opt_script->data.dss.flag_m){
+			
+			// get ssn, dll, and checksum from live_packet 
+			u32 ssn 	= *((u32*)dsn_live + 1);
+			u32 dll_chk = (u32)*((u32*)dsn_live + 3);
+			u16 dll 	= (u16)dll_chk;
+			u16 chk 	= dll_chk >> 16;
+			
 			// if dsn8 is not given in the script, we'll put it automatically
-			if(tcp_opt_to_modify->data.dss.dsn.dsn8==UNDEFINED){
-				tcp_opt_to_modify->data.dss.dsn.dsn8 =
-						htobe64(mp_state.idsn+mp_state.nb_pkt_rcvd); //htobe64
+			if(dss_opt_script->data.dss.dsn.dsn8 == UNDEFINED){
+				dss_opt_script->data.dss.dsn.dsn8 = htobe64(dsn_live->dsn8); //htobe64
 			}
-			struct mp_subflow *subflow =
-				find_subflow_matching_outbound_packet(live_packet);
-
-			if(tcp_opt_to_modify->length == TCPOLEN_DSS_DSN8){
-				tcp_opt_to_modify->data.dss.dsn.w_cs.dll =
-						htons(tcp_payload_length); //htons(
-				tcp_opt_to_modify->data.dss.dsn.w_cs.ssn =
-						htonl(mp_state.nb_pkt_rcvd);
-				tcp_opt_to_modify->data.dss.dsn.w_cs.checksum = 1111;
-
-			}else if(tcp_opt_to_modify->length == TCPOLEN_DSS_DSN8_WOCS){
-				tcp_opt_to_modify->data.dss.dsn.wo_cs.dll =
-						htons(tcp_payload_length); //htons(
-
-				tcp_opt_to_modify->data.dss.dsn.wo_cs.ssn =
-						htonl(mp_state.nb_pkt_rcvd);
-				tcp_opt_to_modify->data.dss.dsn.w_cs.checksum = 0;
+			if(dss_opt_script->length == TCPOLEN_DSS_DSN8){
+				dss_opt_script->data.dss.dsn.w_cs.dll =	dll;
+				dss_opt_script->data.dss.dsn.w_cs.ssn = ssn;
+				dss_opt_script->data.dss.dsn.w_cs.checksum = chk;
+			}else{
+				dss_opt_script->data.dss.dsn.wo_cs.dll =	dll;
+				dss_opt_script->data.dss.dsn.wo_cs.ssn = ssn;
 			}
-			printf("[1040]chk: %u, ", tcp_opt_to_modify->data.dss.dsn.w_cs.checksum);
-			printf("dsn8: %u, ", tcp_opt_to_modify->data.dss.dsn.dsn4);
-			printf("ssn: %u, dll: %u \n", subflow->ssn, tcp_payload_length);
-	***
-			printf("It is 8 octets\n");
 		}
 		// if DSN is 4 octets
 		else {
-			//Set dsn being value specified in script + initial dsn
-			if(tcp_opt_to_modify->data.dss.dsn.dsn4==UNDEFINED){
-				tcp_opt_to_modify->data.dss.dsn.dsn4 =
-					htonl((u32)(mp_state.remote_idsn + mp_state.remote_ssn)); // XXX how to convert u64 in u32
-			}
-			printf("[mptcp.c:1087]dsn4: %u, ", htonl(tcp_opt_to_modify->data.dss.dsn.dsn4) );
-			struct mp_subflow *subflow =
-					find_subflow_matching_outbound_packet(live_packet);
-			// Do we have a checksum or not
-			if(tcp_opt_to_modify->length == TCPOLEN_DSS_DSN4){
-
-				tcp_opt_to_modify->data.dss.dsn.w_cs.ssn = htonl(mp_state.remote_ssn);
-
-				tcp_opt_to_modify->data.dss.dsn.w_cs.dll = htons(tcp_payload_length);
-				tcp_opt_to_modify->data.dss.dsn.w_cs.checksum = htons(1111);
-				// TODO compute checksum
-				printf("ssn: %u, dll: %u, chk: %u",
-						ntohl(tcp_opt_to_modify->data.dss.dsn.w_cs.ssn),
-						ntohs(tcp_opt_to_modify->data.dss.dsn.w_cs.dll),
-						ntohs(tcp_opt_to_modify->data.dss.dsn.w_cs.checksum) );
-
-			}else if(tcp_opt_to_modify->length == TCPOLEN_DSS_DSN4_WOCS){
-				tcp_opt_to_modify->data.dss.dsn.wo_cs.dll = htons(
-					tcp_payload_length); //htons(
-
-				tcp_opt_to_modify->data.dss.dsn.wo_cs.ssn =	htonl(mp_state.remote_ssn);
-
-				printf("ssn: %u, dll: %u, no_chk ",
-						tcp_opt_to_modify->data.dss.dsn.wo_cs.ssn,
-						tcp_opt_to_modify->data.dss.dsn.wo_cs.dll );
-
-			}
-			// if we have a dack4
-			if(!tcp_opt_to_modify->data.dss.flag_a){
-				if(tcp_opt_to_modify->data.dss.dack.dack4 == UNDEFINED){
-					tcp_opt_to_modify->data.dss.dack.dack4 = htonl((u32)(mp_state.idsn + subflow->ssn));
-					if(mp_state.last_dsn_rcvd < tcp_opt_to_modify->data.dss.dack.dack4)
-						mp_state.last_dsn_rcvd = tcp_opt_to_modify->data.dss.dack.dack4;
-				}else if(tcp_opt_to_modify->data.dss.dack.dack4 == IGNORED){
-					// Need it to do ? XXX
-				}
-				printf(", dack4: %u \n",ntohl(tcp_opt_to_modify->data.dss.dack.dack4));
+			// get ssn, dll, and checksum from live_packet 
+			u32 ssn 	= *((u32*)dsn_live + 1);
+			u32 dll_chk = (u32)*((u32*)dsn_live + 2);
+			u16 dll 	= (u16)dll_chk;
+			u16 chk 	= dll_chk >> 16;
+			
+			// if dsn8 is not given in the script, we'll put it automatically
+			if(dss_opt_script->data.dss.dsn.dsn4 == UNDEFINED)
+				dss_opt_script->data.dss.dsn.dsn4 = htobe32(dsn_live->dsn4); 
+			
+			if(dss_opt_script->length == TCPOLEN_DSS_DSN4){
+				dss_opt_script->data.dss.dsn.w_cs.dll =	dll;
+				dss_opt_script->data.dss.dsn.w_cs.ssn = ssn;
+				dss_opt_script->data.dss.dsn.w_cs.checksum = chk;
 			}else{
-				if(tcp_opt_to_modify->data.dss.dack.dack8 == UNDEFINED){
-					tcp_opt_to_modify->data.dss.dack.dack8 = be64toh((u64)(mp_state.idsn + subflow->ssn));
-					if(mp_state.last_dsn_rcvd < tcp_opt_to_modify->data.dss.dack.dack8)
-						mp_state.last_dsn_rcvd = tcp_opt_to_modify->data.dss.dack.dack8;
-				}else if(tcp_opt_to_modify->data.dss.dack.dack8 == IGNORED){
-					// Need it to do ? XXX
-				}
+				dss_opt_script->data.dss.dsn.wo_cs.dll =	dll;
+				dss_opt_script->data.dss.dsn.wo_cs.ssn = ssn;
 			}
-
-//			char *dump = NULL, *error = NULL;
-//			packet_to_string(live_packet, DUMP_FULL, &dump, &error);
-//			packet_to_string(live_packet, DUMP_FULL, &dump, &error);
-//			printf("[1077]dsn4: %u, ", tcp_opt_to_modify->data.dss.dsn.dsn4);
-//			printf("ssn: %u, dll: %u \n", subflow->ssn, tcp_payload_length);
 		}
-** 		printf("DACK: %d, ", tcp_opt_to_modify->data.dss.flag_A);
-		printf("DACK8: %d, ", tcp_opt_to_modify->data.dss.flag_a);
-		printf("DSN: %d, ", tcp_opt_to_modify->data.dss.flag_M);
-		printf("DSN8: %d, ", tcp_opt_to_modify->data.dss.flag_m);
-		printf("FIN: %d, ", tcp_opt_to_modify->data.dss.flag_F);
-***
+		
+/* 		printf("DACK: %d, ", dss_opt_script->data.dss.flag_A);
+		printf("DACK8: %d, ", dss_opt_script->data.dss.flag_a);
+		printf("DSN: %d, ", dss_opt_script->data.dss.flag_M);
+		printf("DSN8: %d, ", dss_opt_script->data.dss.flag_m);
+		printf("FIN: %d, ", dss_opt_script->data.dss.flag_F);
 */
-	// if it's DACK only from kernel
-	}else if(tcp_opt_to_modify->data.dss.flag_A ){
-		printf("Handle outbound packet, wrong one, -> nog te doen\n");
-	}else{
-
-	}
-//	mp_state.nb_pkt_rcvd += tcp_payload_length;
-
-	return 0;
+	// if it's DACK only from kernel, need to save it 
+	}else if(dss_opt_script->data.dss.flag_A ){
+		if(!dss_opt_script->data.dss.flag_A)
+			return STATUS_ERR;
+		
+		// get original dack from live_packet
+		struct dack *dack_live 	= (struct dack*)((u32*)dss_opt_live+1);
+		
+		// if DACK is 8 octets
+		if(dss_opt_script->data.dss.flag_a){
+			
+			// if dack8 is not given in the script, we'll put it automatically
+			if(dss_opt_script->data.dss.dack.dack8 == UNDEFINED)
+				dss_opt_script->data.dss.dack.dack8 = htobe64(dack_live->dack8); 
+		}
+		// if DACK is 4 octets
+		else {
+			// if dsn8 is not given in the script, we'll put it automatically
+			if(dss_opt_script->data.dss.dack.dack4 == UNDEFINED)
+				dss_opt_script->data.dss.dack.dack4 = htobe32(dack_live->dack4); 
+			else if(dss_opt_script->data.dss.dack.dack4==SCRIPT_DEFINED){
+				u64 *key = find_next_key();
+				if(!key)
+					return STATUS_ERR;
+				dss_opt_script->data.dss.dack.dack4 = htobe32((u32)*key);
+			}
+		}
+	}else
+		return STATUS_ERR;
+	
+	return STATUS_OK;
 }
 
 
@@ -1230,15 +1293,16 @@ int mptcp_subtype_dss(struct packet *packet_to_modify,
 						struct packet *live_packet,
 						struct tcp_option *tcp_opt_to_modify,
 						unsigned direction){
-
+	int error = -1;;
 	// injecting a packet to kernel
 	if(direction == DIRECTION_INBOUND){
-		dss_inbound_parser(packet_to_modify, live_packet, tcp_opt_to_modify);
+		error = dss_inbound_parser(packet_to_modify, live_packet, tcp_opt_to_modify);
 	}else if(direction == DIRECTION_OUTBOUND){
-		dss_outbound_parser(packet_to_modify, live_packet, tcp_opt_to_modify);
-	}else{
-		return STATUS_ERR;
+		error = dss_outbound_parser(packet_to_modify, live_packet, tcp_opt_to_modify);
 	}
+	if(error!=STATUS_OK)
+		return STATUS_ERR;
+	
 	return STATUS_OK;
 }
 

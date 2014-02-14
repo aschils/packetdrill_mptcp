@@ -221,9 +221,6 @@ struct tcp_option {
 			|  Data-Level Length (2 octets) |      Checksum (2 octets)     |
 			+-------------------------------+------------------------------+
 			*/
-
-		//	struct dsn dsn;
-		//	struct dack dack;
 			union {
 				struct dack dack;
 				struct dsn dsn;
@@ -231,10 +228,6 @@ struct tcp_option {
 					struct dack dack;
 					struct dsn dsn;
 				}__packed dack_dsn;
-				/*
-					struct dack dack;
-					struct dsn dsn;
-				} __packed ; */  // XXX
 			};
 		} __packed dss;
 		/*******END MPTCP options*********/

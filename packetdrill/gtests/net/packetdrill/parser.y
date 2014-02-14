@@ -658,39 +658,33 @@ struct tcp_option *dss_do_dsn_dack(int dsn_type, int dsn_val, int dack_type,
 		}else{
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN4);
 		}
-//		opt->data.dss.dack_dsn.dsn = (struct dsn*)malloc(sizeof(struct dsn));
-//		opt->data.dss.dack_dsn.dsn->dsn4 = dsn_val;
-//		opt->data.dss.dack_dsn.dack = (struct dack*)malloc(sizeof(struct dack)); 
-//		opt->data.dss.dack_dsn.dack->dack4 = dack_val;
 		opt->data.dss.dack_dsn.dsn.dsn4 = dsn_val;
 		opt->data.dss.dack_dsn.dack.dack4 = dack_val;
-
 	}else if(dsn_type==4 && dack_type==8){
-/*		if(no_checksum){
+		if(no_checksum){
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN4_WOCS);
 		}else{
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN4);
 		}
-		opt->data.dss.dack_dsn.dsn->dsn4 = dsn_val;
-		opt->data.dss.dack_dsn.dack->dack8 = dack_val;
+		opt->data.dss.dack_dsn.dsn.dsn4 = dsn_val;
+		opt->data.dss.dack_dsn.dack.dack8 = dack_val;
 	}else if(dsn_type==8 && dack_type==4){
 		if(no_checksum){
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN8_WOCS);
 		}else{
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN8);
 		}
-		opt->data.dss.dack_dsn.dsn->dsn8 = dsn_val;
-		opt->data.dss.dack_dsn.dack->dack4 = dack_val;
+		opt->data.dss.dack_dsn.dsn.dsn8 = dsn_val;
+		opt->data.dss.dack_dsn.dack.dack4 = dack_val;
 	}else if(dsn_type==8 && dack_type==8){
 		if(no_checksum){
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN8_WOCS);
 		}else{
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN8);
 		}
-		opt->data.dss.dack_dsn.dsn->dsn8 = dsn_val;
-		opt->data.dss.dack_dsn.dack->dack8 = dack_val; */
+		opt->data.dss.dack_dsn.dsn.dsn8 = dsn_val;
+		opt->data.dss.dack_dsn.dack.dack8 = dack_val; 
 	}
-	
 	
 	//flag_data_fin:1,flag_dsn8:1,flag_dsn:1,flag_dack8:1,flag_dack:1; F|m|M|a|A
 	opt->data.dss.flag_M = 1;
@@ -702,7 +696,6 @@ struct tcp_option *dss_do_dsn_dack(int dsn_type, int dsn_val, int dack_type,
 	opt->data.mp_capable.subtype = DSS_SUBTYPE;
 	opt->data.dss.reserved_first_bits = DSS_RESERVED;
 	opt->data.dss.reserved_last_bits = DSS_RESERVED;
-
 
 	return opt; 
 }
@@ -1174,17 +1167,21 @@ tcp_fast_open_cookie
 dsn
 : 				{	$$.type = UNDEFINED;   $$.val = UNDEFINED;}
 | DSN4 '=' INTEGER 	{ 	$$.type = 4;	$$.val = $3;}
-| DSN4 '=' TRUNC_R64_HMAC '('  INTEGER ')'	
-	{
-		if(!is_valid_u64($5))
+| DSN4 			{	$$.type = 4;	$$.val = UNDEFINED;}
+| DSN4 '=' TRUNC_R64_HMAC '('  INTEGER ')'	{
+		if(!is_valid_u32($5))
 			semantic_error("mptcp trunc_r64_hmac is not a valid u64.");
 		$$.type = 4;	
 		$$.val = sha1_least_64bits($5);
 	}
-
-| DSN4 			{	$$.type = 4;	$$.val = UNDEFINED;}
 | DSN8 '=' INTEGER 	{	$$.type = 8;	$$.val = $3;}
 | DSN8 			{	$$.type = 8;	$$.val = UNDEFINED;}
+| DSN8 '=' TRUNC_R64_HMAC '('  INTEGER ')'	{
+		if(!is_valid_u64($5))
+			semantic_error("mptcp trunc_r64_hmac is not a valid u64.");
+		$$.type = 8;	
+		$$.val = sha1_least_64bits($5);
+	}
 ;
 
 dack
@@ -1192,7 +1189,7 @@ dack
 | DACK4 '=' INTEGER {	$$.type = 4;	$$.dack = $3;}
 | DACK4 			{	$$.type = 4;	$$.dack = UNDEFINED;}
 | DACK4 '=' TRUNC_R64_HMAC '(' INTEGER ')'	{
-	if(!is_valid_u64($5))
+	if(!is_valid_u32($5))
 		semantic_error("mptcp trunc_r64_hmac is not a valid u64. ");
 	$$.type = 4;
 	$$.dack = sha1_least_64bits($5);
@@ -1204,7 +1201,19 @@ dack
 		semantic_error("Too many variables are used in script"); 		
 }
 | DACK8 '=' INTEGER {	$$.type = 8;	$$.dack = $3;}
-| DACK8  		{	$$.type = 8;	$$.dack = UNDEFINED;}
+| DACK8  			{	$$.type = 8;	$$.dack = UNDEFINED;}
+| DACK8 '=' TRUNC_R64_HMAC '(' INTEGER ')'	{
+	if(!is_valid_u64($5))
+		semantic_error("mptcp trunc_r64_hmac is not a valid u64. ");
+	$$.type = 8;
+	$$.dack = sha1_least_64bits($5);
+}
+| DACK8 '=' TRUNC_R64_HMAC '('  WORD ')' 	{
+	$$.type = 8;
+	$$.dack = SCRIPT_DEFINED; // to be added using the variable name
+	if(queue_enqueue(&mp_state.vars_queue, $5)==STATUS_ERR)
+		semantic_error("Too many variables are used in script"); 		
+}
 ;
 
 mptcp_var_or_empty
