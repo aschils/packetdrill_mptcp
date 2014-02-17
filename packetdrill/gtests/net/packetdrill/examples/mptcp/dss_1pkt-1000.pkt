@@ -14,7 +14,8 @@
 /* the initial data sequence number (IDSN) = least significant 64
    bits of the SHA-1 hash of the host's key */
 +0  write(4, ..., 1000) = 1000 
-+0  > P. 1:1001(1000) ack 1 win 450  <dss dsn4 dack4>  //dsn8 4294967296> 
++0  < P. 1:1001(1000) ack 1 win 450  <dss dsn4 dack4>  //dsn8 4294967296> 
++0  > P. 1:1001(1000) ack 1 win 450  <dss dsn4 dack4>
 +.1 < . 1:1(0) ack 1001 win 257 <dss dack4>  //4294967296
 
 /*

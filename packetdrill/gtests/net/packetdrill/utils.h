@@ -15,6 +15,13 @@ typedef struct { uint8_t data[4]; } token32;
 typedef unsigned char uint8_t;
 
 
+
+//----- Type defines ----------------------------------------------------------
+typedef unsigned char      byte;    // Byte is a char
+typedef unsigned short int word16;  // 16-bit word is a short int
+typedef unsigned int       word32;  // 32-bit word is an int
+
+
 void seed_generator();
 u64 rand_64();
 u32 generate_32();
@@ -33,7 +40,7 @@ void hmac_sha1(const unsigned char *key,
 		char *data,
 		u32 data_length,
 		unsigned char *output);
-u16 checksum(u16 *buffer, int size);
-
+u16 checksum_dss(u16 *buffer, int size);
+uint16_t checksum_d(void* vdata, size_t length);
 #endif
 

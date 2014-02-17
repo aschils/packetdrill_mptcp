@@ -80,7 +80,7 @@ u64 sha1_least_64bits(u64 key)
 	return (u64)be64toh(*((u64*)&hash[12]));
 }
 
-u16 checksum(u16 *buffer, int size)
+u16 checksum_dss(u16 *buffer, int size)
 {
 	unsigned long cksum=0;
 	while(size >1)
@@ -94,4 +94,35 @@ u16 checksum(u16 *buffer, int size)
 	cksum = (cksum >> 16) + (cksum & 0xffff);
 	cksum += (cksum >>16);
 	return (u16)(~cksum);
+}
+
+uint16_t checksum_d(void* vdata, size_t length) {
+    // Cast the data pointer to one that can be indexed.
+    char* data=(char*)vdata;
+    size_t i;
+    // Initialise the accumulator.
+    uint32_t acc=0xffff;
+
+    // Handle complete 16-bit blocks.
+    for (i=0;i+1<length;i+=2) {
+        uint16_t word;
+        memcpy(&word,data+i,2);
+        acc+=ntohs(word);
+        if (acc>0xffff) {
+            acc-=0xffff;
+        }
+    }
+
+    // Handle any partial block at the end of the data.
+    if (length&1) {
+        uint16_t word=0;
+        memcpy(&word,data+length-1,1);
+        acc+=ntohs(word);
+        if (acc>0xffff) {
+            acc-=0xffff;
+        }
+    }
+
+    // Return the checksum in network byte order.
+    return ~acc;
 }
