@@ -15,6 +15,7 @@ void init_mp_state()
 	mp_state.idsn = UNDEFINED;
 	mp_state.remote_idsn = UNDEFINED;
 	mp_state.remote_ssn = 0;
+	mp_state.remote_last_pkt_length = 0;
 	mp_state.last_dsn_rcvd = 0;
 }
 
@@ -454,9 +455,13 @@ int mptcp_subtype_mp_capable(struct packet *packet_to_modify,
 		error = mptcp_set_mp_cap_keys(tcp_opt_to_modify);
 		// Automatically put the idsn tokens
 		mp_state.idsn = sha1_least_64bits(mp_state.packetdrill_key);
+//		printf("mptcp.c:457 IDSN: %llx\n", mp_state.idsn);
+
 		mp_state.remote_idsn = sha1_least_64bits(mp_state.kernel_key);
+//		printf("mptcp.c:460 Remote IDSN: %llx\n", mp_state.remote_idsn);
+
 		mp_state.last_dsn_rcvd = mp_state.remote_idsn+mp_state.remote_ssn;
-		mp_state.remote_ssn = 0; // => 1 because it's created on ack: syn uses 1 seq. nb.
+//		mp_state.remote_ssn = 0; // => 1 because it's created on ack: syn uses 1 seq. nb.
 		if(direction == DIRECTION_INBOUND)
 			new_subflow_inbound(packet_to_modify);
 		else if(direction == DIRECTION_OUTBOUND)
@@ -916,13 +921,13 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 
 	struct mp_subflow *subflow = find_subflow_matching_inbound_packet(packet_to_modify);
 
-	// TODO increase the ssn in outbound packets
-
 	u32 tcp_payload_length = packet_payload_len(packet_to_modify);
+
+	subflow->ssn += tcp_payload_length;
 
 	struct tcp_option* dss_opt_live = get_tcp_option(live_packet, TCPOPT_MPTCP);
 
-	// if a packet is going from packetdrill with DSN and DACK
+	// if a packet is going from packetdrill with DSN and DACK to kernel
 	if(dss_opt_script->data.dss.flag_M && dss_opt_script->data.dss.flag_A){
 		// if dsn4 and dack4
 		if(!dss_opt_script->data.dss.flag_m && !dss_opt_script->data.dss.flag_a){
@@ -933,7 +938,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 
 			// put information in script packet
 			if(dss_opt_script->data.dss.dack_dsn.dack.dack4 == UNDEFINED)
-				dack_live->dack4 = htonl((u32)(mp_state.remote_idsn + mp_state.remote_ssn));
+				dack_live->dack4 = htonl(mp_state.remote_idsn + mp_state.remote_ssn + mp_state.remote_last_pkt_length);
 
 			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4 == UNDEFINED)
 				dsn_live->dsn4 = htonl(mp_state.idsn + subflow->ssn);
@@ -1107,11 +1112,13 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 	}
 	// IF ACK only
 	else if(dss_opt_script->data.dss.flag_A){
+		// dack4
 		if(!dss_opt_script->data.dss.flag_a){
 			if(dss_opt_script->data.dss.dack.dack4==UNDEFINED){
-				dss_opt_script->data.dss.dack.dack4 = htonl(mp_state.last_dsn_rcvd) ;
+				printf("Acked %u\n", htonl((u32)(mp_state.remote_idsn + mp_state.remote_ssn + mp_state.remote_last_pkt_length)));
+				dss_opt_script->data.dss.dack.dack4 = ntohl((u32)(mp_state.remote_idsn + mp_state.remote_ssn + mp_state.remote_last_pkt_length));
 				//	htonl(mp_state.remote_idsn + mp_state.remote_ssn); //htobe64(
-				// printf("1029:last_dsn_received: %u\n", htonl(mp_state.last_dsn_rcvd));
+			//	 printf("1121: script_dack4 %u\n", dss_opt_script->data.dss.dack.dack4 );
 			// if we gave a variable name in the script
 			}else if(dss_opt_script->data.dss.dack.dack4==SCRIPT_DEFINED){
 				u64 *key = find_next_key();
@@ -1122,6 +1129,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 		//		printf("[mptcp.c:1037]mp_state.remote_idsn: %llu\n", (u64)mp_state.remote_idsn);
 			}
 		}
+	// IF DSN only
 	}else if(dss_opt_script->data.dss.flag_M){
 		struct dsn *dsn_live 	= (struct dsn*)((u32*)dss_opt_live+1);
 
@@ -1216,14 +1224,17 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			
 			// put information in script packet
 			if(dss_opt_script->data.dss.dack_dsn.dack.dack4 == UNDEFINED)
-				dss_opt_script->data.dss.dack_dsn.dack.dack4 = ntohl(dack_live->dack4);
+				dss_opt_script->data.dss.dack_dsn.dack.dack4 = dack_live->dack4;
 			
+
 			// get ssn, dll, and checksum from live_packet 
 			u32 ssn 	= *((u32*)dsn_live + 1);
 			u32 dll_chk = (u32)*((u32*)dsn_live + 2);
-//			u16 dll 	= (u16)dll_chk;
+			u16 dll 	= (u16)dll_chk;
 //			u16 chk 	= dll_chk >> 16;
-			
+			mp_state.last_dsn_rcvd = dsn_live->dsn4;
+			mp_state.remote_last_pkt_length = dll;
+			mp_state.remote_ssn = ssn;
 			u32 *script_dsn4 	= (u32*)dss_opt_script+2;   // jump over 64 bits to reach the dsn
 			
 			//Set dsn being value specified in script 
@@ -1278,7 +1289,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			
 			// put information in script packet
 			if(dss_opt_script->data.dss.dack_dsn.dack.dack8 == UNDEFINED)
-				dss_opt_script->data.dss.dack_dsn.dack.dack8 =  be64toh(dack_live->dack8); // be64toh
+				dss_opt_script->data.dss.dack_dsn.dack.dack8 =  dack_live->dack8; // be64toh
 			
 			u32 *script_dsn4 	= (u32*)dss_opt_script+3;
 			
@@ -1298,6 +1309,10 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			u32 *script_dll_chk 	= script_ssn + 1;
 			*script_dll_chk 		= dll_chk;
 			
+			mp_state.last_dsn_rcvd = dsn_live->dsn4;
+			mp_state.remote_last_pkt_length = dll;
+			mp_state.remote_ssn = ssn;
+
 			printf("dack8: %u, dsn4: %u", ntohl(dack_live->dack8), ntohl(dsn_live->dsn4)); // OK
 			printf(", ssn: %u, dll: %u, chk: %u\n", ntohl(ssn), ntohs(dll), ntohs(chk));
 
@@ -1312,7 +1327,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			
 			// put information in script packet
 			if(dss_opt_script->data.dss.dack_dsn.dack.dack4 == UNDEFINED)
-				dss_opt_script->data.dss.dack_dsn.dack.dack4 = ntohl(dack_live->dack4);
+				dss_opt_script->data.dss.dack_dsn.dack.dack4 = dack_live->dack4;
 			
 			// get ssn, dll, and checksum from live_packet 
 			u32 ssn 	= *((u64*)dsn_live + 1);
@@ -1345,7 +1360,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			
 			// put information in script packet
 			if(dss_opt_script->data.dss.dack_dsn.dack.dack8 == UNDEFINED)
-				dss_opt_script->data.dss.dack_dsn.dack.dack8 = (u64)be64toh(dack_live->dack8);
+				dss_opt_script->data.dss.dack_dsn.dack.dack8 = dack_live->dack8;
 			
 			// get ssn, dll, and checksum from live_packet 
 			u32 ssn 	= (u32)*((u32*)dsn_live + 2);
@@ -1391,9 +1406,9 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			u16 chk 	= dll_chk >> 16;
 			
 			// if dsn8 is not given in the script, we'll put it automatically
-			if(dss_opt_script->data.dss.dsn.dsn8 == UNDEFINED){
-				dss_opt_script->data.dss.dsn.dsn8 = htobe64(dsn_live->dsn8); //htobe64
-			}
+			if(dss_opt_script->data.dss.dsn.dsn8 == UNDEFINED)
+				dss_opt_script->data.dss.dsn.dsn8 = dsn_live->dsn8; //htobe64
+
 			if(dss_opt_script->length == TCPOLEN_DSS_DSN8){
 				dss_opt_script->data.dss.dsn.w_cs.dll =	dll;
 				dss_opt_script->data.dss.dsn.w_cs.ssn = ssn;
@@ -1413,7 +1428,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			
 			// if dsn8 is not given in the script, we'll put it automatically
 			if(dss_opt_script->data.dss.dsn.dsn4 == UNDEFINED)
-				dss_opt_script->data.dss.dsn.dsn4 = htobe32(dsn_live->dsn4); 
+				dss_opt_script->data.dss.dsn.dsn4 = dsn_live->dsn4;
 			
 			if(dss_opt_script->length == TCPOLEN_DSS_DSN4){
 				dss_opt_script->data.dss.dsn.w_cs.dll =	dll;
@@ -1444,13 +1459,13 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			
 			// if dack8 is not given in the script, we'll put it automatically
 			if(dss_opt_script->data.dss.dack.dack8 == UNDEFINED)
-				dss_opt_script->data.dss.dack.dack8 = htobe64(dack_live->dack8); 
+				dss_opt_script->data.dss.dack.dack8 = dack_live->dack8;
 		}
 		// if DACK is 4 octets
 		else {
 			// if dsn8 is not given in the script, we'll put it automatically
 			if(dss_opt_script->data.dss.dack.dack4 == UNDEFINED)
-				dss_opt_script->data.dss.dack.dack4 = htobe32(dack_live->dack4); 
+				dss_opt_script->data.dss.dack.dack4 = dack_live->dack4;
 			else if(dss_opt_script->data.dss.dack.dack4==SCRIPT_DEFINED){
 				u64 *key = find_next_key();
 				if(!key)

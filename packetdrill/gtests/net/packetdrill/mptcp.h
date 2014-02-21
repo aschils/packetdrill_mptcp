@@ -164,8 +164,9 @@ struct mp_state_s {
 
     u64 remote_idsn; 	// least 64 bits of Hash(kernel_key)
     u64 idsn;			// least 64 bits of Hash(packetdrill_key)
-    u64 remote_ssn;		// number of packets received from kernel
+    u32 remote_ssn;		// number of packets received from kernel
     u64 last_dsn_rcvd;  // last dsn received from kernel
+    u64 remote_last_pkt_length;
 };
 
 typedef struct mp_state_s mp_state_t;

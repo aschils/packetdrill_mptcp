@@ -47,7 +47,7 @@ static int tcp_fast_open_option_to_string(FILE *s, struct tcp_option *option)
 }
 
 int print_dss_subtype(FILE *s, struct tcp_option *option){
-	fprintf(s, "dss ");
+	fprintf(s, " dss ");
 
 	if(option->data.dss.flag_M && option->data.dss.flag_A ){
 		fprintf(s, "dsn");

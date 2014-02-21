@@ -827,13 +827,8 @@ static int verify_outbound_live_ipv4(
 			(ntohs(script_packet->ipv4->tot_len) +
 			 tcp_options_allowance(actual_packet,
 					       script_packet)),
-			ntohs(actual_packet->ipv4->tot_len), error)){
-		printf("[run_packet.c 832]Error detected actual: %u == %u expected\n",
-				ntohs(actual_packet->ipv4->tot_len),
-				ntohs(script_packet->ipv4->tot_len) );
-
+			ntohs(actual_packet->ipv4->tot_len), error))
 		return STATUS_ERR;
-	}
 
 	if (verify_outbound_live_ecn(script_packet->ecn,
 				     ipv4_ecn_bits(actual_packet->ipv4),
@@ -971,7 +966,128 @@ static int verify_outbound_live_headers(
 	}
 	return STATUS_OK;
 }
+/* Check if mptcp options are identical (in values) */
+bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b){
 
+	switch(opt_a->data.mp_capable.subtype){
+
+		case MP_CAPABLE_SUBTYPE:
+			break; // TODO
+
+		case MP_JOIN_SUBTYPE:
+			break; // TODO
+
+		case DSS_SUBTYPE:
+			if(opt_a->data.dss.flag_M != opt_b->data.dss.flag_M ||
+				opt_a->data.dss.flag_m != opt_b->data.dss.flag_m ||
+				opt_a->data.dss.flag_A != opt_b->data.dss.flag_A ||
+				opt_a->data.dss.flag_a != opt_b->data.dss.flag_a ||
+				opt_a->data.dss.flag_F != opt_b->data.dss.flag_F )
+				return false;
+
+
+			if(opt_a->data.dss.flag_M && opt_a->data.dss.flag_A){
+				if(!opt_a->data.dss.flag_m && !opt_a->data.dss.flag_a){ // DSN4, DACK4
+					if(opt_a->data.dss.dack_dsn.dsn.dsn4 != opt_b->data.dss.dack_dsn.dsn.dsn4 ||
+					opt_a->data.dss.dack_dsn.dack.dack4 != opt_b->data.dss.dack_dsn.dack.dack4)
+						return false;
+					if(opt_a->length == TCPOLEN_DSS_DACK4_DSN4){
+						if(opt_a->data.dss.dack_dsn.dsn.w_cs.ssn != opt_b->data.dss.dack_dsn.dsn.w_cs.ssn ||
+							opt_a->data.dss.dack_dsn.dsn.w_cs.dll != opt_b->data.dss.dack_dsn.dsn.w_cs.dll ||
+							opt_a->data.dss.dack_dsn.dsn.w_cs.checksum != opt_b->data.dss.dack_dsn.dsn.w_cs.checksum)
+							return false;
+					}else{
+						if(opt_a->data.dss.dack_dsn.dsn.wo_cs.ssn != opt_b->data.dss.dack_dsn.dsn.wo_cs.ssn ||
+							opt_a->data.dss.dack_dsn.dsn.wo_cs.dll != opt_b->data.dss.dack_dsn.dsn.wo_cs.dll)
+							return false;
+					}
+				}else if(!opt_a->data.dss.flag_m && opt_a->data.dss.flag_a){ // DSN4, DACK8
+					if(opt_a->data.dss.dack_dsn.dsn.dsn4 != opt_b->data.dss.dack_dsn.dsn.dsn4 ||
+					opt_a->data.dss.dack_dsn.dack.dack8 != opt_b->data.dss.dack_dsn.dack.dack8)
+						return false;
+					if(opt_a->length == TCPOLEN_DSS_DACK8_DSN4){
+						if(opt_a->data.dss.dack_dsn.dsn.w_cs.ssn != opt_b->data.dss.dack_dsn.dsn.w_cs.ssn ||
+							opt_a->data.dss.dack_dsn.dsn.w_cs.dll != opt_b->data.dss.dack_dsn.dsn.w_cs.dll ||
+							opt_a->data.dss.dack_dsn.dsn.w_cs.checksum != opt_b->data.dss.dack_dsn.dsn.w_cs.checksum)
+							return false;
+					}else{
+						if(opt_a->data.dss.dack_dsn.dsn.wo_cs.ssn != opt_b->data.dss.dack_dsn.dsn.wo_cs.ssn ||
+							opt_a->data.dss.dack_dsn.dsn.wo_cs.dll != opt_b->data.dss.dack_dsn.dsn.wo_cs.dll)
+							return false;
+					}
+				}else if(opt_a->data.dss.flag_m && !opt_a->data.dss.flag_a){ // DSN8, DACK4
+					if(opt_a->data.dss.dack_dsn.dsn.dsn8 != opt_b->data.dss.dack_dsn.dsn.dsn8 ||
+					opt_a->data.dss.dack_dsn.dack.dack4 != opt_b->data.dss.dack_dsn.dack.dack4)
+						return false;
+					if(opt_a->length == TCPOLEN_DSS_DACK4_DSN8){
+						if(opt_a->data.dss.dack_dsn.dsn.w_cs.ssn != opt_b->data.dss.dack_dsn.dsn.w_cs.ssn ||
+							opt_a->data.dss.dack_dsn.dsn.w_cs.dll != opt_b->data.dss.dack_dsn.dsn.w_cs.dll ||
+							opt_a->data.dss.dack_dsn.dsn.w_cs.checksum != opt_b->data.dss.dack_dsn.dsn.w_cs.checksum)
+							return false;
+					}else{
+						if(opt_a->data.dss.dack_dsn.dsn.wo_cs.ssn != opt_b->data.dss.dack_dsn.dsn.wo_cs.ssn ||
+							opt_a->data.dss.dack_dsn.dsn.wo_cs.dll != opt_b->data.dss.dack_dsn.dsn.wo_cs.dll)
+							return false;
+					}
+				}else if(opt_a->data.dss.flag_m && opt_a->data.dss.flag_a){ // DSN8, DACK8
+					if(opt_a->data.dss.dack_dsn.dsn.dsn8 != opt_b->data.dss.dack_dsn.dsn.dsn8 ||
+					opt_a->data.dss.dack_dsn.dack.dack8 != opt_b->data.dss.dack_dsn.dack.dack8)
+						return false;
+					if(opt_a->length == TCPOLEN_DSS_DACK8_DSN8){
+						if(opt_a->data.dss.dack_dsn.dsn.w_cs.ssn != opt_b->data.dss.dack_dsn.dsn.w_cs.ssn ||
+							opt_a->data.dss.dack_dsn.dsn.w_cs.dll != opt_b->data.dss.dack_dsn.dsn.w_cs.dll ||
+							opt_a->data.dss.dack_dsn.dsn.w_cs.checksum != opt_b->data.dss.dack_dsn.dsn.w_cs.checksum)
+							return false;
+					}else{
+						if(opt_a->data.dss.dack_dsn.dsn.wo_cs.ssn != opt_b->data.dss.dack_dsn.dsn.wo_cs.ssn ||
+							opt_a->data.dss.dack_dsn.dsn.wo_cs.dll != opt_b->data.dss.dack_dsn.dsn.wo_cs.dll)
+							return false;
+					}
+				}
+			}else if(opt_a->data.dss.flag_M){
+				if(!opt_a->data.dss.flag_m){ // DSN4
+					if(opt_a->data.dss.dsn.dsn4 != opt_b->data.dss.dsn.dsn4 )
+						return false;
+					if(opt_a->length == TCPOLEN_DSS_DSN4){
+						if( opt_a->data.dss.dsn.w_cs.ssn != opt_a->data.dss.dsn.w_cs.ssn ||
+							opt_a->data.dss.dsn.w_cs.dll != opt_a->data.dss.dsn.w_cs.dll ||
+							opt_a->data.dss.dsn.w_cs.checksum != opt_a->data.dss.dsn.w_cs.checksum)
+							return false;
+					}else{
+						if( opt_a->data.dss.dsn.wo_cs.ssn != opt_a->data.dss.dsn.wo_cs.ssn ||
+							opt_a->data.dss.dsn.wo_cs.dll != opt_a->data.dss.dsn.wo_cs.dll)
+							return false;
+					}
+				}else{
+					if(opt_a->data.dss.dsn.dsn8 != opt_b->data.dss.dsn.dsn8 )
+						return false;
+					if(opt_a->length == TCPOLEN_DSS_DSN8){
+						if( opt_a->data.dss.dsn.w_cs.ssn != opt_a->data.dss.dsn.w_cs.ssn ||
+							opt_a->data.dss.dsn.w_cs.dll != opt_a->data.dss.dsn.w_cs.dll ||
+							opt_a->data.dss.dsn.w_cs.checksum != opt_a->data.dss.dsn.w_cs.checksum)
+							return false;
+					}else{
+						if( opt_a->data.dss.dsn.wo_cs.ssn != opt_a->data.dss.dsn.wo_cs.ssn ||
+							opt_a->data.dss.dsn.wo_cs.dll != opt_a->data.dss.dsn.wo_cs.dll)
+							return false;
+					}
+				}
+			}else if(opt_a->data.dss.flag_A){
+				if(!opt_a->data.dss.flag_a){
+					if(opt_a->data.dss.dack.dack4 != opt_b->data.dss.dack.dack4 )
+						return false;
+				}else{
+					if(opt_a->data.dss.dack.dack8 != opt_b->data.dss.dack.dack8 )
+						return false;
+				}
+			}
+			break;
+
+		default:
+			return false;
+	}
+	return true;
+}
 /* Check if tcp options are identical (memcmp) */
 static bool same_tcp_options(struct packet *packet_a,
 		struct packet *packet_b)
@@ -1003,6 +1119,10 @@ static bool same_tcp_options(struct packet *packet_a,
 			if(opt_a->length != opt_b->length){
 				return false;
 			}
+			if(opt_a->kind == TCPOPT_MPTCP){
+				if(!same_mptcp_opt(opt_a, opt_b))
+					return false;
+			}
 		}
 
 		opt_b = tcp_options_begin(packet_b, &iter_b);
@@ -1022,9 +1142,8 @@ static int verify_outbound_live_tcp_options(
 		return STATUS_OK;
 
 	/* Simplest case: see if full options are bytewise identical. */
-	if (same_tcp_options(actual_packet, script_packet)){
+	if (same_tcp_options(actual_packet, script_packet))
 		return STATUS_OK;
-	}
 
 	/* Otherwise, see if we just have a slight difference in TS val. */
 	if (script_packet->tcp_ts_val != NULL &&

@@ -73,10 +73,10 @@ u64 sha1_least_64bits(u64 key)
 	key64 key_arr = get_barray_from_key64(key);
 	uint8_t hash[SHA_DIGEST_LENGTH];
 	hash_key_sha1(hash, key_arr);
-//	printf("%x%x --- %x%x\n", *((u8*)&hash[0]), *((u8*)&hash[1]), *((u8*)&hash[18]), *((u8*)&hash[19]));
+//	printf("%x%x --- %x%x-%x%x\n", *((u8*)&hash[0]), *((u8*)&hash[1]), *((u8*)&hash[12]), *((u8*)&hash[13]), *((u8*)&hash[18]), *((u8*)&hash[19]));
 //	printf("%llx%llx%x\n", (u64)be64toh(*((u64*)&hash[0])), (u64)be64toh(*((u64*)&hash[8])), (u32)be32toh(*((u32*)&hash[16])));
 //	printf("%llx \n", (u64)be64toh(*((u64*)&hash[12])));
-//	printf("%llx \n", (u64)le64toh(*((u64*)&hash[12])));
+//	printf("%llx \n", (u64)be64toh(*((u64*)&hash[12])));
 	return (u64)be64toh(*((u64*)&hash[12]));
 }
 
