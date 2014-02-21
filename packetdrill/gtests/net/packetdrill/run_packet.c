@@ -967,15 +967,42 @@ static int verify_outbound_live_headers(
 	return STATUS_OK;
 }
 /* Check if mptcp options are identical (in values) */
-bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b){
+bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b, struct packet *packet_a){
 
 	switch(opt_a->data.mp_capable.subtype){
 
 		case MP_CAPABLE_SUBTYPE:
-			break; // TODO
-
+			if(opt_a->data.mp_capable.flags != opt_b->data.mp_capable.flags)
+				return false;
+			if(opt_a->length == TCPOLEN_MP_CAPABLE_SYN){
+				if(opt_a->data.mp_capable.syn.key != opt_b->data.mp_capable.syn.key)
+					return false;
+			}else if(opt_a->length == TCPOLEN_MP_CAPABLE){
+				if(opt_a->data.mp_capable.no_syn.receiver_key != opt_b->data.mp_capable.no_syn.receiver_key ||
+						opt_a->data.mp_capable.no_syn.sender_key != opt_b->data.mp_capable.no_syn.sender_key)
+					return false;
+			}
+			break;
 		case MP_JOIN_SUBTYPE:
-			break; // TODO
+			if(opt_a->length == TCPOLEN_MP_JOIN_SYN && !packet_a->tcp->ack && packet_a->tcp->syn){
+				if(opt_a->data.mp_join.syn.address_id != opt_b->data.mp_join.syn.address_id ||
+						opt_a->data.mp_join.syn.flags != opt_b->data.mp_join.syn.flags)
+					return false;
+				if(opt_a->data.mp_join.syn.no_ack.receiver_token != opt_b->data.mp_join.syn.no_ack.receiver_token||
+					opt_a->data.mp_join.syn.no_ack.sender_random_number != opt_b->data.mp_join.syn.no_ack.sender_random_number)
+					return false;
+			}else if(opt_a->length == TCPOLEN_MP_JOIN_SYN_ACK && packet_a->tcp->ack && packet_a->tcp->syn){
+				if(opt_a->data.mp_join.syn.address_id != opt_b->data.mp_join.syn.address_id ||
+					opt_a->data.mp_join.syn.flags != opt_b->data.mp_join.syn.flags)
+					return false;
+				if(opt_a->data.mp_join.syn.ack.sender_hmac != opt_b->data.mp_join.syn.ack.sender_hmac ||
+					opt_a->data.mp_join.syn.ack.sender_random_number != opt_b->data.mp_join.syn.ack.sender_random_number)
+					return false;
+			}else if(opt_a->length == TCPOLEN_MP_JOIN_ACK && packet_a->tcp->ack && !packet_a->tcp->syn){
+				if(opt_a->data.mp_join.no_syn.sender_hmac != opt_b->data.mp_join.no_syn.sender_hmac)
+					return false;
+			}
+			break;
 
 		case DSS_SUBTYPE:
 			if(opt_a->data.dss.flag_M != opt_b->data.dss.flag_M ||
@@ -984,7 +1011,6 @@ bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b){
 				opt_a->data.dss.flag_a != opt_b->data.dss.flag_a ||
 				opt_a->data.dss.flag_F != opt_b->data.dss.flag_F )
 				return false;
-
 
 			if(opt_a->data.dss.flag_M && opt_a->data.dss.flag_A){
 				if(!opt_a->data.dss.flag_m && !opt_a->data.dss.flag_a){ // DSN4, DACK4
@@ -1120,7 +1146,7 @@ static bool same_tcp_options(struct packet *packet_a,
 				return false;
 			}
 			if(opt_a->kind == TCPOPT_MPTCP){
-				if(!same_mptcp_opt(opt_a, opt_b))
+				if(!same_mptcp_opt(opt_a, opt_b, packet_a))
 					return false;
 			}
 		}

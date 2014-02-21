@@ -1115,7 +1115,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 		// dack4
 		if(!dss_opt_script->data.dss.flag_a){
 			if(dss_opt_script->data.dss.dack.dack4==UNDEFINED){
-				printf("Acked %u\n", htonl((u32)(mp_state.remote_idsn + mp_state.remote_ssn + mp_state.remote_last_pkt_length)));
+			//	printf("Acked %u\n", htonl((u32)(mp_state.remote_idsn + mp_state.remote_ssn + mp_state.remote_last_pkt_length)));
 				dss_opt_script->data.dss.dack.dack4 = ntohl((u32)(mp_state.remote_idsn + mp_state.remote_ssn + mp_state.remote_last_pkt_length));
 				//	htonl(mp_state.remote_idsn + mp_state.remote_ssn); //htobe64(
 			//	 printf("1121: script_dack4 %u\n", dss_opt_script->data.dss.dack.dack4 );
@@ -1485,7 +1485,7 @@ int mptcp_subtype_dss(struct packet *packet_to_modify,
 						struct packet *live_packet,
 						struct tcp_option *tcp_opt_to_modify,
 						unsigned direction){
-	int error = -1;;
+	int error = -1;
 	// injecting a packet to kernel
 	if(direction == DIRECTION_INBOUND){
 		error = dss_inbound_parser(packet_to_modify, live_packet, tcp_opt_to_modify);
