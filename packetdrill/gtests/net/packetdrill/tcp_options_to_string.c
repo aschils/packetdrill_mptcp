@@ -133,9 +133,43 @@ int print_dss_subtype(FILE *s, struct tcp_option *option){
 			fprintf(s, "4: %u ", (u32)be32toh(option->data.dss.dack.dack4));
 //		printf("138:FLAG_A\n");
 	}else if(option->data.dss.flag_M){
-		printf("140:Only DSN8\n");
+		if(option->data.dss.flag_m){
+			struct dsn *dsn 	= (struct dsn*)((u32*)option+1);
+			fprintf(s, "8: %llu, ", (u64)be64toh(dsn->dsn8));
+			u32 ssn = *((u64*)dsn + 1);
+			u32 dll_chk = (u32)*((u32*)dsn + 3);
+			u16 dll = (u16)dll_chk;
+			u16 chk = dll_chk >> 16;
+
+			fprintf(s, "ssn %u, dll %u", ntohl(ssn), ntohs(dll));
+
+			if(option->length == TCPOLEN_DSS_DSN8)
+				fprintf(s, ", checksum %u",	ntohs(chk));
+			else
+				fprintf(s, ", no_checksum");
+		}else{
+			struct dsn *dsn 	= (struct dsn*)((u32*)option+1);
+			fprintf(s, "4: %u, ", ntohl(dsn->dsn4));
+			u32 ssn = *((u32*)dsn + 1);
+			u32 dll_chk = (u32)*((u32*)dsn + 2);
+			u16 dll = (u16)dll_chk;
+			u16 chk = dll_chk >> 16;
+
+			fprintf(s, "ssn %u, dll %u", ntohl(ssn), ntohs(dll));
+
+			if(option->length == TCPOLEN_DSS_DSN4)
+				fprintf(s, ", checksum %u",	ntohs(chk));
+			else
+				fprintf(s, ", no_checksum");
+		}
 	}
 
+	fprintf(s, ", flags:"); //, option->data.dss.flags);
+	if( option->data.dss.flag_M) fprintf(s, " M");
+	if( option->data.dss.flag_m) fprintf(s, " m");
+	if( option->data.dss.flag_A) fprintf(s, " A");
+	if( option->data.dss.flag_a) fprintf(s, " a");
+	if( option->data.dss.flag_F) fprintf(s, " F");
 	return 0;
 }
 
@@ -214,7 +248,6 @@ int tcp_options_to_string(struct packet *packet,
         	switch(option->data.mp_capable.subtype){
 
         	case MP_CAPABLE_SUBTYPE:
-        		//TODO refactor this ugly piece of code
         		if(option->length == TCPOLEN_MP_CAPABLE){
         			fprintf(s, "mp_capable (20 bytes) sender key: %lu receiver key: %lu, flags %u",
         					(unsigned long)option->data.mp_capable.no_syn.sender_key,

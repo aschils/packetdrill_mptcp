@@ -921,10 +921,10 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 
 	struct mp_subflow *subflow = find_subflow_matching_inbound_packet(packet_to_modify);
 
-	u32 tcp_payload_length = packet_payload_len(packet_to_modify);
+	u16 tcp_payload_length = (u16)packet_payload_len(packet_to_modify);
 
-	subflow->ssn += tcp_payload_length;
 
+//	printf("tcp_payload_inbound: %u\n", tcp_payload_length);
 	struct tcp_option* dss_opt_live = get_tcp_option(live_packet, TCPOPT_MPTCP);
 
 	// if a packet is going from packetdrill with DSN and DACK to kernel
@@ -950,22 +950,38 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 					u16 dll;
 					u16 zeros;
 					u8 *data;
-				} buff_chk;
+				} __packed buff_chk;
 
 				//Compute checksum
 				buff_chk.dsn = mp_state.remote_idsn + mp_state.remote_ssn; //ntohl(dss_opt_script->data.dss.dsn.dsn4);
-				buff_chk.ssn = subflow->ssn; //ntohl(dss_opt_script->data.dss.dsn.w_cs.ssn);
-				buff_chk.dll = tcp_payload_length; //ntohs(dss_opt_script->data.dss.dsn.w_cs.dll);
-				buff_chk.zeros = 0;
+				buff_chk.ssn = subflow->ssn + tcp_payload_length; //ntohl(dss_opt_script->data.dss.dsn.w_cs.ssn);
+				buff_chk.dll = (u16)tcp_payload_length; //ntohs(dss_opt_script->data.dss.dsn.w_cs.dll);
+				buff_chk.zeros = (u16)0;
 				buff_chk.data = live_packet->buffer+get_tcp_header_length(live_packet);
 			//	printf("Buffer[%u]: %s\n",  get_tcp_header_length(live_packet), live_packet->buffer + get_tcp_header_length(live_packet));
 
-				dsn_live->w_cs.ssn = htonl(subflow->ssn); //htonl(subflow->ssn);
-				dsn_live->w_cs.dll = htons(tcp_payload_length); // htons((u16)tcp_payload_length);
-				dsn_live->w_cs.checksum = checksum_dss((u16*)&buff_chk, sizeof(buff_chk));
-			//	printf("Passed: %lu\n", sizeof(buff_chk));
+				u32* w_cs = (u32*)dsn_live+1;
+				*w_cs = htonl(subflow->ssn); //htonl(subflow->ssn);
+//				u32* dll_chk = w_cs+1;
 
-			//	printf("Checksum %u\n",	htons(checksum_dss((u16*)&buffer_checksum, sizeof(buffer_checksum))));
+
+			//	u32 dll = tcp_payload_length << 16;
+
+			//	u32 dll_chk_u32 =  (tcp_payload_length << 16) + checksum_dss((u16*)&buff_chk, sizeof(buff_chk));
+				printf("DLL: %u, chk: %u\n", htonl(htons(tcp_payload_length)<<16), checksum_dss((u16*)&buff_chk, sizeof(buff_chk)));
+				u16 *dll_first = 0; //(u16*)dll_chk;
+				*(dll_first) = htons(tcp_payload_length);
+				*(dll_first+1) = htons(checksum_dss((u16*)&buff_chk, sizeof(buff_chk)));
+	//			*(dll_chk) = htonl((htons(tcp_payload_length)<<16) + checksum_dss((u16*)&buff_chk, sizeof(buff_chk)));
+//				*(dll_chk) = htonl(htonl(htons(tcp_payload_length)<<16) + htons(checksum_dss((u16*)&buff_chk, sizeof(buff_chk))));
+
+			//	*(dll_chk) = htons(tcp_payload_length); // htons((u16)tcp_payload_length);
+			//	*(dll_chk+1) = htons(checksum_dss((u16*)&buff_chk, sizeof(buff_chk)));
+			//	w_cs->checksum = htons(checksum_dss((u16*)&buff_chk, sizeof(buff_chk)));
+			//	dss_opt_script->data.dss.dack_dsn.dsn.w_cs.checksum = checksum_dss((u16*)&buff_chk, sizeof(buff_chk));
+				printf("Passed: %lu\n", sizeof(buff_chk));
+
+			//	printf("Checksum %u\n",	dsn_live->w_cs.checksum);
 				  // Compute the 16-bit checksum
 				//  check = checksum(buff, BUFFER_LEN);
 				// 	printf("Checksum %u\n",	htons(checksum_d(&buffer_checksum, sizeof(buffer_checksum))));
@@ -1200,8 +1216,9 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 				return STATUS_ERR;
 			}
 		}
-		subflow->ssn += tcp_payload_length;
+//		subflow->ssn += tcp_payload_length;
 	}
+	subflow->ssn += tcp_payload_length;
 	return 0;
 }
 
