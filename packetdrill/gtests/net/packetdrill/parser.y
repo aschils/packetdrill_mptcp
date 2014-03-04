@@ -647,8 +647,8 @@ struct tcp_option *dss_do_dack_only(int type, int val, bool fin_flag){
 	return opt;
 }
 
-struct tcp_option *dss_do_dsn_dack(int dsn_type, int dsn_val, int dack_type, 
-							int dack_val, bool no_checksum, bool fin_flag){
+struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val, 
+		int dsn_type, int dsn_val,bool no_checksum, bool fin_flag){
 
 	struct tcp_option *opt;
 	// DSN 
@@ -685,6 +685,8 @@ struct tcp_option *dss_do_dsn_dack(int dsn_type, int dsn_val, int dack_type,
 		opt->data.dss.dack_dsn.dsn.dsn8 = dsn_val;
 		opt->data.dss.dack_dsn.dack.dack8 = dack_val; 
 	}
+	
+//	queue_enqueue(&mp_state.vars_queue, new_el);
 	
 	//flag_data_fin:1,flag_dsn8:1,flag_dsn:1,flag_dack8:1,flag_dack:1; F|m|M|a|A
 	opt->data.dss.flag_M = 1;
@@ -727,11 +729,13 @@ struct tcp_option *dss_do_dsn_dack(int dsn_type, int dsn_val, int dack_type,
 	} tcp_sequence_info;
 	struct {
 		int type; //4 or 8 octects mptcp DSN or -1 (none)
-		u64 val;
+		u64 val; 
+		u64 additional_val;
 	} mptcp_dsn_info;
 	struct {
 		int type; //4 or 8 octects mptcp DACK or -1 (none)
 		u64 dack;
+		u64 additional_val;
 	} mptcp_dack;
 	struct {
 		char *name;
@@ -798,7 +802,7 @@ struct tcp_option *dss_do_dsn_dack(int dsn_type, int dsn_val, int dack_type,
 %type <window> opt_window
 %type <sequence_number> opt_ack
 %type <tcp_sequence_info> seq opt_icmp_echoed
-%type <mptcp_dsn_info> dsn
+%type <mptcp_dsn_info> dsn add_to_var
 %type <mptcp_dack> dack
 %type <mptcp_var> mptcp_var mptcp_var_or_empty
 %type <mptcp_token_or_hmac> mptcp_token sender_hmac
@@ -1164,24 +1168,45 @@ tcp_fast_open_cookie
 | INTEGER { $$ = strdup(yytext); }
 ;
 
+add_to_var
+: 	{$$.additional_val = 0;}
+|	'+' INTEGER {$$.additional_val = $2;}
+;
+
 dsn
-: 				{	$$.type = UNDEFINED;   $$.val = UNDEFINED;}
+: 					{	$$.type = UNDEFINED;   $$.val = UNDEFINED;}
 | DSN4 '=' INTEGER 	{ 	$$.type = 4;	$$.val = $3;}
-| DSN4 			{	$$.type = 4;	$$.val = UNDEFINED;}
+| DSN4 				{	$$.type = 4;	$$.val = UNDEFINED;}
 | DSN4 '=' TRUNC_R64_HMAC '('  INTEGER ')'	{
-		if(!is_valid_u32($5))
-			semantic_error("mptcp trunc_r64_hmac is not a valid u64.");
-		$$.type = 4;	
-		$$.val = sha1_least_64bits($5);
-	}
+	if(!is_valid_u32($5))
+		semantic_error("mptcp trunc_r64_hmac is not a valid u64.");
+	$$.type = 4;	
+	$$.val = sha1_least_64bits($5);
+}
+| DSN4 '=' TRUNC_R64_HMAC '('  WORD ')' add_to_var {
+	$$.type = 4; 
+	$$.val = SCRIPT_DEFINED_TO_HASH_LSB; // to be added using the variable name
+	if(queue_enqueue(&mp_state.vars_queue, $5)==STATUS_ERR)
+		semantic_error("Too many variables are used in script"); 
+	if(queue_enqueue_val(&mp_state.vals_queue, $7.additional_val ))
+		semantic_error("Too many values are enqueued in script"); 	
+}
 | DSN8 '=' INTEGER 	{	$$.type = 8;	$$.val = $3;}
-| DSN8 			{	$$.type = 8;	$$.val = UNDEFINED;}
+| DSN8 				{	$$.type = 8;	$$.val = UNDEFINED;}
 | DSN8 '=' TRUNC_R64_HMAC '('  INTEGER ')'	{
-		if(!is_valid_u64($5))
-			semantic_error("mptcp trunc_r64_hmac is not a valid u64.");
-		$$.type = 8;	
-		$$.val = sha1_least_64bits($5);
-	}
+	if(!is_valid_u64($5))
+		semantic_error("mptcp trunc_r64_hmac is not a valid u64.");
+	$$.type = 8;	
+	$$.val = sha1_least_64bits($5);
+}
+| DSN8 '=' TRUNC_R64_HMAC '('  WORD ')' add_to_var	{
+	$$.type = 8;
+	$$.val = SCRIPT_DEFINED_TO_HASH_LSB; // to be added using the variable name
+	if(queue_enqueue(&mp_state.vars_queue, $5)==STATUS_ERR)
+		semantic_error("Too many variables are used in script"); 	
+	if(queue_enqueue_val(&mp_state.vals_queue, $7.additional_val ))
+		semantic_error("Too many values are enqueued in script"); 	
+}
 ;
 
 dack
@@ -1194,11 +1219,13 @@ dack
 	$$.type = 4;
 	$$.dack = sha1_least_64bits($5);
 }
-| DACK4 '=' TRUNC_R64_HMAC '('  WORD ')' 	{
+| DACK4 '=' TRUNC_R64_HMAC '('  WORD ')' add_to_var	{
 	$$.type = 4;
-	$$.dack = SCRIPT_DEFINED; // to be added using the variable name
+	$$.dack = SCRIPT_DEFINED_TO_HASH_LSB; // to be added using the variable name
 	if(queue_enqueue(&mp_state.vars_queue, $5)==STATUS_ERR)
-		semantic_error("Too many variables are used in script"); 		
+		semantic_error("Too many variables are used in script"); 	
+	if(queue_enqueue_val(&mp_state.vals_queue, $7.additional_val ))
+		semantic_error("Too many values are enqueued in script"); 	
 }
 | DACK8 '=' INTEGER {	$$.type = 8;	$$.dack = $3;}
 | DACK8  			{	$$.type = 8;	$$.dack = UNDEFINED;}
@@ -1208,11 +1235,14 @@ dack
 	$$.type = 8;
 	$$.dack = sha1_least_64bits($5);
 }
-| DACK8 '=' TRUNC_R64_HMAC '('  WORD ')' 	{
+| DACK8 '=' TRUNC_R64_HMAC '('  WORD ')' add_to_var	{
+	
 	$$.type = 8;
-	$$.dack = SCRIPT_DEFINED; // to be added using the variable name
+	$$.dack = SCRIPT_DEFINED_TO_HASH_LSB; // to be added using the variable name
 	if(queue_enqueue(&mp_state.vars_queue, $5)==STATUS_ERR)
-		semantic_error("Too many variables are used in script"); 		
+		semantic_error("Too many variables are used in script"); 
+	if(queue_enqueue_val(&mp_state.vals_queue, $7.additional_val ))
+		semantic_error("Too many values are enqueued in script"); 	
 }
 ;
 
@@ -1433,16 +1463,16 @@ tcp_option
 	$$ = mp_join_do_ack($2.str, $2.str2);
 }
 
-| DSS dsn dack dss_no_checksum fin {
+| DSS dack dsn dss_no_checksum fin {
 	
 	if($2.type == -1 && $3.type == -1 )
 		$$ = dss_do_auto($4, $5); // TODO
-	else if($2.type == -1 && $3.type != -1)
-		$$ = dss_do_dack_only($3.type, $3.dack, $5);  	// DONE
 	else if($2.type != -1 && $3.type == -1)
-		$$ = dss_do_dsn_only($2.type, $2.val, $4, $5); 	// TODO
+		$$ = dss_do_dack_only($2.type, $2.dack, $5);  	// DONE
+	else if($2.type == -1 && $3.type != -1)
+		$$ = dss_do_dsn_only($3.type, $3.val, $4, $5); 	// TODO
 	else if($2.type != -1 && $3.type != -1) 
-		$$ = dss_do_dsn_dack($2.type, $2.val, $3.type, $3.dack, $4, $5); // $2=dsn, $3=dack, $4=0|1, $5=0|1 XXX
+		$$ = dss_do_dsn_dack($2.type, $2.dack, $3.type, $3.val, $4, $5); // $2=dsn, $3=dack, $4=0|1, $5=0|1 XXX
 	
 }
 ;

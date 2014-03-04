@@ -966,7 +966,7 @@ static int verify_outbound_live_headers(
 	}
 	return STATUS_OK;
 }
-/* Check if mptcp options are identical (in values) */
+/* Check if mptcp options are identical (in values), actual opt, script opt */
 bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b, struct packet *packet_a){
 
 	switch(opt_a->data.mp_capable.subtype){
@@ -1003,7 +1003,6 @@ bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b, struct p
 					return false;
 			}
 			break;
-
 		case DSS_SUBTYPE:
 			if(opt_a->data.dss.flag_M != opt_b->data.dss.flag_M ||
 				opt_a->data.dss.flag_m != opt_b->data.dss.flag_m ||
@@ -1013,91 +1012,51 @@ bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b, struct p
 				return false;
 
 			if(opt_a->data.dss.flag_M && opt_a->data.dss.flag_A){
+				struct dsn *dsn_live 	= (struct dsn*)((u32*)opt_a+2);
+				struct dsn *dsn_script 	= (struct dsn*)((u32*)opt_b+2);
 				if(!opt_a->data.dss.flag_m && !opt_a->data.dss.flag_a){ // DSN4, DACK4
-					if(opt_a->data.dss.dack_dsn.dsn.dsn4 != opt_b->data.dss.dack_dsn.dsn.dsn4 ||
-					opt_a->data.dss.dack_dsn.dack.dack4 != opt_b->data.dss.dack_dsn.dack.dack4)
+					dsn_live 	= (struct dsn*)((u32*)opt_a+2);
+					dsn_script 	= (struct dsn*)((u32*)opt_b+2);
+					if(opt_a->data.dss.dack_dsn.dack.dack4 != opt_b->data.dss.dack_dsn.dack.dack4 ||
+							dsn_live->dsn4 != dsn_script->dsn4)
 						return false;
-					if(opt_a->length == TCPOLEN_DSS_DACK4_DSN4){
-						if(opt_a->data.dss.dack_dsn.dsn.w_cs.ssn != opt_b->data.dss.dack_dsn.dsn.w_cs.ssn ||
-							opt_a->data.dss.dack_dsn.dsn.w_cs.dll != opt_b->data.dss.dack_dsn.dsn.w_cs.dll ||
-							opt_a->data.dss.dack_dsn.dsn.w_cs.checksum != opt_b->data.dss.dack_dsn.dsn.w_cs.checksum)
-							return false;
-					}else{
-						if(opt_a->data.dss.dack_dsn.dsn.wo_cs.ssn != opt_b->data.dss.dack_dsn.dsn.wo_cs.ssn ||
-							opt_a->data.dss.dack_dsn.dsn.wo_cs.dll != opt_b->data.dss.dack_dsn.dsn.wo_cs.dll)
-							return false;
-					}
 				}else if(!opt_a->data.dss.flag_m && opt_a->data.dss.flag_a){ // DSN4, DACK8
-					if(opt_a->data.dss.dack_dsn.dsn.dsn4 != opt_b->data.dss.dack_dsn.dsn.dsn4 ||
-					opt_a->data.dss.dack_dsn.dack.dack8 != opt_b->data.dss.dack_dsn.dack.dack8)
+					dsn_live 	= (struct dsn*)((u32*)opt_a+3);
+					dsn_script 	= (struct dsn*)((u32*)opt_b+3);
+					if(	opt_a->data.dss.dack_dsn.dack.dack8 != opt_b->data.dss.dack_dsn.dack.dack8 ||
+							dsn_live->dsn4 != dsn_script->dsn4)
 						return false;
-					if(opt_a->length == TCPOLEN_DSS_DACK8_DSN4){
-						if(opt_a->data.dss.dack_dsn.dsn.w_cs.ssn != opt_b->data.dss.dack_dsn.dsn.w_cs.ssn ||
-							opt_a->data.dss.dack_dsn.dsn.w_cs.dll != opt_b->data.dss.dack_dsn.dsn.w_cs.dll ||
-							opt_a->data.dss.dack_dsn.dsn.w_cs.checksum != opt_b->data.dss.dack_dsn.dsn.w_cs.checksum)
-							return false;
-					}else{
-						if(opt_a->data.dss.dack_dsn.dsn.wo_cs.ssn != opt_b->data.dss.dack_dsn.dsn.wo_cs.ssn ||
-							opt_a->data.dss.dack_dsn.dsn.wo_cs.dll != opt_b->data.dss.dack_dsn.dsn.wo_cs.dll)
-							return false;
-					}
 				}else if(opt_a->data.dss.flag_m && !opt_a->data.dss.flag_a){ // DSN8, DACK4
-					if(opt_a->data.dss.dack_dsn.dsn.dsn8 != opt_b->data.dss.dack_dsn.dsn.dsn8 ||
-					opt_a->data.dss.dack_dsn.dack.dack4 != opt_b->data.dss.dack_dsn.dack.dack4)
+					dsn_live 	= (struct dsn*)((u32*)opt_a+2);
+					dsn_script 	= (struct dsn*)((u32*)opt_b+2);
+					if(opt_a->data.dss.dack_dsn.dack.dack4 != opt_b->data.dss.dack_dsn.dack.dack4 ||
+							dsn_live->dsn8 != dsn_script->dsn8)
 						return false;
-					if(opt_a->length == TCPOLEN_DSS_DACK4_DSN8){
-						if(opt_a->data.dss.dack_dsn.dsn.w_cs.ssn != opt_b->data.dss.dack_dsn.dsn.w_cs.ssn ||
-							opt_a->data.dss.dack_dsn.dsn.w_cs.dll != opt_b->data.dss.dack_dsn.dsn.w_cs.dll ||
-							opt_a->data.dss.dack_dsn.dsn.w_cs.checksum != opt_b->data.dss.dack_dsn.dsn.w_cs.checksum)
-							return false;
-					}else{
-						if(opt_a->data.dss.dack_dsn.dsn.wo_cs.ssn != opt_b->data.dss.dack_dsn.dsn.wo_cs.ssn ||
-							opt_a->data.dss.dack_dsn.dsn.wo_cs.dll != opt_b->data.dss.dack_dsn.dsn.wo_cs.dll)
-							return false;
-					}
 				}else if(opt_a->data.dss.flag_m && opt_a->data.dss.flag_a){ // DSN8, DACK8
-					if(opt_a->data.dss.dack_dsn.dsn.dsn8 != opt_b->data.dss.dack_dsn.dsn.dsn8 ||
-					opt_a->data.dss.dack_dsn.dack.dack8 != opt_b->data.dss.dack_dsn.dack.dack8)
+					dsn_live 	= (struct dsn*)((u32*)opt_a+3);
+					dsn_script 	= (struct dsn*)((u32*)opt_b+3);
+					if(opt_a->data.dss.dack_dsn.dack.dack8 != opt_b->data.dss.dack_dsn.dack.dack8 ||
+							dsn_live->dsn8 != dsn_script->dsn8)
 						return false;
-					if(opt_a->length == TCPOLEN_DSS_DACK8_DSN8){
-						if(opt_a->data.dss.dack_dsn.dsn.w_cs.ssn != opt_b->data.dss.dack_dsn.dsn.w_cs.ssn ||
-							opt_a->data.dss.dack_dsn.dsn.w_cs.dll != opt_b->data.dss.dack_dsn.dsn.w_cs.dll ||
-							opt_a->data.dss.dack_dsn.dsn.w_cs.checksum != opt_b->data.dss.dack_dsn.dsn.w_cs.checksum)
-							return false;
-					}else{
-						if(opt_a->data.dss.dack_dsn.dsn.wo_cs.ssn != opt_b->data.dss.dack_dsn.dsn.wo_cs.ssn ||
-							opt_a->data.dss.dack_dsn.dsn.wo_cs.dll != opt_b->data.dss.dack_dsn.dsn.wo_cs.dll)
-							return false;
-					}
 				}
+				u32* ssn_live = (u32*)dsn_live+1;
+				u32* ssn_script = (u32*)dsn_script+1;
+				if(*ssn_live != *ssn_script || *(ssn_live+1) != *(ssn_script+1))
+					return false;
+
 			}else if(opt_a->data.dss.flag_M){
+				struct dsn *dsn_live 	= (struct dsn*)((u32*)opt_a+1);
+				struct dsn *dsn_script 	= (struct dsn*)((u32*)opt_b+1);
 				if(!opt_a->data.dss.flag_m){ // DSN4
-					if(opt_a->data.dss.dsn.dsn4 != opt_b->data.dss.dsn.dsn4 )
+					if(dsn_live->dsn4 != dsn_script->dsn4 )
 						return false;
-					if(opt_a->length == TCPOLEN_DSS_DSN4){
-						if( opt_a->data.dss.dsn.w_cs.ssn != opt_a->data.dss.dsn.w_cs.ssn ||
-							opt_a->data.dss.dsn.w_cs.dll != opt_a->data.dss.dsn.w_cs.dll ||
-							opt_a->data.dss.dsn.w_cs.checksum != opt_a->data.dss.dsn.w_cs.checksum)
-							return false;
-					}else{
-						if( opt_a->data.dss.dsn.wo_cs.ssn != opt_a->data.dss.dsn.wo_cs.ssn ||
-							opt_a->data.dss.dsn.wo_cs.dll != opt_a->data.dss.dsn.wo_cs.dll)
-							return false;
-					}
-				}else{
-					if(opt_a->data.dss.dsn.dsn8 != opt_b->data.dss.dsn.dsn8 )
-						return false;
-					if(opt_a->length == TCPOLEN_DSS_DSN8){
-						if( opt_a->data.dss.dsn.w_cs.ssn != opt_a->data.dss.dsn.w_cs.ssn ||
-							opt_a->data.dss.dsn.w_cs.dll != opt_a->data.dss.dsn.w_cs.dll ||
-							opt_a->data.dss.dsn.w_cs.checksum != opt_a->data.dss.dsn.w_cs.checksum)
-							return false;
-					}else{
-						if( opt_a->data.dss.dsn.wo_cs.ssn != opt_a->data.dss.dsn.wo_cs.ssn ||
-							opt_a->data.dss.dsn.wo_cs.dll != opt_a->data.dss.dsn.wo_cs.dll)
-							return false;
-					}
-				}
+				}else if(dsn_live->dsn8 != dsn_script->dsn8)
+					return false;
+
+				u32* ssn_live = (u32*)dsn_live+1;
+				u32* ssn_script = (u32*)dsn_script+1;
+				if(*ssn_live != *ssn_script || *(ssn_live+1) != *(ssn_script+1))
+					return false;
 			}else if(opt_a->data.dss.flag_A){
 				if(!opt_a->data.dss.flag_a){
 					if(opt_a->data.dss.dack.dack4 != opt_b->data.dss.dack.dack4 )
@@ -1108,7 +1067,6 @@ bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b, struct p
 				}
 			}
 			break;
-
 		default:
 			return false;
 	}

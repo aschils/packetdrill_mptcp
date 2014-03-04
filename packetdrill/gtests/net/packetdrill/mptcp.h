@@ -77,8 +77,9 @@
 
 //Variable types
 #define KEY 0
-#define SCRIPT_DEFINED 1 	// Need to be defined
-#define IGNORED -2			// Do not need to define
+#define SCRIPT_DEFINED 1
+#define IGNORED -2
+#define SCRIPT_DEFINED_TO_HASH_LSB -3 // used to hash the variable
 
 struct mp_join_info {
 	union {
@@ -155,7 +156,8 @@ struct mp_state_s {
      * the hashmap.
      *
      */
-    queue_t vars_queue;
+    queue_t 	vars_queue;
+    queue_t_val vals_queue;
     //hashmap, contains <key:variable_name, value: variable_value>
     struct mp_var *vars;
     struct mp_subflow *subflows;
@@ -202,6 +204,8 @@ int enqueue_var(char *name);
 int dequeue_var(char **name);
 //Free all variables names (char*) in vars_queue
 void free_var_queue();
+//Free all values added in vals_queue
+void free_val_queue();
 
 /* hashmap functions */
 
@@ -240,6 +244,11 @@ struct mp_var *find_mp_var(char *name);
  * the packets.
  */
 u64 *find_next_key();
+
+/**
+ * Returns the next value entered in script (enqueud)
+ */
+u64 find_next_value();
 
 /**
  * Iterate through hashmap, free mp_var structs and mp_var->name,
