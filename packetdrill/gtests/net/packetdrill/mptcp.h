@@ -29,10 +29,10 @@
 #define MP_JOIN_SUBTYPE 1
 #define DSS_SUBTYPE 2
 #define ADD_ADDR_SUBTYPE 3
-#define REMOVE_ADDR 4 // TODO
-#define MP_PRIO 5 // TODO, Change Subflow Priority
-#define MP_FAIL 6 // TODO
-#define MP_FASTCLOSE 7 // TODO
+#define REMOVE_ADDR_SUBTYPE 4 // TODO
+#define MP_PRIO_SUBTYPE 5 // TODO, Change Subflow Priority
+#define MP_FAIL_SUBTYPE 6 // TODO
+#define MP_FASTCLOSE_SUBTYPE 7 // TODO
 
 
 /* MPTCP options subtypes length */
@@ -167,7 +167,7 @@ struct mp_state_s {
     u64 remote_idsn; 	// least 64 bits of Hash(kernel_key)
     u64 idsn;			// least 64 bits of Hash(packetdrill_key)
     u32 remote_ssn;		// number of packets received from kernel
-    u64 last_dsn_rcvd;  // last dsn received from kernel
+//    u64 last_dsn_rcvd;  // last dsn received from kernel
     u64 remote_last_pkt_length;
 };
 
