@@ -1,0 +1,27 @@
+//Test buffering several packets before sending it
+// it's done using TCP_CORK flag
+
+0.000 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+0.000 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+0.000 bind(3, ..., ...) = 0
+0.000 listen(3, 1) = 0
+
+0.100  < S 0:0(0) win 32792 <mss 1028,sackOK,nop,nop,nop,wscale 7,mp_capable a>
+0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
+0.200  < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
+0.200  accept(3, ..., ...) = 4
+
++0 setsockopt(4, SOL_TCP, TCP_CORK, [0], 4) = 0
+
+// Send 3 data segment and get an ACK for each.
+0.200  write(4, ..., 4) = 4
+0.202  > P. 1:5(4) ack 1 win 450 	<dss dack4 dsn4 >
+0.203  < .  1:1(0) ack 5 win 257 	<dss dack4>
+
++0  write(4, ..., 396) = 396
++0  > P. 5:401(396) ack 1 win 450 	<dss dack4 dsn4 >
++0  < .  1:1(0) ack 401 win 257 	<dss dack4>
+
++0  write(4, ..., 4) = 4
++0  > P. 401:405(4) ack 1 win 450  <dss dack4 dsn4 >
++0  < .  1:1(0) ack 405 win 257		<dss dack4>

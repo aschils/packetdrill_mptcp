@@ -38,7 +38,11 @@
 
 +0  > . 1:1(0) ack 1 <...> sock(11)
 
++0 < P. 1:1001(1000) ack 1 win 450 <dss dack4 dsn4 > 	sock(6)
++0 > . 1:1(0) ack 1001 win 916 <dss dack4> 				sock(6)
 
++0 < P. 1:1001(1000) ack 1 win 450  <dss dack4 dsn4> 	sock(11)
++0 > . 1:1(0) ack 1001 win 932 <dss dack4> 				sock(11)
 
 
 

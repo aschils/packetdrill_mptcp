@@ -16,6 +16,7 @@
 /* the initial data sequence number (IDSN) = least significant 64
    bits of the SHA-1 hash of the host's key */
 
+
 +0  write(4, ..., 1000) = 1000 
 +0  > P. 1:1001(1000) ack 1 win 450  <dss dack4=trunc_r64_hmac(a)+1 dsn4=trunc_r64_hmac(b)+1 >  // +1 bc syn/ack consumes one packet
 +.1 < . 1:1(0) ack 1001 win 225 <dss dack4=trunc_r64_hmac(b)+1001> 

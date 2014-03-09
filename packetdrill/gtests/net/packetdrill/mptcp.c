@@ -1305,7 +1305,6 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			mp_state.remote_last_pkt_length = ntohs(dll);
 			mp_state.remote_ssn = ntohl(ssn);
 			u32 *script_dsn4 	= (u32*)dss_opt_script+2;   // jump over 64 bits to reach the dsn
-			
 			//Set dsn being value specified in script 
 			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4==UNDEFINED)
 				*script_dsn4 	= dsn_live->dsn4;
