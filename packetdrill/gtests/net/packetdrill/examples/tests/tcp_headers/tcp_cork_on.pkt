@@ -1,5 +1,7 @@
-//Test buffering several packets before sending it
-// it's done using TCP_CORK flag
+/* mptcp 0.87
+ * Test buffering several packets before sending it. 
+ * It's done using TCP_CORK flag
+ */
 
 0.000 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
 0.000 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
@@ -7,19 +9,19 @@
 0.000 listen(3, 1) = 0
 
 0.100  < S 0:0(0) win 32792 <mss 1028,sackOK,nop,nop,nop,wscale 7,mp_capable a>
-0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
+0.100  > S. 0:0(0) ack 1 win 14400 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
 0.200  < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
 0.200  accept(3, ..., ...) = 4
 
-// Put TCP_CORK flag ON, (decomment this command to test cork) XXX
-//+0 setsockopt(4, SOL_TCP, TCP_CORK, [1], 4) = 0
+// Put TCP_CORK flag ON
++0 setsockopt(4, SOL_TCP, TCP_CORK, [1], 4) = 0
 
 // Send 3 data segment and get an ACK for each.
 0.200  write(4, ..., 104) = 104
-//+0  write(4, ..., 396) = 396
-//+0  write(4, ..., 4) = 4
++0  write(4, ..., 396) = 396
++0  write(4, ..., 4) = 4
 
 // All data is buffered before sending 
-+0  > P. 1:105(104) ack 1 win 450 <dss dack4=trunc_r64_hmac(a)+1 dsn4=trunc_r64_hmac(b)+1>
-+0  < .  1:1(0) ack 105 win 257 <dss dack4=trunc_r64_hmac(b)+105>
++0.6  > P. 1:505(504) ack 1 win 225 <dss dack4=trunc_r64_hmac(a)+1 dsn4=trunc_r64_hmac(b)+1>
++0  < .  1:1(0) ack 505 win 257 <dss dack4=trunc_r64_hmac(b)+505>
 
