@@ -1,4 +1,4 @@
-/* mptcp 0.87
+/* mptcp 0.88
  * Test handling of incoming ICMP packets.
  * This test tests all known ICMP packet types, and a few unknown
  * types.
@@ -65,9 +65,10 @@
 
 // Receiver ACKs all data.
 0.470 < . 1:1(0) ack 1001 win 257
-
+/*
 // Clean up.
 0.600 close(4) = 0
 0.600 > F. 1001:1001(0) ack 1 <...>
 0.700 < F. 1:1(0) ack 1002 win 257
 0.700 > . 1002:1002(0) ack 2
+*/

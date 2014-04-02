@@ -1,4 +1,4 @@
-/* mptcp 0.87
+/* mptcp 0.88
  * Test that getsockopt of TCP_MAXSEG works on passive/server TCP connections.
  * In this variant we test that a simple query of segment size works.
  */
@@ -11,7 +11,7 @@
 
 // Establish a connection, 1028 = data + DSS option 
 0.100  < S 0:0(0) win 32792 <mss 1020,sackOK,nop,nop,nop,wscale 7, mp_capable a>
-0.100  > S. 0:0(0) ack 1 win 14400 <mss 1460,sackOK,nop,nop,nop,wscale 7, mp_capable b>
+0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7, mp_capable b>
 0.200  < . 1:1(0) ack 1 win 257 <mp_capable a b>
 
 0.200  accept(3, ..., ...) = 4
