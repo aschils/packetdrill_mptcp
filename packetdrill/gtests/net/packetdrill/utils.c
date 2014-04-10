@@ -49,14 +49,14 @@ void hmac_sha1(const unsigned char *key,
 	memcpy(output, hash, 20);
 }
 
-u64 hmac_sha1_truncat_64(const unsigned char *key,
+void hmac_sha1_truncat_64(const unsigned char *key,
 		u32 key_length,
 		char *data,
-		u32 data_length)
+		u32 data_length, unsigned char* hash)
 {
-	unsigned char hash[20];
+//	unsigned char hash[20];
 	hmac_sha1(key, key_length, data, data_length, hash);
-	return *((u64*)hash);
+//	return hash; //*((u64*)hash);
 //	return truncated;
 }
 

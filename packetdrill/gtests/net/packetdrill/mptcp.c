@@ -621,11 +621,11 @@ void mp_join_syn_ack_sender_hmac(struct tcp_option *tcp_opt_to_modify,
 	u32 msg[2];
 	msg[0] = msg1;
 	msg[1] = msg2;
-	tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac =
-			htobe64(hmac_sha1_truncat_64(hmac_key,
-					16,
-					(char*)msg,
-					8));
+	unsigned char hmac_ret[20];
+//	hmac_sha1_truncat_64(hmac_key, 16, (char*)msg, 8, hmac_ret);
+	hmac_sha1(hmac_key, 16, (char*)msg, 8, hmac_ret);
+	tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac = htobe64(*((u64*)hmac_ret));
+		//	htobe64(*((u64*)hmac_sha1_truncat_64(hmac_key,16,(char*)msg,8)));
 }
 
 static int mp_join_syn_ack(struct packet *packet_to_modify,
@@ -678,7 +678,6 @@ static int mp_join_syn_ack(struct packet *packet_to_modify,
 					subflow->kernel_rand_nbr);
 		}
 	}
-
 	else if(direction == DIRECTION_OUTBOUND){
 		struct mp_subflow *subflow =
 				find_subflow_matching_outbound_packet(live_packet);
@@ -711,8 +710,12 @@ static int mp_join_syn_ack(struct packet *packet_to_modify,
 				live_mp_join->data.mp_join.syn.address_id;
 		tcp_opt_to_modify->data.mp_join.syn.ack.sender_random_number =
 				live_mp_join->data.mp_join.syn.ack.sender_random_number;
-		tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac =
-				hmac_sha1_truncat_64(hmac_key, 16, (char*)msg, 8);
+		unsigned char hmac_ret[20];
+	//	hmac_sha1_truncat_64(hmac_key, 16, (char*)msg, 8, hmac_ret);
+		hmac_sha1(hmac_key, 16, (char*)msg, 8, hmac_ret);
+		tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac = *(u64*)hmac_ret;
+		printf("717: sender_hmac: %llu\n", *(u64*)hmac_ret);
+	//	*((u64*)hmac_sha1_truncat_64(hmac_key, 16, (char*)msg, 8, hash_ret));
 	}
 	return STATUS_OK;
 }
@@ -742,7 +745,6 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 				mp_join_script_info,
 				DIRECTION_INBOUND);
 	}
-
 	else if(direction == DIRECTION_OUTBOUND &&
 			packet_to_modify->tcp->ack &&
 			packet_to_modify->tcp->syn &&
@@ -779,11 +781,12 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 				live_mp_join->data.mp_join.syn.address_id;
 		tcp_opt_to_modify->data.mp_join.syn.ack.sender_random_number =
 				live_mp_join->data.mp_join.syn.ack.sender_random_number;
-		tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac =
-				hmac_sha1_truncat_64(hmac_key,
-						16,
-						(char*)msg,
-						8);
+		unsigned char hmac_ret[20];
+	//	hmac_sha1_truncat_64(hmac_key, 16, (char*)msg, 8, hmac_ret);
+		hmac_sha1(hmac_key, 16, (char*)msg, 8, hmac_ret);
+		tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac = *(u64*)hmac_ret;
+	//	printf("788: sender_hmac: %llu\n", *(u64*)hmac_ret);
+	//	*((u64*)hmac_sha1_truncat_64(hmac_key, 16, (char*)msg, 8));
 	}
 
 	else if(direction == DIRECTION_INBOUND &&
