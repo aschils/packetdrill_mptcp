@@ -923,6 +923,15 @@ u16 get_tcp_payload_size(struct packet *packet){
 	return (packet_total_length-ip_header_length-
 			(tcp_header_length-tcp_header_wo_options));
 }
+u32 get_sum_ssn(){
+	struct mp_subflow *mp_sub = mp_state.subflows;
+	u32 total_length = 1; // first subflow has already one packet sent
+	while(mp_sub != NULL){
+		total_length += mp_sub->ssn -1;
+		mp_sub = mp_sub->next;
+	}
+	return total_length;
+}
 
 u16 get_tcp_header_length(struct packet *packet){
 	return  packet->tcp->doff*4 + 20; // tcp_header_wo_options = 20
@@ -941,9 +950,10 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 	u16 tcp_payload_length = (u16)packet_payload_len(packet_to_modify);
 
 	struct tcp_option* dss_opt_live = get_tcp_option(live_packet, TCPOPT_MPTCP);
-
 	// if a packet is going from packetdrill with DSN and DACK to kernel
 	if(dss_opt_script->data.dss.flag_M && dss_opt_script->data.dss.flag_A){
+
+		u32 bytes_sent_on_all_ssn = get_sum_ssn();
 		// if dsn4 and dack4
 		if(!dss_opt_script->data.dss.flag_m && !dss_opt_script->data.dss.flag_a){
 
@@ -962,9 +972,9 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 				dack_live->dack4 = htonl(sha1_least_64bits(*key)+ additional_val);
 			}
 
-			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4 == UNDEFINED)
-				dsn_live->dsn4 = htonl(mp_state.idsn + subflow->ssn);
-			else if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4 == SCRIPT_DEFINED_TO_HASH_LSB){
+			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4 == UNDEFINED){
+				dsn_live->dsn4 = htonl(mp_state.idsn + bytes_sent_on_all_ssn); //subflow->ssn);
+			}else if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4 == SCRIPT_DEFINED_TO_HASH_LSB){
 				u64 additional_val 	= find_next_value();
 				u64 *key = find_next_key();
 				if(!key || additional_val==STATUS_ERR)
@@ -980,7 +990,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 					u16 zeros;
 				} __packed buff_chk;
 
-				buff_chk.dsn = mp_state.idsn + subflow->ssn;
+				buff_chk.dsn = mp_state.idsn + bytes_sent_on_all_ssn; //subflow->ssn;
 				buff_chk.ssn = subflow->ssn;
 				buff_chk.dll = (u16)tcp_payload_length;
 				buff_chk.zeros = (u16)0;
@@ -1016,7 +1026,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 				dack_live->dack8 = htobe64(sha1_least_64bits(*key) + additional_val);
 			}
 			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4 == UNDEFINED)
-				dsn_live->dsn4 = htonl( (u32)mp_state.idsn + subflow->ssn);
+				dsn_live->dsn4 = htonl( mp_state.idsn + bytes_sent_on_all_ssn); //subflow->ssn);
 			else if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4 == SCRIPT_DEFINED_TO_HASH_LSB){
 				u64 additional_val 	= find_next_value();
 				u64 *key = find_next_key();
@@ -1034,7 +1044,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 					u16 zeros;
 				} __packed buff_chk;
 
-				buff_chk.dsn = mp_state.idsn + subflow->ssn;
+				buff_chk.dsn = mp_state.idsn + bytes_sent_on_all_ssn; //subflow->ssn;
 				buff_chk.ssn = subflow->ssn;
 				buff_chk.dll = (u16)tcp_payload_length;
 				buff_chk.zeros = (u16)0;
@@ -1072,7 +1082,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 			}
 
 			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn8 == UNDEFINED)
-				dsn_live->dsn8 = htobe64(mp_state.idsn + subflow->ssn);
+				dsn_live->dsn8 = htobe64(mp_state.idsn + bytes_sent_on_all_ssn); //subflow->ssn);
 			else if(dss_opt_script->data.dss.dack_dsn.dsn.dsn8 == SCRIPT_DEFINED_TO_HASH_LSB){
 				u64 additional_val 	= find_next_value();
 				u64 *key = find_next_key();
@@ -1090,7 +1100,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 					u16 zeros;
 				} __packed buff_chk;
 
-				buff_chk.dsn = mp_state.idsn + subflow->ssn;
+				buff_chk.dsn = mp_state.idsn + bytes_sent_on_all_ssn; //subflow->ssn;
 				buff_chk.ssn = subflow->ssn;
 				buff_chk.dll = (u16)tcp_payload_length;
 				buff_chk.zeros = (u16)0;
@@ -1125,7 +1135,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 				dack_live->dack8 = htobe64(sha1_least_64bits(*key) + additional_val);
 			}
 			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn8 == UNDEFINED)
-				dsn_live->dsn8 = htobe64(mp_state.idsn + subflow->ssn);
+				dsn_live->dsn8 = htobe64(mp_state.idsn + bytes_sent_on_all_ssn); //subflow->ssn);
 			else if(dss_opt_script->data.dss.dack_dsn.dsn.dsn8 == SCRIPT_DEFINED_TO_HASH_LSB){
 				u64 additional_val 	= find_next_value();
 				u64 *key = find_next_key();
@@ -1142,7 +1152,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 					u16 zeros;
 				} __packed buff_chk;
 
-				buff_chk.dsn = mp_state.idsn + subflow->ssn;
+				buff_chk.dsn = mp_state.idsn + bytes_sent_on_all_ssn; //subflow->ssn;
 				buff_chk.ssn = subflow->ssn;
 				buff_chk.dll = (u16)tcp_payload_length;
 				buff_chk.zeros = (u16)0;
@@ -1164,13 +1174,13 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 	// IF DSN only
 	}else if(dss_opt_script->data.dss.flag_M){
 		struct dsn *dsn_live 	= (struct dsn*)((u32*)dss_opt_live+1);
-
+		u32 bytes_sent_on_all_ssn = get_sum_ssn();
 		//DSN4
 		if(!dss_opt_script->data.dss.flag_m){
 			// get original information from live_packet
 
 			if(dss_opt_script->data.dss.dsn.dsn4 == UNDEFINED)
-				dsn_live->dsn4 = htonl(mp_state.idsn + subflow->ssn);
+				dsn_live->dsn4 = htonl(mp_state.idsn + bytes_sent_on_all_ssn); //subflow->ssn);
 			else if(dss_opt_script->data.dss.dsn.dsn4 == SCRIPT_DEFINED_TO_HASH_LSB){
 				u64 additional_val 	= find_next_value();
 				u64 *key = find_next_key();
@@ -1188,7 +1198,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 					u16 zeros;
 				} __packed buff_chk;
 
-				buff_chk.dsn = mp_state.idsn + subflow->ssn;
+				buff_chk.dsn = mp_state.idsn + bytes_sent_on_all_ssn; //subflow->ssn;
 				buff_chk.ssn = subflow->ssn;
 				buff_chk.dll = (u16)tcp_payload_length;
 				buff_chk.zeros = (u16)0;
@@ -1210,7 +1220,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 		//DSN8
 		}else{
 			if(dss_opt_script->data.dss.dsn.dsn8 == UNDEFINED)
-				dsn_live->dsn8 = htobe64(mp_state.idsn + subflow->ssn);
+				dsn_live->dsn8 = htobe64(mp_state.idsn + bytes_sent_on_all_ssn); //subflow->ssn);
 			else if(dss_opt_script->data.dss.dsn.dsn8 == SCRIPT_DEFINED_TO_HASH_LSB){
 				u64 additional_val 	= find_next_value();
 				u64 *key = find_next_key();
@@ -1227,7 +1237,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 					u16 zeros;
 				} __packed buff_chk;
 
-				buff_chk.dsn = mp_state.idsn + subflow->ssn;
+				buff_chk.dsn = mp_state.idsn + bytes_sent_on_all_ssn; //subflow->ssn;
 				buff_chk.ssn = subflow->ssn;
 				buff_chk.dll = (u16)tcp_payload_length;
 				buff_chk.zeros = (u16)0;
