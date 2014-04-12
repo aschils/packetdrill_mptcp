@@ -1,7 +1,7 @@
 /**
  * This file contains all data structures needed to maintain mptcp state.
  *
- * Authors: Arnaud Schils
+ * Authors: Arnaud Schils & Eduard Creciun
  *
  */
 
@@ -10,6 +10,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <netinet/in.h>
 #include "types.h"
 #include "queue/queue.h"
 #include "hashmap/uthash.h"
@@ -21,6 +22,16 @@
 #include "tcp_packet.h"
 #include "run.h"
 #include "packet_checksum.h"
+
+
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	#define ntohll(x)  le64toh(x)
+	#define htonll(x)  htole64(x)
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	#define ntohll(x) be64toh(x)
+	#define htonll(x) htobe64(x)
+#endif
+
 
 #define MPTCP_VERSION 0
 

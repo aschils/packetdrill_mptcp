@@ -5,6 +5,9 @@
 #include "mptcp.h"
 #include "packet_to_string.h"
 
+//#include "mptcp_sha1.h"
+
+
 void init_mp_state()
 {
 	mp_state.packetdrill_key_set = false;
@@ -621,11 +624,11 @@ void mp_join_syn_ack_sender_hmac(struct tcp_option *tcp_opt_to_modify,
 	u32 msg[2];
 	msg[0] = msg1;
 	msg[1] = msg2;
-	unsigned char hmac_ret[20];
-//	hmac_sha1_truncat_64(hmac_key, 16, (char*)msg, 8, hmac_ret);
-	hmac_sha1(hmac_key, 16, (char*)msg, 8, hmac_ret);
-	tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac = htobe64(*((u64*)hmac_ret));
-		//	htobe64(*((u64*)hmac_sha1_truncat_64(hmac_key,16,(char*)msg,8)));
+	tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac =
+			htobe64(hmac_sha1_truncat_64(hmac_key,
+					16,
+					(char*)msg,
+					8));
 }
 
 static int mp_join_syn_ack(struct packet *packet_to_modify,
@@ -678,6 +681,7 @@ static int mp_join_syn_ack(struct packet *packet_to_modify,
 					subflow->kernel_rand_nbr);
 		}
 	}
+
 	else if(direction == DIRECTION_OUTBOUND){
 		struct mp_subflow *subflow =
 				find_subflow_matching_outbound_packet(live_packet);
@@ -710,16 +714,11 @@ static int mp_join_syn_ack(struct packet *packet_to_modify,
 				live_mp_join->data.mp_join.syn.address_id;
 		tcp_opt_to_modify->data.mp_join.syn.ack.sender_random_number =
 				live_mp_join->data.mp_join.syn.ack.sender_random_number;
-		unsigned char hmac_ret[20];
-	//	hmac_sha1_truncat_64(hmac_key, 16, (char*)msg, 8, hmac_ret);
-		hmac_sha1(hmac_key, 16, (char*)msg, 8, hmac_ret);
-		tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac = *(u64*)hmac_ret;
-		printf("717: sender_hmac: %llu\n", *(u64*)hmac_ret);
-	//	*((u64*)hmac_sha1_truncat_64(hmac_key, 16, (char*)msg, 8, hash_ret));
+		tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac =
+				hmac_sha1_truncat_64(hmac_key, 16, (char*)msg, 8);
 	}
 	return STATUS_OK;
 }
-
 /**
  * Update mptcp subflows state according to sent/sniffed mp_join packets.
  * Insert appropriate values retrieved from this up-to-date state in inbound
@@ -764,29 +763,31 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 		subflow->kernel_rand_nbr =
 				live_mp_join->data.mp_join.syn.ack.sender_random_number;
 
-		//Build key for HMAC-SHA1
-		unsigned char hmac_key[16];
-		unsigned long *key_b = (unsigned long*)hmac_key;
-		unsigned long *key_a = (unsigned long*)&(hmac_key[8]);
-		*key_b = mp_state.kernel_key;
-		*key_a = mp_state.packetdrill_key;
-
-		//Build message for HMAC-SHA1
-		unsigned msg[2];
-		msg[0] = subflow->kernel_rand_nbr;
-		msg[1] = subflow->packetdrill_rand_nbr;
-		
 		//Update script packet mp_join option fields
 		tcp_opt_to_modify->data.mp_join.syn.address_id =
 				live_mp_join->data.mp_join.syn.address_id;
 		tcp_opt_to_modify->data.mp_join.syn.ack.sender_random_number =
 				live_mp_join->data.mp_join.syn.ack.sender_random_number;
-		unsigned char hmac_ret[20];
-	//	hmac_sha1_truncat_64(hmac_key, 16, (char*)msg, 8, hmac_ret);
-		hmac_sha1(hmac_key, 16, (char*)msg, 8, hmac_ret);
-		tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac = *(u64*)hmac_ret;
-	//	printf("788: sender_hmac: %llu\n", *(u64*)hmac_ret);
-	//	*((u64*)hmac_sha1_truncat_64(hmac_key, 16, (char*)msg, 8));
+
+		//Build key for HMAC-SHA1
+		u64 loc_key = mp_state.packetdrill_key;
+		u64 rem_key = mp_state.kernel_key;
+		u32 loc_nonce = subflow->packetdrill_rand_nbr;
+		u32 rem_nonce = live_mp_join->data.mp_join.syn.ack.sender_random_number;
+
+		// return value
+		u8 mptcp_hash_mac[20];
+		mptcp_hmac_sha1(
+				(u8*)&rem_key,
+				(u8*)&loc_key,
+				(u8*)&rem_nonce,
+				(u8*)&loc_nonce,
+				(u32*)mptcp_hash_mac );
+
+//		u64 live_hmac = live_mp_join->data.mp_join.syn.ack.sender_hmac;
+//		printf("822: %llu == %llu\n", live_hmac, *(u64*)mptcp_hash_mac );
+
+		tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac = *(u64*)mptcp_hash_mac;
 	}
 
 	else if(direction == DIRECTION_INBOUND &&
