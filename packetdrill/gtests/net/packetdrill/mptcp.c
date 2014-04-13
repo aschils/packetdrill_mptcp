@@ -789,7 +789,7 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 
 		tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac = *(u64*)mptcp_hash_mac;
 	}
-
+	//mp_join ack
 	else if(direction == DIRECTION_INBOUND &&
 			packet_to_modify->tcp->ack &&
 			!packet_to_modify->tcp->syn &&
@@ -798,26 +798,23 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 		if(!subflow)
 			return STATUS_ERR;
 
-		//Build HMAC-SHA1 key
-		unsigned char hmac_key[16];
-		unsigned long *key_a = (unsigned long*)hmac_key;
-		unsigned long *key_b = (unsigned long*)&(hmac_key[8]);
-		*key_a = mp_state.packetdrill_key;
-		*key_b = mp_state.kernel_key;
+		//Build key for HMAC-SHA1
+		u64 loc_key = mp_state.packetdrill_key;
+		u64 rem_key = mp_state.kernel_key;
+		u32 loc_nonce = subflow->packetdrill_rand_nbr;
+		u32 rem_nonce = subflow->kernel_rand_nbr;
 
-		//Build HMAC-SHA1 message
-		unsigned msg[2];
-		msg[0] = subflow->packetdrill_rand_nbr;
-		msg[1] = subflow->kernel_rand_nbr;
+		// return value
+		u8 mptcp_hash_mac[20];
+		mptcp_hmac_sha1(
+				(u8*)&loc_key,
+				(u8*)&rem_key,
+				(u8*)&loc_nonce,
+				(u8*)&rem_nonce,
+				(u32*)mptcp_hash_mac );
 
-		u32 sender_hmac[5];
-		hmac_sha1(hmac_key,
-				16,
-				(char*)msg,
-				8,
-				(unsigned char*)sender_hmac);
 		memcpy(tcp_opt_to_modify->data.mp_join.no_syn.sender_hmac,
-			   sender_hmac,
+				mptcp_hash_mac,
 				20);
 	}
 

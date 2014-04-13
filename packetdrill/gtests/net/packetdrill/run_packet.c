@@ -154,9 +154,9 @@ struct socket *find_socket_matching_packet(struct state *state,
 {
 	struct socket *socket = state->sockets;
 	while(socket){
-		if((*match)(socket, packet)){
+		if((*match)(socket, packet))
 			return socket;
-		}
+
 		socket = socket->next;
 	}
 	return NULL;
@@ -176,9 +176,8 @@ struct socket *find_socket_matching_packet_script_fd(
 		const struct packet *packet)
 {
 
-	if(packet->socket_script_fd == SOCKET_FD_NOT_DEFINED)
+	if(packet->socket_script_fd == SOCKET_FD_NOT_DEFINED) // in scipt test is not specified
 		return state->sockets;
-
 	return find_socket_matching_packet(state, packet,
 			is_equals_script_fd_socket_and_packet);
 }
@@ -204,8 +203,8 @@ struct socket *find_connecting_socket(struct state *state)
 static bool is_equals_tuple_socket_and_packet(struct socket *socket,
 		const struct packet *packet)
 {
-	//TODO check IP too, will be necessary when multiple interface support
-	//will be implemented.
+	//TODO check all 5-tuple ([IP,port] dst/src & protocol), will be
+	//necessary when multiple interface support will be implemented
 	return is_equal_port(socket->live.local.port, packet->tcp->src_port) &&
 		   is_equal_port(socket->live.remote.port, packet->tcp->dst_port);
 }
@@ -251,16 +250,14 @@ static struct socket *find_socket_for_live_packet(
 	struct state *state, const struct packet *packet,
 	enum direction_t *direction)
 {
-
 	struct socket *socket = find_socket_matching_packet_tuple(state, packet);
-
 	if (socket == NULL)
 		return NULL;
 
 	struct tuple packet_tuple, live_outbound, live_inbound;
 	get_packet_tuple(packet, &packet_tuple);
 
-	/* Is packet inbound to the socket under test? */
+	// Is packet inbound to the socket under test?
 	socket_get_inbound(&socket->live, &live_inbound);
 	if (is_equal_tuple(&packet_tuple, &live_inbound)) {
 		*direction = DIRECTION_INBOUND;
@@ -269,7 +266,7 @@ static struct socket *find_socket_for_live_packet(
 		return socket;
 	}
 
-	/* Is packet outbound from the socket under test? */
+	// Is packet outbound from the socket under test?
 	socket_get_outbound(&socket->live, &live_outbound);
 
 	if (is_equal_tuple(&packet_tuple, &live_outbound)) {
@@ -674,6 +671,7 @@ static int map_outbound_live_packet(
 	/* Rewrite 4-tuple to be outbound script values. */
 	socket_get_outbound(&socket->script, &script_outbound);
 	set_packet_tuple(actual_packet, &script_outbound);
+
 
 	/* If no TCP headers to rewrite, then we're done. */
 	if (live_packet->tcp == NULL)
@@ -1281,12 +1279,14 @@ static int sniff_outbound_live_packet(
 
 		if (netdev_receive(state->netdev, packet, error))
 			return STATUS_ERR;
+		(*packet)->tcp->src_port= expected_socket->live.local.port;
+		(*packet)->tcp->dst_port= expected_socket->live.remote.port;
 		/* See if the packet matches an existing, known socket. */
-		socket = find_socket_for_live_packet(state, *packet,
-						     &direction);
+		socket = find_socket_for_live_packet(state, *packet, &direction);
 
 		if ((socket != NULL) && (direction == DIRECTION_OUTBOUND))
 			break;
+
 		/* See if the packet matches a recent connect() call. */
 		socket = find_connect_for_live_packet(state, *packet,
 						      &direction);
@@ -1301,9 +1301,11 @@ static int sniff_outbound_live_packet(
 	assert(direction == DIRECTION_OUTBOUND);
 
 	if (socket != expected_socket) {
-		asprintf(error, "packet is not for expected socket");
+		asprintf(error, "socket is not respected on this packet");
+
 		return STATUS_ERR;
 	}
+
 	return STATUS_OK;
 }
 
@@ -1349,6 +1351,7 @@ static int find_or_create_socket_for_script_packet(
 
 		if (*socket != NULL)
 			return STATUS_OK;
+
 	}
 
 	struct socket *found_socket;
@@ -1405,8 +1408,10 @@ static int do_outbound_script_packet(
 	}
 
 	/* Sniff outbound live packet and verify it's for the right socket. */
-	if (sniff_outbound_live_packet(state, socket, &live_packet, error))
+	if (sniff_outbound_live_packet(state, socket, &live_packet, error)){
+		printf("1431: Bad socket\n");
 		goto out;
+	}
 
 	if ((socket->state == SOCKET_PASSIVE_PACKET_RECEIVED) &&
 	    packet->tcp && packet->tcp->syn && packet->tcp->ack) {
@@ -1423,7 +1428,6 @@ static int do_outbound_script_packet(
 	/* Save the TCP header so we can reset the connection at the end. */
 	if (live_packet->tcp)
 		socket->last_outbound_tcp_header = *(live_packet->tcp);
-	
 	/* Verify the bits the kernel sent were what the script expected. */
 	result = verify_outbound_live_packet(
 			state, socket, packet, live_packet, error);
@@ -1486,7 +1490,6 @@ static int do_inbound_script_packet(
 		socket->last_injected_tcp_payload_len =
 			packet_payload_len(live_packet);
 	}
-
 	/* Inject live packet into kernel. */
 	result = send_live_ip_packet(state->netdev, live_packet);
 
