@@ -1,0 +1,27 @@
+// Verify that when a process uses SO_LINGER with {onoff=1, linger=0},
+// and then closes the socket, the kernel sends a RST.
+// Initialize a server socket.
+0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
++0 bind(3, ..., ...) = 0
++0 listen(3, 1) = 0
+
++0 < S 0:0(0) win 32792 <mss 1028,sackOK,nop,nop,nop,wscale 7, mp_capable a>
++0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 7, mp_capable b>
++0 < . 1:1(0) ack 1 win 257 <mp_capable a b>
+
++0 accept(3, ..., ...) = 4
+
+// onoff = 0 => linger ignored and close immediately, default case
+// onoff = 1 and linger = 0, TCP aborts the connection when it's closed, discards remaining data + RST
+// onoff = 1 and linger = 1, TCP send all buffer and wait for acknowledges before closing
++0 setsockopt(4, SOL_SOCKET, SO_LINGER, {onoff=1, linger=0}, 8) = 0
+
+// Write some data, receive an ACK
++0 write(4, ..., 1000) = 1000
++0 > P. 1:1001(1000) ack 1 <...>
++0 < . 1:1(0) ack 1001 win 257
+
+// Clean up
++0 close(4) = 0
++0 > R. 1001:1001(0) ack 1 <...>
