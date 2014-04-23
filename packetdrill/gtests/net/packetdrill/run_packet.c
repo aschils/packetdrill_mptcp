@@ -1279,8 +1279,8 @@ static int sniff_outbound_live_packet(
 
 		if (netdev_receive(state->netdev, packet, error))
 			return STATUS_ERR;
-		(*packet)->tcp->src_port= expected_socket->live.local.port;
-		(*packet)->tcp->dst_port= expected_socket->live.remote.port;
+//		(*packet)->tcp->src_port= expected_socket->live.local.port;
+//		(*packet)->tcp->dst_port= expected_socket->live.remote.port;
 		/* See if the packet matches an existing, known socket. */
 		socket = find_socket_for_live_packet(state, *packet, &direction);
 

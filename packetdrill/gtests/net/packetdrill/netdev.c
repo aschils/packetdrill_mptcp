@@ -370,30 +370,41 @@ static int local_netdev_receive(struct netdev *a_netdev,
 
 	DEBUGP("local_netdev_receive\n");
 
+	return netdev_receive_loop(netdev->psock, PACKET_LAYER_3_IP,
+				   DIRECTION_OUTBOUND, packet, error);
+}
+
+int netdev_receive_loop(struct packet_socket *psock,
+			enum packet_layer_t layer,
+			enum direction_t direction,
+			struct packet **packet,
+			char **error)
+{
 	assert(*packet == NULL);	/* should be no packet yet */
-	*packet = packet_new(PACKET_READ_BYTES);
 
 	while (1) {
 		int in_bytes = 0;
+		enum packet_parse_result_t result;
+
+		*packet = packet_new(PACKET_READ_BYTES);
 
 		/* Sniff the next outbound packet from the kernel under test. */
-		if (packet_socket_receive(netdev->psock,
-					  DIRECTION_OUTBOUND,
-					  *packet, &in_bytes))
+		if (packet_socket_receive(psock, direction, *packet, &in_bytes))
 			continue;
 
-		enum packet_parse_result_t result =
-			parse_packet(*packet, in_bytes,
-					     PACKET_LAYER_3_IP, error);
-		if (result == PACKET_OK) {
+		result = parse_packet(*packet, in_bytes, layer, error);
+
+		if (result == PACKET_OK)
 			return STATUS_OK;
-		} else if (result == PACKET_BAD) {
-			packet_free(*packet);
-			*packet = NULL;
+
+		packet_free(*packet);
+		*packet = NULL;
+
+		if (result == PACKET_BAD)
 			return STATUS_ERR;
-		} else {
-			DEBUGP("error parsing packet: %s\n", *error);
-		}
+
+		DEBUGP("parse_result:%d; error parsing packet: %s\n",
+		       result, *error);
 	}
 
 	assert(!"should not be reached");

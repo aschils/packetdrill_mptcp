@@ -30,6 +30,8 @@
 
 #include "config.h"
 #include "packet.h"
+#include "packet_parser.h"
+#include "packet_socket.h"
 
 struct netdev_ops;
 
@@ -78,6 +80,11 @@ static inline int netdev_receive(struct netdev *netdev,
 {
 	return netdev->ops->receive(netdev, packet, error);
 }
+int netdev_receive_loop(struct packet_socket *psock,
+			enum packet_layer_t layer,
+			enum direction_t direction,
+			struct packet **packet,
+			char **error);
 
 /* Allocate and return a new netdev for purely local tests. */
 extern struct netdev *local_netdev_new(struct config *config);
