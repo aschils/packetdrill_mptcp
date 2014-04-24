@@ -248,13 +248,13 @@ int tcp_options_to_string(struct packet *packet,
 
         	case MP_CAPABLE_SUBTYPE:
         		if(option->length == TCPOLEN_MP_CAPABLE){
-        			fprintf(s, "mp_capable (20 bytes) sender key: %lu receiver key: %lu, flags %u",
+        			fprintf(s, "mp_capable sender_key: %lu receiver_key: %lu, flags %u",
         					(unsigned long)option->data.mp_capable.no_syn.sender_key,
         					(unsigned long)option->data.mp_capable.no_syn.receiver_key,
         					option->data.mp_capable.flags);
         		}
         		else if(option->length == TCPOLEN_MP_CAPABLE_SYN){
-        			fprintf(s, "mp_capable (12 bytes) key: %lu, flags: %u",
+        			fprintf(s, "mp_capable sender_key: %lu, flags: %u",
         					(unsigned long)option->data.mp_capable.syn.key,
         					option->data.mp_capable.flags);
         		}

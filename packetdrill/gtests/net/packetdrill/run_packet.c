@@ -973,12 +973,16 @@ bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b, struct p
 			if(opt_a->data.mp_capable.flags != opt_b->data.mp_capable.flags)
 				return false;
 			if(opt_a->length == TCPOLEN_MP_CAPABLE_SYN){
-				if(opt_a->data.mp_capable.syn.key != opt_b->data.mp_capable.syn.key)
+				if(opt_a->data.mp_capable.syn.key != opt_b->data.mp_capable.syn.key){
+					printf("977: Les cles syn sont diff\n");
 					return false;
+				}
 			}else if(opt_a->length == TCPOLEN_MP_CAPABLE){
 				if(opt_a->data.mp_capable.no_syn.receiver_key != opt_b->data.mp_capable.no_syn.receiver_key ||
-						opt_a->data.mp_capable.no_syn.sender_key != opt_b->data.mp_capable.no_syn.sender_key)
+						opt_a->data.mp_capable.no_syn.sender_key != opt_b->data.mp_capable.no_syn.sender_key){
+					printf("981: Les cles syn/ack sont diff\n");
 					return false;
+				}
 			}
 			break;
 		case MP_JOIN_SUBTYPE:
@@ -1057,8 +1061,10 @@ bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b, struct p
 					return false;
 			}else if(opt_a->data.dss.flag_A){
 				if(!opt_a->data.dss.flag_a){
-					if(opt_a->data.dss.dack.dack4 != opt_b->data.dss.dack.dack4 )
+					if(opt_a->data.dss.dack.dack4 != opt_b->data.dss.dack.dack4 ){
+						printf("1065: dack4 differents\n");
 						return false;
+					}
 				}else{
 					if(opt_a->data.dss.dack.dack8 != opt_b->data.dss.dack.dack8 )
 						return false;
@@ -1095,12 +1101,23 @@ static bool same_tcp_options(struct packet *packet_a,
 		if(opt_b == NULL){
 			return false;
 		}
+		// loop on subtypes of mptcp, to compare the right option
+		if(opt_a->kind == TCPOPT_MPTCP){
+			while(opt_b != NULL && opt_a->data.mp_capable.subtype!=opt_b->data.mp_capable.subtype){
+				opt_b = tcp_options_next(&iter_b, NULL);
+			}
+			//sub-option opt_a not found in packet_b
+			if(opt_b == NULL){
+				return false;
+			}
+		}
+
 
 		//NOP option only contains a kind field (not length)
 		if(opt_a->kind != TCPOPT_NOP){
-			if(opt_a->length != opt_b->length){
+			if(opt_a->length != opt_b->length)
 				return false;
-			}
+
 			if(opt_a->kind == TCPOPT_MPTCP){
 				if(!same_mptcp_opt(opt_a, opt_b, packet_a))
 					return false;
