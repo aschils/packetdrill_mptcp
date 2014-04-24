@@ -52,5 +52,6 @@ extern struct tcp_option *tcp_options_next(
 	struct tcp_options_iterator *iter, char **error);
 
 extern struct tcp_option *get_tcp_option(struct packet *packet, u8 kind);
+extern struct tcp_option *get_mptcp_option(struct packet *packet, u8 subtype);
 
 #endif /* __TCP_OPTIONS_ITERATOR_H__ */

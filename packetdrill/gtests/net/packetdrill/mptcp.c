@@ -476,13 +476,8 @@ int mptcp_subtype_mp_capable(struct packet *packet_to_modify,
 		error = mptcp_set_mp_cap_keys(tcp_opt_to_modify);
 		// Automatically put the idsn tokens
 		mp_state.idsn = sha1_least_64bits(mp_state.packetdrill_key);
-//		printf("mptcp.c:457 IDSN: %llx\n", mp_state.idsn);
-
 		mp_state.remote_idsn = sha1_least_64bits(mp_state.kernel_key);
-//		printf("mptcp.c:460 Remote IDSN: %llx\n", mp_state.remote_idsn);
 
-//		mp_state.last_dsn_rcvd = mp_state.remote_idsn+mp_state.remote_ssn;
-//		mp_state.remote_ssn = 0; // => 1 because it's created on ack: syn uses 1 seq. nb.
 		if(direction == DIRECTION_INBOUND)
 			new_subflow_inbound(packet_to_modify);
 		else if(direction == DIRECTION_OUTBOUND)
@@ -1245,7 +1240,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 		struct packet *live_packet,
 		struct tcp_option *dss_opt_script){
 	
-	struct tcp_option* dss_opt_live = get_tcp_option(live_packet, TCPOPT_MPTCP);
+	struct tcp_option* dss_opt_live = get_mptcp_option(live_packet, DSS_SUBTYPE);
 	
 	// if a packet is coming from kernel with DSN and DACK
 	if(dss_opt_script->data.dss.flag_M && dss_opt_script->data.dss.flag_A){
@@ -1535,7 +1530,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 		}
 		// if DACK is 4 octets
 		else {
-			// if dsn8 is not given in the script, we'll put it automatically
+			// if dack4 is not given in the script, we'll put it automatically
 			if(dss_opt_script->data.dss.dack.dack4 == UNDEFINED)
 				dss_opt_script->data.dss.dack.dack4 = dack_live->dack4;
 			else if(dss_opt_script->data.dss.dack.dack4==SCRIPT_DEFINED){
@@ -1617,23 +1612,24 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 						tcp_opt_to_modify,
 						direction);
 				break;
-/*			case ADD_ADDR_SUBTYPE: 	//03 TODO
-				printf("ADD_ADDR_SUBTYPE\n");
+			case ADD_ADDR_SUBTYPE: 	//03 TODO
+				printf("ADD_ADDR_SUBTYPE, todo\n");
 				break;
 			case REMOVE_ADDR_SUBTYPE:	// 04 TODO
-				printf("REMOVE_ADDR_SUBTYPE\n");
+				printf("REMOVE_ADDR_SUBTYPE, todo\n");
 				break;
 			case MP_PRIO_SUBTYPE: 		// 05 TODO
-				printf("MP_PRIO_SUBTYPE\n");
+				printf("MP_PRIO_SUBTYPE, todo\n");
 				break;
 			case MP_FAIL_SUBTYPE: 		// 06 TODO
-				printf("MP_FAIL_SUBTYPE\n");
+				printf("MP_FAIL_SUBTYPE, todo\n");
 				break;
 			case MP_FASTCLOSE_SUBTYPE:		// 07 TODO
-				printf("MP_FASTCLOSE_SUBTYPE\n");
-				break; */
+				printf("MP_FASTCLOSE_SUBTYPE, todo\n");
+				break;
 			default:
 				error =  STATUS_ERR;
+				break;
 			}
 
 			if(error)

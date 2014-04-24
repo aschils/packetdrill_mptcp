@@ -279,3 +279,19 @@ extern struct tcp_option *get_tcp_option(struct packet *packet, u8 kind){
 	}
 	return tcp_opt;
 }
+
+/**
+ * Search for the sub option of subtype "subtype" in the packet and return the mptcp_suboption
+ * pointer to this found option, return NULL if not found.
+ *
+ */
+extern struct tcp_option *get_mptcp_option(struct packet *packet, u8 subtype){
+
+	struct tcp_options_iterator tcp_opt_iter;
+	struct tcp_option *tcp_opt = tcp_options_begin(packet, &tcp_opt_iter);
+
+	while(tcp_opt != NULL && tcp_opt->data.mp_capable.subtype!=subtype){
+		tcp_opt = tcp_options_next(&tcp_opt_iter, NULL);
+	}
+	return tcp_opt;
+}
