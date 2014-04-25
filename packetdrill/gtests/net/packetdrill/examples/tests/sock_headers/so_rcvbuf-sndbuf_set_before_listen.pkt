@@ -1,0 +1,36 @@
+/* mptcp 0.88
+ * Test received buffer and sent buffer after the connection 
+ * is established 
+ */ 
+
+0.000 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+0.000 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+0.000 bind(3, ..., ...) = 0
+
+//default SO_RCVBUF before the connection
+0.000 getsockopt(3, SOL_SOCKET, SO_RCVBUF, [87380], [4]) = 0
+0.000 getsockopt(3, SOL_SOCKET, SO_SNDBUF, [16384], [4]) = 0
+
+0.000 setsockopt(3, SOL_SOCKET, SO_RCVBUF, [40000], 4) = 0
+0.000 setsockopt(3, SOL_SOCKET, SO_SNDBUF, [30000], 4) = 0
+
+0.000 listen(3, 1) = 0
+
+
+// Establish a connection, 1028 = data + DSS option 
+0.100  < S 0:0(0) win 32792 <mss 1090,sackOK,nop,nop,nop,wscale 7, mp_capable a>
+0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7, mp_capable b>
+0.200  < . 1:1(0) ack 1 win 257 <mp_capable a b>
+0.200  accept(3, ..., ...) = 4
+
+//getsockopt(sock,SOL_SOCKET,SO_RCVBUF,&rbuf,&len);
+
+// SO_RCVBUF, should be 80000 and not 160000 => error?
+0.400 getsockopt(4, SOL_SOCKET, SO_RCVBUF, [160000], [4]) = 0
++0.1 setsockopt(4, SOL_SOCKET, SO_RCVBUF, [50000], 4) = 0
++0.1 getsockopt(4, SOL_SOCKET, SO_RCVBUF, [100000], [4]) = 0
+
+// SO_SNDBUF
+0.700 getsockopt(4, SOL_SOCKET, SO_SNDBUF, [60000], [4]) = 0
+0.800 setsockopt(4, SOL_SOCKET, SO_SNDBUF, [45000], 4) = 0
+0.900 getsockopt(4, SOL_SOCKET, SO_SNDBUF, [90000], [4]) = 0
