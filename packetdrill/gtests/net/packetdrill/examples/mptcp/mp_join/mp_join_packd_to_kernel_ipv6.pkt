@@ -1,16 +1,17 @@
+// Not finished yet
 0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
 +0  setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
-+0  bind(3, {sa_family = AF_INET6, sin_port = htons(13000), sin_addr = inet_addr("fd3d:fa7b:d17d::1")}, ...) = 0
++0  bind(3, {sa_family = AF_INET6, sin_port = htons(13000), sin_addr = inet_addr("fe80::1")}, ...) = 0
 +0  listen(3, 1) = 0
 
 +0  socket(..., SOCK_STREAM, IPPROTO_TCP) = 5
 +0  setsockopt(5, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
-+0  bind(5, {sa_family = AF_INET6, sin_port = htons(13001), sin_addr = inet_addr("fd3d:fa7b:d17d::1")}, ...) = 0
++0  bind(5, {sa_family = AF_INET6, sin_port = htons(13001), sin_addr = inet_addr("fe80::1")}, ...) = 0
 +0  listen(5,1) = 0
 
 +0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 10
 +0  setsockopt(10, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
-+0  bind(10, {sa_family = AF_INET6, sin_port = htons(13002), sin_addr = inet_addr("fd3d:fa7b:d17d::1")}, ...) = 0
++0  bind(10, {sa_family = AF_INET6, sin_port = htons(13002), sin_addr = inet_addr("fe80::1")}, ...) = 0
 +0  listen(10, 1) = 0
 
 +0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable a> sock(3)

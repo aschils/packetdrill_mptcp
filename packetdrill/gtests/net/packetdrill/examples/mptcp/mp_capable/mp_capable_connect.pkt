@@ -1,5 +1,7 @@
-// Test mp_capable mptcp option initiated by kernel
+// mptcp v0.88
+// connect() function, connection initiated by the kernel
 
+// create a socket
 0.000 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
 +0.000 fcntl(3, F_GETFL) = 0x2 (flags O_RDWR)
 +0.000 fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
@@ -8,5 +10,5 @@
 +0.0 connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)
 +0.0 > S 0:0(0) win 29200 <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 7,mp_capable a> sock(3)
 +0.0 < S. 0:0(0) ack 1 win 5792 <mss 1460,sackOK,TS val 700 ecr 100,nop,wscale 7,mp_capable b> sock(3)
-+0.0 > . 1:1(0) ack 1 win 457 <nop,nop,TS val 100 ecr 700, mp_capable a b, dss dack4=trunc_r64_hmac(b)+1> sock(3) //TODO
++0.0 > . 1:1(0) ack 1 win 457 <nop,nop,TS val 100 ecr 700,mp_capable a b, dss dack4=trunc_r64_hmac(b)+1> sock(3) 
 

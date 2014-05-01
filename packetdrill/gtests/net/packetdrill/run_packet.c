@@ -1101,6 +1101,7 @@ static bool same_tcp_options(struct packet *packet_a,
 		if(opt_b == NULL){
 			return false;
 		}
+
 		// loop on subtypes of mptcp, to compare the right option
 		if(opt_a->kind == TCPOPT_MPTCP){
 			while(opt_b != NULL && opt_a->data.mp_capable.subtype!=opt_b->data.mp_capable.subtype){
@@ -1115,7 +1116,7 @@ static bool same_tcp_options(struct packet *packet_a,
 
 		//NOP option only contains a kind field (not length)
 		if(opt_a->kind != TCPOPT_NOP){
-			if(opt_a->length != opt_b->length)
+			if(opt_a->length != opt_b->length || memcmp(opt_b, opt_a, opt_a->length))
 				return false;
 
 			if(opt_a->kind == TCPOPT_MPTCP){
