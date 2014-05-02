@@ -1,7 +1,7 @@
 /* mptcp 0.88
  * 
  * Out of band test. Testing the server side. 
- * Once the send() function is called on the cocket, it should 
+ * Once the send() function is called on the socket, it should 
  * send a segment having Push and Urgent flags. 
  */
 
