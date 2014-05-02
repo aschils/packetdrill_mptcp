@@ -640,7 +640,6 @@ static int map_inbound_packet(
 		}
 		packet_set_tcp_ts_ecr(live_packet, live_ts_ecr);
 	}
-
 	return mptcp_insert_and_extract_opt_fields(live_packet,
 			live_packet,
 			DIRECTION_INBOUND);
@@ -1495,7 +1494,6 @@ static int do_inbound_script_packet(
 	/* Start with a bit-for-bit copy of the packet from the script. */
 	struct packet *live_packet = packet_copy(packet);
 	/* Map packet fields from script values to live values. */
-
 	if (map_inbound_packet(socket, live_packet, error))
 		goto out;
 	verbose_packet_dump(state, "inbound injected", live_packet,
@@ -1525,7 +1523,6 @@ int run_packet_event(
 	char *err = NULL;
 	struct socket *socket = NULL;
 	int result = STATUS_ERR;
-
 	enum direction_t direction = packet_direction(packet);
 	assert(direction != DIRECTION_INVALID);
 

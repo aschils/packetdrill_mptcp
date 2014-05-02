@@ -74,10 +74,10 @@ static int tcp_packet_to_string(FILE *s, struct packet *packet,
 		fputc('R', s);
 	if (packet->tcp->psh)
 		fputc('P', s);
-	if (packet->tcp->ack)
-		fputc('.', s);
 	if (packet->tcp->urg)
 		fputc('U', s);
+	if (packet->tcp->ack)
+		fputc('.', s);
 	if (packet->tcp->ece)
 		fputc('E', s);   /* ECN *E*cho sent (ECN) */
 	if (packet->tcp->cwr)

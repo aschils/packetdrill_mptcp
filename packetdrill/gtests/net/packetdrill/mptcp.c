@@ -20,7 +20,6 @@ void init_mp_state()
 	mp_state.remote_idsn = UNDEFINED;
 	mp_state.remote_ssn = 0;
 	mp_state.remote_last_pkt_length = 0;
-//	mp_state.last_dsn_rcvd = 0;
 }
 
 void free_mp_state(){
@@ -247,7 +246,7 @@ struct mp_subflow *new_subflow_outbound(struct packet *outbound_packet)
 
 	struct mp_subflow *subflow = malloc(sizeof(struct mp_subflow));
 	struct tcp_option *mp_join_syn =
-			get_tcp_option(outbound_packet, TCPOPT_MPTCP);
+			get_mptcp_option(outbound_packet, MP_CAPABLE_SUBTYPE); //TCPOPT_MPTCP);
 
 	if(!mp_join_syn)
 		return NULL;
@@ -272,10 +271,9 @@ struct mp_subflow *new_subflow_outbound(struct packet *outbound_packet)
 			mp_join_syn->data.mp_join.syn.no_ack.sender_random_number;
 	subflow->kernel_addr_id =
 			mp_join_syn->data.mp_join.syn.address_id;
-	subflow->ssn = 0;
+	subflow->ssn = 1;
 	subflow->next = mp_state.subflows;
 	mp_state.subflows = subflow;
-
 	return subflow;
 }
 
@@ -481,7 +479,7 @@ int mptcp_subtype_mp_capable(struct packet *packet_to_modify,
 		if(direction == DIRECTION_INBOUND)
 			new_subflow_inbound(packet_to_modify);
 		else if(direction == DIRECTION_OUTBOUND)
-			new_subflow_outbound(packet_to_modify);
+			new_subflow_outbound(live_packet);
 		else
 			return STATUS_ERR;
 	}
@@ -902,8 +900,9 @@ u16 get_tcp_header_length(struct packet *packet){
 int dss_inbound_parser(struct packet *packet_to_modify,
 		struct packet *live_packet,
 		struct tcp_option *dss_opt_script){
-
 	struct mp_subflow *subflow = find_subflow_matching_inbound_packet(packet_to_modify);
+	if(!subflow)
+		return STATUS_ERR;
 
 	u16 tcp_payload_length = (u16)packet_payload_len(packet_to_modify);
 
@@ -1218,6 +1217,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 	// IF ACK only
 	else if(dss_opt_script->data.dss.flag_A){
 		// dack4
+
 		if(!dss_opt_script->data.dss.flag_a){
 			if(dss_opt_script->data.dss.dack.dack4==UNDEFINED){
 				dss_opt_script->data.dss.dack.dack4 = ntohl((u32)(mp_state.remote_idsn + mp_state.remote_ssn + mp_state.remote_last_pkt_length));
@@ -1587,7 +1587,6 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 	struct tcp_option *tcp_opt_to_modify =
 			tcp_options_begin(packet_to_modify, &tcp_opt_iter);
 	int error;
-
 	while(tcp_opt_to_modify != NULL){
 		if(tcp_opt_to_modify->kind == TCPOPT_MPTCP){
 			switch(tcp_opt_to_modify->data.mp_capable.subtype){

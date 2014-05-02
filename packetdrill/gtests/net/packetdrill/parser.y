@@ -1000,10 +1000,6 @@ tcp_packet_spec
 		semantic_error(error);
 		free(error);
 	}
-	
-	/*if(mptcp_gen_snd_key($$, $1)){
-		semantic_error("Error in mptcp_gen_snd_key");
-	}*/
 }
 ;
 
