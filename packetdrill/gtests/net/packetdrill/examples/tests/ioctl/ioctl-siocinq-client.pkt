@@ -1,5 +1,5 @@
 /* mptcp v0.88
- * A simple test for the TCP SIOCINQ ioctl.
+ * A simple test for the TCP SIOCINQ in ioctl function.
  * Returns the amount of queued unread data in the receive buffer.
  */
 
@@ -24,11 +24,12 @@
 0.220 read(3, ..., 1000) = 1000
 0.230 ioctl(3, SIOCINQ, [0]) = 0
 
+// Receive a segment with a FIN. Problem: it crashes the kernel in user-context when using FIN flag in DSS packet
+//0.300 < PF. 1001:2001(1000) ack 1 win 257 <nop,nop,TS val 700 ecr 100, dss dack4 dsn4 FIN>
+// This one does not crash 
+0.300 < PF. 1001:2001(1000) ack 1 win 257 <nop,nop,TS val 700 ecr 100, dss dack4 dsn4>
+0.300 > . 1:1(0) ack 2002 win 488 <nop,nop,TS val 175 ecr 700, dss dack4 >
 
-// Receive a segment with a FIN. Problem: it crashes the kernel in user-context
-0.300 < FP. 1001:2001(1000) ack 1 win 257 <dss dack4 dsn4 FIN>
-0.300 > . 1:1(0) ack 2002 <dss dack4 FIN>
-
-0.310 ioctl(4, SIOCINQ, [1000]) = 0
-0.320 read(4, ..., 1000) = 1000
-0.330 ioctl(4, SIOCINQ, [0]) = 0
+0.310 ioctl(3, SIOCINQ, [1000]) = 0
+0.320 read(3, ..., 1000) = 1000
+0.330 ioctl(3, SIOCINQ, [0]) = 0
