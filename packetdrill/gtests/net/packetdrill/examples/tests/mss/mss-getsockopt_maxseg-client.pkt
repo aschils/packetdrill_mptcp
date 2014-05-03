@@ -1,0 +1,32 @@
+/* mptcp 0.88
+ * Test that getsockopt of TCP_MAXSEG works on passive/server TCP connections.
+ * In this variant we test that a simple query of segment size works.
+ */
+
+// create a socket
+0.000 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0.000 fcntl(3, F_GETFL) = 0x2 (flags O_RDWR)
++0.000 fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+
+0.000 getsockopt(3, SOL_TCP, TCP_MAXSEG, [536], [4]) = 0
+// set MSS to 1600
+0.000 setsockopt(3, SOL_TCP, TCP_MAXSEG, [1212], 4) = 0
+
+// Establish connection and verify that there was no error.
++0.0 connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)
++0.0 > S 0:0(0) win 24240 <mss 1212,sackOK,TS val 100 ecr 0,nop,wscale 7,mp_capable a> 
++0.0 < S. 0:0(0) ack 1 win 5792 <mss 1460,sackOK,TS val 700 ecr 100,nop,wscale 7,mp_capable b> 
++0.0 > . 1:1(0) ack 1 win 379 <nop,nop,TS val 100 ecr 700,mp_capable a b, dss dack4=trunc_r64_hmac(b)+1> 
+0.200 getsockopt(3, SOL_SOCKET, SO_ERROR, [0], [4]) = 0
+0.200 fcntl(3, F_SETFL, O_RDWR) = 0   // set back to blocking
+
+
+// Test if the maximum segment size is 1448 = 1460 - 12 (mp_capable option size)
+0.400 getsockopt(3, SOL_TCP, TCP_MAXSEG, [1200], [4]) = 0
+
+// Modifying MSS
+0.400 setsockopt(3, SOL_TCP, TCP_MAXSEG, [1100], 4) = 0
+
+// getsockopt gives always 1200
+0.400 getsockopt(3, SOL_TCP, TCP_MAXSEG, [1200], [4]) = 0
+
