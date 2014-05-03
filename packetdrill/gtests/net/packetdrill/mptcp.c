@@ -905,6 +905,9 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 		return STATUS_ERR;
 
 	u16 tcp_payload_length = (u16)packet_payload_len(packet_to_modify);
+	// add +1 to tcp_payload if FIN falg is set
+	if(dss_opt_script->data.dss.flag_F)
+		tcp_payload_length++;
 
 	struct tcp_option* dss_opt_live = get_tcp_option(live_packet, TCPOPT_MPTCP);
 	// if a packet is going from packetdrill with DSN and DACK to kernel
