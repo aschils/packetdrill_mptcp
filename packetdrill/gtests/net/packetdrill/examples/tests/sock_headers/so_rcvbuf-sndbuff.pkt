@@ -22,7 +22,7 @@
 
 //getsockopt(sock,SOL_SOCKET,SO_RCVBUF,&rbuf,&len);
 
-0.400 getsockopt(4, SOL_SOCKET, SO_RCVBUF, [180980], [4]) = 0
+0.400 getsockopt(4, SOL_SOCKET, SO_RCVBUF, [174760], [4]) = 0
 0.500 setsockopt(4, SOL_SOCKET, SO_RCVBUF, [80000], 4) = 0
 0.600 getsockopt(4, SOL_SOCKET, SO_RCVBUF, [160000], [4]) = 0
 
