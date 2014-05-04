@@ -977,13 +977,13 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 
 			// put information in script packet
 			if(dss_opt_script->data.dss.dack_dsn.dack.dack8 == UNDEFINED)
-				dack_live->dack8 = htobe64(mp_state.remote_idsn + mp_state.remote_ssn);
+				dack_live->dack8 = htonll(mp_state.remote_idsn + mp_state.remote_ssn);
 			else if(dss_opt_script->data.dss.dack_dsn.dack.dack8 == SCRIPT_DEFINED_TO_HASH_LSB){
 				u64 additional_val 	= find_next_value();
 				u64 *key = find_next_key();
 				if(!key || additional_val==STATUS_ERR)
 					return STATUS_ERR;
-				dack_live->dack8 = htobe64(sha1_least_64bits(*key) + additional_val);
+				dack_live->dack8 = htonll(sha1_least_64bits(*key) + additional_val);
 			}
 			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4 == UNDEFINED)
 				dsn_live->dsn4 = htonl( mp_state.idsn + bytes_sent_on_all_ssn); //subflow->ssn);
@@ -1042,13 +1042,13 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 			}
 
 			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn8 == UNDEFINED)
-				dsn_live->dsn8 = htobe64(mp_state.idsn + bytes_sent_on_all_ssn); //subflow->ssn);
+				dsn_live->dsn8 = htonll(mp_state.idsn + bytes_sent_on_all_ssn); //subflow->ssn);
 			else if(dss_opt_script->data.dss.dack_dsn.dsn.dsn8 == SCRIPT_DEFINED_TO_HASH_LSB){
 				u64 additional_val 	= find_next_value();
 				u64 *key = find_next_key();
 				if(!key || additional_val==STATUS_ERR)
 					return STATUS_ERR;
-				dsn_live->dsn8 = htobe64(sha1_least_64bits(*key) + additional_val);
+				dsn_live->dsn8 = htonll(sha1_least_64bits(*key) + additional_val);
 			}
 
 			if(dss_opt_script->length == TCPOLEN_DSS_DACK4_DSN8){
@@ -1086,22 +1086,22 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 
 			// put information in script packet
 			if(dss_opt_script->data.dss.dack_dsn.dack.dack8 == UNDEFINED)
-				dack_live->dack8 = htobe64(mp_state.remote_idsn + mp_state.remote_ssn);
+				dack_live->dack8 = htonll(mp_state.remote_idsn + mp_state.remote_ssn);
 			else if(dss_opt_script->data.dss.dack_dsn.dack.dack8 == SCRIPT_DEFINED_TO_HASH_LSB){
 				u64 additional_val 	= find_next_value();
 				u64 *key = find_next_key();
 				if(!key || additional_val==STATUS_ERR)
 					return STATUS_ERR;
-				dack_live->dack8 = htobe64(sha1_least_64bits(*key) + additional_val);
+				dack_live->dack8 = htonll(sha1_least_64bits(*key) + additional_val);
 			}
 			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn8 == UNDEFINED)
-				dsn_live->dsn8 = htobe64(mp_state.idsn + bytes_sent_on_all_ssn); //subflow->ssn);
+				dsn_live->dsn8 = htonll(mp_state.idsn + bytes_sent_on_all_ssn); //subflow->ssn);
 			else if(dss_opt_script->data.dss.dack_dsn.dsn.dsn8 == SCRIPT_DEFINED_TO_HASH_LSB){
 				u64 additional_val 	= find_next_value();
 				u64 *key = find_next_key();
 				if(!key || additional_val==STATUS_ERR)
 					return STATUS_ERR;
-				dsn_live->dsn8 = htobe64(sha1_least_64bits(*key) + additional_val);
+				dsn_live->dsn8 = htonll(sha1_least_64bits(*key) + additional_val);
 			}
 			if(dss_opt_script->length == TCPOLEN_DSS_DACK8_DSN8){
 				//Compute checksum
@@ -1180,13 +1180,13 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 		//DSN8
 		}else{
 			if(dss_opt_script->data.dss.dsn.dsn8 == UNDEFINED)
-				dsn_live->dsn8 = htobe64(mp_state.idsn + bytes_sent_on_all_ssn); //subflow->ssn);
+				dsn_live->dsn8 = htonll(mp_state.idsn + bytes_sent_on_all_ssn); //subflow->ssn);
 			else if(dss_opt_script->data.dss.dsn.dsn8 == SCRIPT_DEFINED_TO_HASH_LSB){
 				u64 additional_val 	= find_next_value();
 				u64 *key = find_next_key();
 				if(!key || additional_val==STATUS_ERR)
 					return STATUS_ERR;
-				dsn_live->dsn8 = htobe64(sha1_least_64bits(*key) + additional_val);
+				dsn_live->dsn8 = htonll(sha1_least_64bits(*key) + additional_val);
 			}
 			if(dss_opt_script->length == TCPOLEN_DSS_DSN8){
 				//Compute checksum
@@ -1308,7 +1308,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 				u64 *key = find_next_key();
 				if(!key || additional_val==STATUS_ERR)
 					return STATUS_ERR;
-				dss_opt_script->data.dss.dack_dsn.dack.dack8 = htobe64(sha1_least_64bits(*key) + additional_val);
+				dss_opt_script->data.dss.dack_dsn.dack.dack8 = htonll(sha1_least_64bits(*key) + additional_val);
 			}
 			u32 *script_dsn4 	= (u32*)dss_opt_script+3;
 			
@@ -1376,7 +1376,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 				u64 *key = find_next_key();
 				if(!key || additional_val==STATUS_ERR)
 					return STATUS_ERR;
-				*script_dsn8 = htobe64(sha1_least_64bits(*key) + additional_val);
+				*script_dsn8 = htonll(sha1_least_64bits(*key) + additional_val);
 			}
 			// put ssn, dll, chk in script_packet
 			u32 *script_ssn 		= (u32*)((u64*)script_dsn8 + 1);
@@ -1407,7 +1407,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 				u64 *key = find_next_key();
 				if(!key || additional_val==STATUS_ERR)
 					return STATUS_ERR;
-				dss_opt_script->data.dss.dack_dsn.dack.dack8 = htobe64(sha1_least_64bits(*key) + additional_val);
+				dss_opt_script->data.dss.dack_dsn.dack.dack8 = htonll(sha1_least_64bits(*key) + additional_val);
 			}
 			// get ssn, dll, and checksum from live_packet 
 			u32 ssn 	= (u32)*((u32*)dsn_live + 2);
@@ -1425,7 +1425,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 				u64 *key = find_next_key();
 				if(!key || additional_val==STATUS_ERR)
 					return STATUS_ERR;
-				*script_dsn8 = htobe64(sha1_least_64bits(*key) + additional_val);
+				*script_dsn8 = htonll(sha1_least_64bits(*key) + additional_val);
 			}
 			// put ssn, dll, chk in script_packet
 			u32 *script_ssn 		= (u32*)((u64*)script_dsn8 + 1);
@@ -1468,7 +1468,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 				u64 *key = find_next_key();
 				if(!key || additional_val==STATUS_ERR)
 					return STATUS_ERR;
-				dss_opt_script->data.dss.dsn.dsn8 = htobe64(sha1_least_64bits(*key) + additional_val);
+				dss_opt_script->data.dss.dsn.dsn8 = htonll(sha1_least_64bits(*key) + additional_val);
 			}
 			if(dss_opt_script->length == TCPOLEN_DSS_DSN8){
 				dss_opt_script->data.dss.dsn.w_cs.dll =	dll;
@@ -1528,7 +1528,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 				u64 *key = find_next_key();
 				if(!key || additional_val==STATUS_ERR)
 					return STATUS_ERR;
-				dss_opt_script->data.dss.dack.dack8 = htobe64(sha1_least_64bits(*key) + additional_val);
+				dss_opt_script->data.dss.dack.dack8 = htonll(sha1_least_64bits(*key) + additional_val);
 			}
 		}
 		// if DACK is 4 octets
@@ -1583,21 +1583,29 @@ int mptcp_subtype_mp_fastclose(struct packet *packet_to_modify,
 		unsigned direction)
 {
 	struct tcp_option* dss_opt_live = get_mptcp_option(live_packet, MP_FASTCLOSE_SUBTYPE);
+	if(direction == DIRECTION_OUTBOUND){
+		if(dss_opt_script->data.mp_fastclose.receiver_key == UNDEFINED){ // <mp_fastclose>
+			dss_opt_script->data.mp_fastclose.receiver_key = dss_opt_live->data.mp_fastclose.receiver_key;
+		}else if(dss_opt_script->data.mp_fastclose.receiver_key == SCRIPT_DEFINED ||
+				dss_opt_script->data.mp_fastclose.receiver_key == SCRIPT_ASSIGNED){ //<mp_fastclose b> et b=123
+			u64 *key = find_next_key();
+			if(!key)
+				return STATUS_ERR;
+			dss_opt_script->data.mp_fastclose.receiver_key = htonll(*key);
+		}else if(dss_opt_script->data.mp_fastclose.receiver_key==KEY){ // <mp_fastclose b + 123>
+			u64 additional_val 	= find_next_value();
+			u64 *key = find_next_key();
+			if(!key || additional_val==STATUS_ERR)
+				return STATUS_ERR;
+			dss_opt_script->data.mp_fastclose.receiver_key = htonll(*key + additional_val);
+		}else
+			return STATUS_ERR;
 
-	if(dss_opt_script->data.mp_fastclose.receiver_key == UNDEFINED){ // <mp_fastclose>
-		dss_opt_script->data.mp_fastclose.receiver_key = dss_opt_live->data.mp_fastclose.receiver_key;
-	}else if(dss_opt_script->data.mp_fastclose.receiver_key == SCRIPT_DEFINED ){ //<mp_fastclose b> et b=123
-		u64 *key = find_next_key();
-		if(!key)
-			return STATUS_ERR;
-		dss_opt_script->data.mp_fastclose.receiver_key = htobe64(*key);
-	}else if(dss_opt_script->data.mp_fastclose.receiver_key==KEY){ // <mp_fastclose b + 123>
-		u64 additional_val 	= find_next_value();
-		u64 *key = find_next_key();
-		if(!key || additional_val==STATUS_ERR)
-			return STATUS_ERR;
-		dss_opt_script->data.mp_fastclose.receiver_key = htobe64(*key + additional_val);
-	}
+	}else if(direction == DIRECTION_INBOUND){
+		printf("1605: passsed\n");
+	}else
+		return STATUS_ERR;
+
 	return STATUS_OK;
 }
 

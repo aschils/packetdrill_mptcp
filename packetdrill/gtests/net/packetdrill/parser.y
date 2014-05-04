@@ -1443,19 +1443,20 @@ tcp_option
 	$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_MP_FASTCLOSE);
 	
 	if($2.exist){ //if there exists a variable
+		if(enqueue_var($2.name))
+			semantic_error("MPTCP variables queue is full, increase queue size.");
+		
 		if($2.script_assigned){
 			if(!is_valid_u64($2.value))
 				semantic_error("Value assigned to first mptcp variable is not a valid u64.");
 			add_mp_var_script_defined($2.name, &$2.value, 8);
-			$$->data.mp_fastclose.receiver_key = SCRIPT_DEFINED; // <mp_fastclose b=123>
+			$$->data.mp_fastclose.receiver_key = SCRIPT_ASSIGNED; // <mp_fastclose b=123>
 		}else{
 			if($3.additional_val>0){
 				if(queue_enqueue_val(&mp_state.vals_queue, $3.additional_val ))
 					semantic_error("Too many values are enqueued in script"); 
 				$$->data.mp_fastclose.receiver_key = KEY; // <mp_fastclose b + 123>
 			}else{
-				if(enqueue_var($2.name))
-					semantic_error("MPTCP variables queue is full, increase queue size.");
 				$$->data.mp_fastclose.receiver_key = SCRIPT_DEFINED; //<mp_fastclose b>
 			}
 		}
@@ -1466,7 +1467,7 @@ tcp_option
 	$$->data.mp_fastclose.subtype = MP_FASTCLOSE_SUBTYPE;
 	$$->data.mp_fastclose.reserved_first_bits = DSS_RESERVED;
 	$$->data.mp_fastclose.reserved_last_bits = DSS_RESERVED;
-	$$->data.mp_capable.version = MPTCP_VERSION;
+//	$$->data.mp_capable.version = MPTCP_VERSION;
 	$$->data.mp_capable.subtype = MP_FASTCLOSE_SUBTYPE;
 }
 ;
