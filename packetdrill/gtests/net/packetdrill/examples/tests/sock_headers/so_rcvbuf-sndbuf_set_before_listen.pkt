@@ -16,14 +16,11 @@
 
 0.000 listen(3, 1) = 0
 
-
 // Establish a connection, 1028 = data + DSS option 
 0.100  < S 0:0(0) win 32792 <mss 1090,sackOK,nop,nop,nop,wscale 7, mp_capable a>
-0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7, mp_capable b>
+0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 0, mp_capable b>
 0.200  < . 1:1(0) ack 1 win 257 <mp_capable a b>
 0.200  accept(3, ..., ...) = 4
-
-//getsockopt(sock,SOL_SOCKET,SO_RCVBUF,&rbuf,&len);
 
 // SO_RCVBUF, should be 80000 and not 160000 => error?
 0.400 getsockopt(4, SOL_SOCKET, SO_RCVBUF, [160000], [4]) = 0
