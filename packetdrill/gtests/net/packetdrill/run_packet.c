@@ -972,16 +972,12 @@ bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b, struct p
 			if(opt_a->data.mp_capable.flags != opt_b->data.mp_capable.flags)
 				return false;
 			if(opt_a->length == TCPOLEN_MP_CAPABLE_SYN){
-				if(opt_a->data.mp_capable.syn.key != opt_b->data.mp_capable.syn.key){
-					printf("977: Les cles syn sont diff\n");
+				if(opt_a->data.mp_capable.syn.key != opt_b->data.mp_capable.syn.key)
 					return false;
-				}
 			}else if(opt_a->length == TCPOLEN_MP_CAPABLE){
 				if(opt_a->data.mp_capable.no_syn.receiver_key != opt_b->data.mp_capable.no_syn.receiver_key ||
-						opt_a->data.mp_capable.no_syn.sender_key != opt_b->data.mp_capable.no_syn.sender_key){
-					printf("981: Les cles syn/ack sont diff\n");
+						opt_a->data.mp_capable.no_syn.sender_key != opt_b->data.mp_capable.no_syn.sender_key)
 					return false;
-				}
 			}
 			break;
 		case MP_JOIN_SUBTYPE:
@@ -1060,15 +1056,17 @@ bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b, struct p
 					return false;
 			}else if(opt_a->data.dss.flag_A){
 				if(!opt_a->data.dss.flag_a){
-					if(opt_a->data.dss.dack.dack4 != opt_b->data.dss.dack.dack4 ){
-						printf("1065: dack4 differents\n");
+					if(opt_a->data.dss.dack.dack4 != opt_b->data.dss.dack.dack4 )
 						return false;
-					}
 				}else{
 					if(opt_a->data.dss.dack.dack8 != opt_b->data.dss.dack.dack8 )
 						return false;
 				}
 			}
+			break;
+		case MP_FASTCLOSE_SUBTYPE:
+			if(opt_a->data.mp_fastclose.receiver_key != opt_b->data.mp_fastclose.receiver_key)
+				return false;
 			break;
 		default:
 			return false;
@@ -1103,13 +1101,12 @@ static bool same_tcp_options(struct packet *packet_a,
 
 		// loop on subtypes of mptcp, to compare the right option
 		if(opt_a->kind == TCPOPT_MPTCP){
-			while(opt_b != NULL && opt_a->data.mp_capable.subtype!=opt_b->data.mp_capable.subtype){
+			while(opt_b != NULL && opt_a->data.mp_capable.subtype!=opt_b->data.mp_capable.subtype)
 				opt_b = tcp_options_next(&iter_b, NULL);
-			}
+
 			//sub-option opt_a not found in packet_b
-			if(opt_b == NULL){
+			if(opt_b == NULL)
 				return false;
-			}
 		}
 
 
@@ -1121,6 +1118,7 @@ static bool same_tcp_options(struct packet *packet_a,
 			if(opt_a->kind == TCPOPT_MPTCP){
 				if(!same_mptcp_opt(opt_a, opt_b, packet_a))
 					return false;
+
 			}
 		}
 
@@ -1425,10 +1423,8 @@ static int do_outbound_script_packet(
 	}
 
 	/* Sniff outbound live packet and verify it's for the right socket. */
-	if (sniff_outbound_live_packet(state, socket, &live_packet, error)){
-		printf("1431: Bad socket\n");
+	if (sniff_outbound_live_packet(state, socket, &live_packet, error))
 		goto out;
-	}
 
 	if ((socket->state == SOCKET_PASSIVE_PACKET_RECEIVED) &&
 	    packet->tcp && packet->tcp->syn && packet->tcp->ack) {

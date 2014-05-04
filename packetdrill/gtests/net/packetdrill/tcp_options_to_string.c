@@ -304,7 +304,10 @@ int tcp_options_to_string(struct packet *packet,
         		}
 
         		break;
-
+        	case MP_FASTCLOSE_SUBTYPE:
+        		fprintf(s, "mp_fastclose receiver key: %lu",
+        				(unsigned long)option->data.mp_fastclose.receiver_key);
+        		break;
         	default:
         		fprintf(s, "unknow MPTCP subtype");
         	}

@@ -230,6 +230,28 @@ struct tcp_option {
 				}__packed dack_dsn;
 			};
 		} __packed dss;
+		struct {
+			#if defined(__LITTLE_ENDIAN_BITFIELD)
+			__u8 reserved_first_bits:4, subtype:4;
+			__u8 reserved_last_bits;
+			#elif defined(__BIG_ENDIAN_BITFIELD)
+			__u8 subtype:4, reserved_first_bits:4;
+			__u8 reserved_last_bits;
+			#else
+			#error "Adjust your <asm/byteorder.h> defines"
+			#endif
+			u64 receiver_key;
+			/*
+	    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +---------------+---------------+-------+-----------------------+
+       |     Kind      |    Length     |Subtype|      (reserved)       |
+       +---------------+---------------+-------+-----------------------+
+       |                      Option Receiver's Key                    |
+       |                            (64 bits)                          |
+       |                                                               |
+       +---------------------------------------------------------------+
+			 */
+		} __packed mp_fastclose;
 		/*******END MPTCP options*********/
 	} __packed data;
 } __packed tcp_option;

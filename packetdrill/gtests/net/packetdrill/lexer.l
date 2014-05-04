@@ -173,6 +173,7 @@ backup return BACKUP;
 mp_join_syn_ack return MP_JOIN_SYN_ACK;
 mp_join_syn_ack_backup return MP_JOIN_SYN_ACK_BACKUP;
 mp_join_ack return MP_JOIN_ACK;
+mp_fastclose 	return MP_FASTCLOSE;
 mss			return MSS;
 mtu			return MTU;
 nop			return NOP;

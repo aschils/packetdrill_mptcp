@@ -1573,6 +1573,34 @@ int mptcp_subtype_dss(struct packet *packet_to_modify,
 	return STATUS_OK;
 }
 
+
+/**
+ * Insert appropriate key in mp_fastclose mptcp option.
+ */
+int mptcp_subtype_mp_fastclose(struct packet *packet_to_modify,
+		struct packet *live_packet,
+		struct tcp_option *dss_opt_script,
+		unsigned direction)
+{
+	struct tcp_option* dss_opt_live = get_mptcp_option(live_packet, MP_FASTCLOSE_SUBTYPE);
+
+	if(dss_opt_script->data.mp_fastclose.receiver_key == UNDEFINED){ // <mp_fastclose>
+		dss_opt_script->data.mp_fastclose.receiver_key = dss_opt_live->data.mp_fastclose.receiver_key;
+	}else if(dss_opt_script->data.mp_fastclose.receiver_key == SCRIPT_DEFINED ){ //<mp_fastclose b> et b=123
+		u64 *key = find_next_key();
+		if(!key)
+			return STATUS_ERR;
+		dss_opt_script->data.mp_fastclose.receiver_key = htobe64(*key);
+	}else if(dss_opt_script->data.mp_fastclose.receiver_key==KEY){ // <mp_fastclose b + 123>
+		u64 additional_val 	= find_next_value();
+		u64 *key = find_next_key();
+		if(!key || additional_val==STATUS_ERR)
+			return STATUS_ERR;
+		dss_opt_script->data.mp_fastclose.receiver_key = htobe64(*key + additional_val);
+	}
+	return STATUS_OK;
+}
+
 /**
  * Main function for managing mptcp packets. We have to insert appropriate
  * fields values for mptcp options according to previous state.
@@ -1626,8 +1654,11 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 			case MP_FAIL_SUBTYPE: 		// 06 TODO
 				printf("MP_FAIL_SUBTYPE, todo\n");
 				break;
-			case MP_FASTCLOSE_SUBTYPE:		// 07 TODO
-				printf("MP_FASTCLOSE_SUBTYPE, todo\n");
+			case MP_FASTCLOSE_SUBTYPE:		// 07
+				error = mptcp_subtype_mp_fastclose(packet_to_modify,
+						live_packet,
+						tcp_opt_to_modify,
+						direction);
 				break;
 			default:
 				error =  STATUS_ERR;

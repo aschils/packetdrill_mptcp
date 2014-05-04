@@ -43,7 +43,7 @@
 #define REMOVE_ADDR_SUBTYPE 4 // TODO
 #define MP_PRIO_SUBTYPE 5 // TODO, Change Subflow Priority
 #define MP_FAIL_SUBTYPE 6 // TODO
-#define MP_FASTCLOSE_SUBTYPE 7 // TODO
+#define MP_FASTCLOSE_SUBTYPE 7 // TODO => enhancement
 
 
 /* MPTCP options subtypes length */
@@ -73,7 +73,8 @@
 //ADD_ADDR
 #define TCPOLEN_ADD_ADDR 8
 #define TCPOLEN_ADD_ADDR_PORT 10
-
+//MP_FASTCLOSE
+#define TCPOLEN_MP_FASTCLOSE 12
 //MPTCP Flags
 #define MP_CAPABLE_FLAGS 1
 #define MP_CAPABLE_FLAGS_CS 129 //With checksum
@@ -89,6 +90,7 @@
 //Variable types
 #define KEY 0
 #define SCRIPT_DEFINED 1
+#define SCRIPT_ASSIGNED 2
 #define IGNORED -2
 #define SCRIPT_DEFINED_TO_HASH_LSB -3 // used to hash the variable
 

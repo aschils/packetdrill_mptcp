@@ -588,38 +588,7 @@ struct tcp_option *dss_do_auto(bool no_checksum, bool fin_flag){
 }
 
 struct tcp_option *dss_do_dsn_only(int type, int val, bool no_checksum, bool fin_flag){
-/*	struct tcp_option *opt;
-	if(type==4){
-		if(no_checksum){
-			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN4_WOCS);
-		}else{
-			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN4);
-		}
-		opt->data.dss.dsn.dsn4 = val;
-	}else{
-		if(no_checksum){
-			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN8_WOCS);
-		}else{
-			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN8);
-		}
-		opt->data.dss.dsn.dsn8 = val;
-	}
-	//flag_data_fin:1,flag_dsn8:1,flag_dsn:1,flag_dack8:1,flag_dack:1; F|m|M|a|A
-	opt->data.dss.dack.dack4 = IGNORED;
-	opt->data.dss.dack.dack8 = IGNORED;
-	
-	opt->data.dss.flag_M = 1;
-	opt->data.dss.flag_m = (type==8);
-	opt->data.dss.flag_A = 0;
-	opt->data.dss.flag_a = 0;
-	opt->data.dss.flag_F = fin_flag;
-	opt->data.dss.subtype = DSS_SUBTYPE;
-	opt->data.mp_capable.subtype = DSS_SUBTYPE;
-	opt->data.dss.reserved_first_bits = DSS_RESERVED;
-	opt->data.dss.reserved_last_bits = DSS_RESERVED;
-
-	return opt;
-*/
+	// TODO is it really needed ?
 	return NULL;
 }
 
@@ -772,7 +741,7 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 %token <reserved> MSG_NAME MSG_IOV MSG_FLAGS
 %token <reserved> FD EVENTS REVENTS ONOFF LINGER
 %token <reserved> ACK ECR EOL MSS NOP SACK SACKOK TIMESTAMP VAL WIN WSCALE PRO SOCK
-%token <reserved> MP_CAPABLE MP_CAPABLE_NO_CS
+%token <reserved> MP_CAPABLE MP_CAPABLE_NO_CS MP_FASTCLOSE
 %token <reserved> MP_JOIN_SYN MP_JOIN_SYN_BACKUP MP_JOIN_SYN_ACK_BACKUP MP_JOIN_ACK MP_JOIN_SYN_ACK
 %token <reserved> DSS DACK4 DSN4 DACK8 DSN8 FIN NOCS ADDRESS_ID BACKUP TOKEN AUTO RAND TRUNC_R64_HMAC
 %token <reserved> SENDER_HMAC TRUNC_L64_HMAC FULL_160_HMAC SHA1_32
@@ -794,7 +763,7 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 %type <command> command_spec
 %type <code> code_spec
 %type <integer> opt_icmp_mtu socket_fd_spec fin dss_no_checksum
-%type <integer> mp_capable_no_cs is_backup address_id rand
+%type <integer> mp_capable_no_cs is_backup address_id rand 
 %type <string> icmp_type opt_icmp_code flags
 %type <string> opt_tcp_fast_open_cookie tcp_fast_open_cookie
 %type <string> opt_note note word_list
@@ -1259,8 +1228,7 @@ WORD {
 	$$.name = $1;
 	$$.script_assigned = true;
 	$$.value = $3;
-}
-;
+};
 
 mp_capable_no_cs
 :
@@ -1470,6 +1438,36 @@ tcp_option
 	else if($2.type != -1 && $3.type != -1) 
 		$$ = dss_do_dsn_dack($2.type, $2.dack, $3.type, $3.val, $4, $5); // $2=dsn, $3=dack, $4=0|1, $5=0|1 XXX
 	
+}
+| MP_FASTCLOSE mptcp_var_or_empty add_to_var {
+	$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_MP_FASTCLOSE);
+	
+	if($2.exist){ //if there exists a variable
+		if($2.script_assigned){
+			if(!is_valid_u64($2.value))
+				semantic_error("Value assigned to first mptcp variable is not a valid u64.");
+			add_mp_var_script_defined($2.name, &$2.value, 8);
+			$$->data.mp_fastclose.receiver_key = SCRIPT_DEFINED; // <mp_fastclose b=123>
+		}else{
+			if($3.additional_val>0){
+				if(queue_enqueue_val(&mp_state.vals_queue, $3.additional_val ))
+					semantic_error("Too many values are enqueued in script"); 
+				$$->data.mp_fastclose.receiver_key = KEY; // <mp_fastclose b + 123>
+			}else{
+				if(enqueue_var($2.name))
+					semantic_error("MPTCP variables queue is full, increase queue size.");
+				$$->data.mp_fastclose.receiver_key = SCRIPT_DEFINED; //<mp_fastclose b>
+			}
+		}
+	}else{
+		$$->data.mp_fastclose.receiver_key = UNDEFINED; // <mp_fastclose>
+	}
+	
+	$$->data.mp_fastclose.subtype = MP_FASTCLOSE_SUBTYPE;
+	$$->data.mp_fastclose.reserved_first_bits = DSS_RESERVED;
+	$$->data.mp_fastclose.reserved_last_bits = DSS_RESERVED;
+	$$->data.mp_capable.version = MPTCP_VERSION;
+	$$->data.mp_capable.subtype = MP_FASTCLOSE_SUBTYPE;
 }
 ;
 
