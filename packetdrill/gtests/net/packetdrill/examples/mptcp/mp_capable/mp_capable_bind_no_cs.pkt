@@ -1,9 +1,9 @@
 //No checksum mp_capable
 
 // disable checksum tests
-//`sysctl -w net.mptcp.mptcp_checksum=0`
+0 `sysctl -w net.mptcp.mptcp_checksum=0`
 
-0   socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0   socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
 +0  setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
 
 +0  bind(3, ..., ...) = 0
@@ -17,6 +17,5 @@
 
 +0  accept(3, ..., ...) = 4
 
-// Need to put checksum back=parsing error 
-//`sysctl -w net.mptcp.mptcp_checksum=1`
-
+// Need to put checksum back
++0 `sysctl -w net.mptcp.mptcp_checksum=1`

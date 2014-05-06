@@ -532,7 +532,7 @@ static int offset_sack_blocks(struct packet *packet,
 						    &num_blocks, error)){
 				return STATUS_ERR;
 			}
-			
+
 			int i = 0;
 			for (i = 0; i < num_blocks; ++i) {
 				struct sack_block *block =
@@ -671,7 +671,6 @@ static int map_outbound_live_packet(
 	socket_get_outbound(&socket->script, &script_outbound);
 	set_packet_tuple(actual_packet, &script_outbound);
 
-
 	/* If no TCP headers to rewrite, then we're done. */
 	if (live_packet->tcp == NULL)
 		return STATUS_OK;
@@ -721,7 +720,6 @@ static int map_outbound_live_packet(
 				      (actual_ts_val -
 				       socket->first_actual_ts_val));
 	}
-
 	mptcp_insert_and_extract_opt_fields(script_packet,
 			live_packet,
 			DIRECTION_OUTBOUND);
@@ -1109,7 +1107,6 @@ static bool same_tcp_options(struct packet *packet_a,
 				return false;
 		}
 
-
 		//NOP option only contains a kind field (not length)
 		if(opt_a->kind != TCPOPT_NOP){
 			if(opt_a->length != opt_b->length || memcmp(opt_b, opt_a, opt_a->length))
@@ -1121,7 +1118,6 @@ static bool same_tcp_options(struct packet *packet_a,
 
 			}
 		}
-
 		opt_b = tcp_options_begin(packet_b, &iter_b);
 		opt_a = tcp_options_next(&iter_a, NULL);
 	}
@@ -1133,7 +1129,7 @@ static int verify_outbound_live_tcp_options(
 	struct config *config,
 	struct packet *actual_packet,
 	struct packet *script_packet, char **error)
-{	
+{
 	/* See if we should validate TCP options at all. */
 	if (script_packet->flags & FLAG_OPTIONS_NOCHECK)
 		return STATUS_OK;
@@ -1147,7 +1143,7 @@ static int verify_outbound_live_tcp_options(
 	    actual_packet->tcp_ts_val != NULL) {
 		u32 script_ts_val = packet_tcp_ts_val(script_packet);
 		u32 actual_ts_val = packet_tcp_ts_val(actual_packet);
-		
+
 		/* See if the deviation from the script TS val is
 		 * within our configured tolerance.
 		 */
@@ -1169,9 +1165,9 @@ static int verify_outbound_live_tcp_options(
 		packet_set_tcp_ts_val(actual_packet, actual_ts_val);
 		if (is_same)
 			return STATUS_OK;
-	
+
 	}
-	
+
 	asprintf(error, "bad outbound TCP options");
 	return STATUS_ERR;	/* The TCP options did not match */
 }
@@ -1553,7 +1549,7 @@ out:
 	asprintf(error, "%s:%d: %s handling packet: %s\n",
 		 state->config->script_path, event->line_number,
 		 result == STATUS_ERR ? "error" : "warning", err);
-	free(err); 
+	free(err);
 	return result;
 }
 

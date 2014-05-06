@@ -894,7 +894,7 @@ u16 get_tcp_header_length(struct packet *packet){
 }
 
 /**
- *  It will parse an inbound packet and modify the script packet 
+ *  It will parse an inbound packet and modify the script packet
  *  in order to correspond with the scripted tests.
  */
 int dss_inbound_parser(struct packet *packet_to_modify,
@@ -910,6 +910,8 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 		tcp_payload_length++;
 
 	struct tcp_option* dss_opt_live = get_tcp_option(live_packet, TCPOPT_MPTCP);
+	if(!dss_opt_live)
+		return STATUS_ERR;
 	// if a packet is going from packetdrill with DSN and DACK to kernel
 	if(dss_opt_script->data.dss.flag_M && dss_opt_script->data.dss.flag_A){
 
@@ -1242,9 +1244,10 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 int dss_outbound_parser(struct packet *packet_to_modify,
 		struct packet *live_packet,
 		struct tcp_option *dss_opt_script){
-	
+
 	struct tcp_option* dss_opt_live = get_mptcp_option(live_packet, DSS_SUBTYPE);
-	
+	if(!dss_opt_live)
+		return STATUS_ERR;
 	// if a packet is coming from kernel with DSN and DACK
 	if(dss_opt_script->data.dss.flag_M && dss_opt_script->data.dss.flag_A){
 
@@ -1256,7 +1259,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			// get original information from live_packet
 			struct dack *dack_live	= (struct dack*)((u32*)dss_opt_live+1);
 			struct dsn *dsn_live 	= (struct dsn*)((u32*)dss_opt_live+2);
-			
+
 			// put information in script packet
 			if(dss_opt_script->data.dss.dack_dsn.dack.dack4 == UNDEFINED){
 				dss_opt_script->data.dss.dack_dsn.dack.dack4 = dack_live->dack4;
@@ -1268,7 +1271,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 				dss_opt_script->data.dss.dack_dsn.dack.dack4 = htonl(sha1_least_64bits(*key) + additional_val);
 			}
 
-			// get ssn, dll, and checksum from live_packet 
+			// get ssn, dll, and checksum from live_packet
 			u32 ssn 	= *((u32*)dsn_live + 1);
 			u32 dll_chk = (u32)*((u32*)dsn_live + 2);
 			u16 dll 	= (u16)dll_chk;
@@ -1276,7 +1279,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			mp_state.remote_last_pkt_length = ntohs(dll);
 			mp_state.remote_ssn = ntohl(ssn);
 			u32 *script_dsn4 	= (u32*)dss_opt_script+2;   // jump over 64 bits to reach the dsn
-			//Set dsn being value specified in script 
+			//Set dsn being value specified in script
 			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4==UNDEFINED)
 				*script_dsn4 	= dsn_live->dsn4;
 			else if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4 == SCRIPT_DEFINED_TO_HASH_LSB){
@@ -1299,7 +1302,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			// get original information from live_packet
 			struct dack *dack_live	= (struct dack*)((u32*)dss_opt_live+1); // to jump over  Kind | Length | Subtype | flags = u32
 			struct dsn *dsn_live 	= (struct dsn*)((u64*)dack_live+1); // dsn = 64 bits
-			
+
 			// put information in script packet
 			if(dss_opt_script->data.dss.dack_dsn.dack.dack8 == UNDEFINED)
 				dss_opt_script->data.dss.dack_dsn.dack.dack8 =  dack_live->dack8; // be64toh
@@ -1311,7 +1314,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 				dss_opt_script->data.dss.dack_dsn.dack.dack8 = htonll(sha1_least_64bits(*key) + additional_val);
 			}
 			u32 *script_dsn4 	= (u32*)dss_opt_script+3;
-			
+
 			//Set dsn being value specified in script test
 			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4==UNDEFINED)
 				*script_dsn4 	= dsn_live->dsn4;
@@ -1322,18 +1325,18 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 					return STATUS_ERR;
 				*script_dsn4 = htobe32(sha1_least_64bits(*key) + additional_val);
 			}
-			// get ssn, dll, and checksum from live_packet 
+			// get ssn, dll, and checksum from live_packet
 			u32 ssn = *((u32*)dsn_live + 1);
 			u32 dll_chk = (u32)*((u32*)dsn_live + 2);
 			u16 dll = (u16)dll_chk;
 //			u16 chk = dll_chk >> 16;
-			
+
 			// put ssn, dll, chk in script_packet
 			u32 *script_ssn 		= script_dsn4 + 1;
 			*script_ssn 			= ssn;
 			u32 *script_dll_chk 	= script_ssn + 1;
 			*script_dll_chk 		= dll_chk;
-			
+
 //			mp_state.last_dsn_rcvd = ntohl(dsn_live->dsn4);
 			mp_state.remote_last_pkt_length = ntohs(dll);
 			mp_state.remote_ssn = ntohl(ssn);
@@ -1345,11 +1348,11 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 		}else if(dss_opt_script->data.dss.flag_m && !dss_opt_script->data.dss.flag_a){
 			if(!(dss_opt_live->data.dss.flag_m && !dss_opt_live->data.dss.flag_a))
 				return STATUS_ERR;
-			
+
 			// get original information from live_packet
 			struct dack *dack_live	= (struct dack*)((u32*)dss_opt_live+1);
 			struct dsn *dsn_live 	= (struct dsn*)((u32*)dack_live+1);
-			
+
 			// put information in script packet
 			if(dss_opt_script->data.dss.dack_dsn.dack.dack4 == UNDEFINED)
 				dss_opt_script->data.dss.dack_dsn.dack.dack4 = dack_live->dack4;
@@ -1360,15 +1363,15 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 					return STATUS_ERR;
 				dss_opt_script->data.dss.dack_dsn.dack.dack4 = htobe32(sha1_least_64bits(*key) + additional_val);
 			}
-			// get ssn, dll, and checksum from live_packet 
+			// get ssn, dll, and checksum from live_packet
 			u32 ssn 	= *((u64*)dsn_live + 1);
 			u32 dll_chk = (u32)*((u32*)dsn_live + 2);
 			u16 dll 	= (u16)dll_chk;
 //			u16 chk 	= dll_chk >> 16;
-			
-			u64 *script_dsn8 	= (u64*)((u32*)dss_opt_script+2);   
-			
-			//Set dsn being value specified in script 
+
+			u64 *script_dsn8 	= (u64*)((u32*)dss_opt_script+2);
+
+			//Set dsn being value specified in script
 			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn8 == UNDEFINED)
 				*script_dsn8 	= dsn_live->dsn8;
 			else if(dss_opt_script->data.dss.dack_dsn.dsn.dsn8 == SCRIPT_DEFINED_TO_HASH_LSB){
@@ -1386,7 +1389,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 //			mp_state.last_dsn_rcvd = ntohl(dsn_live->dsn8);
 			mp_state.remote_last_pkt_length = ntohs(dll);
 			mp_state.remote_ssn = ntohl(ssn);
-			
+
 //			printf("dack4: %u, dsn8: %u", ntohl(dack_live->dack4), ntohl(dsn_live->dsn8)); // OK
 //			printf(", ssn: %u, dll: %u, chk: %u\n", ntohl(ssn), ntohs(dll), ntohs(chk));
 
@@ -1394,11 +1397,11 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 		}else if(dss_opt_script->data.dss.flag_m && dss_opt_script->data.dss.flag_a){
 			if(!(dss_opt_script->data.dss.flag_m && dss_opt_script->data.dss.flag_a))
 				return STATUS_ERR;
-			
+
 			// get original information from live_packet
 			struct dack *dack_live	= (struct dack*)((u32*)dss_opt_live+1);
 			struct dsn *dsn_live 	= (struct dsn*)((u32*)dack_live+2);
-			
+
 			// put information in script packet
 			if(dss_opt_script->data.dss.dack_dsn.dack.dack8 == UNDEFINED)
 				dss_opt_script->data.dss.dack_dsn.dack.dack8 = dack_live->dack8;
@@ -1409,15 +1412,15 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 					return STATUS_ERR;
 				dss_opt_script->data.dss.dack_dsn.dack.dack8 = htonll(sha1_least_64bits(*key) + additional_val);
 			}
-			// get ssn, dll, and checksum from live_packet 
+			// get ssn, dll, and checksum from live_packet
 			u32 ssn 	= (u32)*((u32*)dsn_live + 2);
 			u32 dll_chk = (u32)*((u32*)dsn_live + 3);
 			u16 dll 	= (u16)dll_chk;
 //			u16 chk 	= dll_chk >> 16;
-			
-			u64 *script_dsn8 	= (u64*)((u32*)dss_opt_script+2);   
-			
-			//Set dsn being value specified in script 
+
+			u64 *script_dsn8 	= (u64*)((u32*)dss_opt_script+2);
+
+			//Set dsn being value specified in script
 			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn8==UNDEFINED)
 				*script_dsn8 		= dsn_live->dsn8;
 			else if(dss_opt_script->data.dss.dack_dsn.dsn.dsn8 == SCRIPT_DEFINED_TO_HASH_LSB){
@@ -1442,24 +1445,24 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			// It means we have a difference of flags about what we waited for
 			return STATUS_ERR;
 		}
-	
+
 	// Only DSN is in the packet
 	}else if(dss_opt_script->data.dss.flag_M ){ // DSS
 		if(!dss_opt_script->data.dss.flag_M)
 			return STATUS_ERR;
-		
+
 		// get original dsn from live_packet
 		struct dsn *dsn_live 	= (struct dsn*)((u32*)dss_opt_live+1);
-		
+
 		// if DSN is 8 octets
 		if(dss_opt_script->data.dss.flag_m){
-			
-			// get ssn, dll, and checksum from live_packet 
+
+			// get ssn, dll, and checksum from live_packet
 			u32 ssn 	= *((u32*)dsn_live + 1);
 			u32 dll_chk = (u32)*((u32*)dsn_live + 3);
 			u16 dll 	= (u16)dll_chk;
 			u16 chk 	= dll_chk >> 16;
-			
+
 			// if dsn8 is not given in the script, we'll put it automatically
 			if(dss_opt_script->data.dss.dsn.dsn8 == UNDEFINED)
 				dss_opt_script->data.dss.dsn.dsn8 = dsn_live->dsn8; //htobe64
@@ -1483,12 +1486,12 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 		}
 		// if DSN is 4 octets
 		else {
-			// get ssn, dll, and checksum from live_packet 
+			// get ssn, dll, and checksum from live_packet
 			u32 ssn 	= *((u32*)dsn_live + 1);
 			u32 dll_chk = (u32)*((u32*)dsn_live + 2);
 			u16 dll 	= (u16)dll_chk;
 //			u16 chk 	= dll_chk >> 16;
-			
+
 			// if dsn8 is not given in the script, we'll put it automatically
 			if(dss_opt_script->data.dss.dsn.dsn4 == UNDEFINED)
 				dss_opt_script->data.dss.dsn.dsn4 = dsn_live->dsn4;
@@ -1509,17 +1512,17 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			mp_state.remote_ssn = ntohl(ssn);
 		}
 
-	// if it's DACK only from kernel, need to save it 
+	// if it's DACK only from kernel, need to save it
 	}else if(dss_opt_script->data.dss.flag_A ){
 		if(!dss_opt_script->data.dss.flag_A)
 			return STATUS_ERR;
-		
+
 		// get original dack from live_packet
 		struct dack *dack_live 	= (struct dack*)((u32*)dss_opt_live+1);
-		
+
 		// if DACK is 8 octets
 		if(dss_opt_script->data.dss.flag_a){
-			
+
 			// if dack8 is not given in the script, we'll put it automatically
 			if(dss_opt_script->data.dss.dack.dack8 == UNDEFINED)
 				dss_opt_script->data.dss.dack.dack8 = dack_live->dack8;
@@ -1551,7 +1554,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 		}
 	}else
 		return STATUS_ERR;
-	
+
 	return STATUS_OK;
 }
 
@@ -1569,7 +1572,7 @@ int mptcp_subtype_dss(struct packet *packet_to_modify,
 	}
 	if(error!=STATUS_OK)
 		return STATUS_ERR;
-	
+
 	return STATUS_OK;
 }
 
@@ -1672,12 +1675,9 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 				error =  STATUS_ERR;
 				break;
 			}
-
 			if(error)
 				return STATUS_ERR;
-
 		}
-
 		tcp_opt_to_modify = tcp_options_next(&tcp_opt_iter, NULL);
 	}
 
