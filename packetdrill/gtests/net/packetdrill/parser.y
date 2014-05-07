@@ -435,8 +435,8 @@ struct tcp_option *mp_join_do_syn(bool is_backup,
 		long rand)
 {
 
-	struct tcp_option *opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_MP_JOIN_SYN); 
-	
+	struct tcp_option *opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_MP_JOIN_SYN);
+
 	opt->data.mp_join.syn.subtype = MP_JOIN_SUBTYPE;
 
 	//Set backup flag
@@ -470,9 +470,9 @@ struct tcp_option *mp_join_do_syn(bool is_backup,
 				u32 var2_length = strlen(str2);
 				if(var2_length>253)
 					semantic_error("Too big token variable name, mptcp - mp_join");
-				memcpy(mp_join_script_info->syn_or_syn_ack.var2, str2, var2_length+1);		
+				memcpy(mp_join_script_info->syn_or_syn_ack.var2, str2, var2_length+1);
 			}*/
-				
+
 		}
 	}
 
@@ -482,7 +482,7 @@ struct tcp_option *mp_join_do_syn(bool is_backup,
 		mp_join_script_info->syn_or_syn_ack.rand = rand;
 
 	if(queue_enqueue(&mp_state.vars_queue, mp_join_script_info)==STATUS_ERR)
-		semantic_error("Too many variables are used in script"); 
+		semantic_error("Too many variables are used in script");
 	return opt;
 }
 
@@ -497,7 +497,7 @@ struct tcp_option *mp_join_do_syn_ack(bool is_backup,
 {
 
 	struct tcp_option *opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_MP_JOIN_SYN_ACK);
-	
+
 	opt->data.mp_join.syn.subtype = MP_JOIN_SUBTYPE;
 
 	//Set backup flag
@@ -531,9 +531,9 @@ struct tcp_option *mp_join_do_syn_ack(bool is_backup,
 				u32 var2_length = strlen(str2);
 				if(var2_length>253)
 					semantic_error("Too big token variable name, mptcp - mp_join");
-				memcpy(mp_join_script_info->syn_or_syn_ack.var2, str2, var2_length+1);		
+				memcpy(mp_join_script_info->syn_or_syn_ack.var2, str2, var2_length+1);
 		//	}
-				
+
 		}
 	}
 
@@ -543,7 +543,7 @@ struct tcp_option *mp_join_do_syn_ack(bool is_backup,
 		mp_join_script_info->syn_or_syn_ack.rand = rand;
 
 	if(queue_enqueue(&mp_state.vars_queue, mp_join_script_info)==STATUS_ERR)
-		semantic_error("Too many variables are used in script"); 
+		semantic_error("Too many variables are used in script");
 	return opt;
 }
 struct tcp_option *mp_join_do_ack(char *str, char *str2){
@@ -552,10 +552,10 @@ struct tcp_option *mp_join_do_ack(char *str, char *str2){
 	opt->data.mp_join.no_syn.subtype = MP_JOIN_SUBTYPE;
 	opt->data.mp_join.no_syn.reserved = 0;
 	opt->data.mp_capable.subtype = MP_JOIN_SUBTYPE;
-	
+
 	// Process str1 and str2 the 2 variables
 	struct mp_join_info *mp_join_script_info = malloc(sizeof(struct mp_join_info));
-	
+
 	u32 var_length = strlen(str);
 	if(var_length>253) //TODO REFACTOR
 		semantic_error("Too big token variable name, mptcp - mp_join");
@@ -564,17 +564,17 @@ struct tcp_option *mp_join_do_ack(char *str, char *str2){
 	u32 var2_length = strlen(str2);
 	if(var2_length>253)
 		semantic_error("Too big token variable name, mptcp - mp_join");
-	memcpy(mp_join_script_info->syn_or_syn_ack.var2, str2, var2_length+1);		
-		
+	memcpy(mp_join_script_info->syn_or_syn_ack.var2, str2, var2_length+1);
+
 	if(queue_enqueue(&mp_state.vars_queue, mp_join_script_info)==STATUS_ERR)
-		semantic_error("Too many variables are used in script"); 
+		semantic_error("Too many variables are used in script");
 	return opt;
 }
 
 struct tcp_option *dss_do_auto(bool no_checksum, bool fin_flag){
 	struct tcp_option *opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DSN8);
 	//flag_data_fin:1,flag_dsn8:1,flag_dsn:1,flag_dack8:1,flag_dack:1; F|m|M|a|A
-	
+
 	opt->data.dss.flag_M = (char)1;
 	opt->data.dss.flag_m = (char)0;
 	opt->data.dss.flag_A = (char)0;
@@ -616,47 +616,54 @@ struct tcp_option *dss_do_dack_only(int type, int val, bool fin_flag){
 	return opt;
 }
 
-struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val, 
-		int dsn_type, int dsn_val,bool no_checksum, bool fin_flag){
+struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
+		int dsn_type, int dsn_val, int ssn, int dll, bool no_checksum, bool fin_flag){
 
 	struct tcp_option *opt;
-	// DSN 
+	// DSN
 	if(dsn_type==4 && dack_type==4){
-		if(no_checksum){
+		if(no_checksum)
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN4_WOCS);
-		}else{
-			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN4);
-		}
+		else
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN4);
 		opt->data.dss.dack_dsn.dsn.dsn4 = dsn_val;
 		opt->data.dss.dack_dsn.dack.dack4 = dack_val;
 	}else if(dsn_type==4 && dack_type==8){
-		if(no_checksum){
+		if(no_checksum)
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN4_WOCS);
-		}else{
+		else
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN4);
-		}
 		opt->data.dss.dack_dsn.dsn.dsn4 = dsn_val;
 		opt->data.dss.dack_dsn.dack.dack8 = dack_val;
 	}else if(dsn_type==8 && dack_type==4){
-		if(no_checksum){
+		if(no_checksum)
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN8_WOCS);
-		}else{
+		else
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN8);
-		}
 		opt->data.dss.dack_dsn.dsn.dsn8 = dsn_val;
 		opt->data.dss.dack_dsn.dack.dack4 = dack_val;
 	}else if(dsn_type==8 && dack_type==8){
-		if(no_checksum){
+		if(no_checksum)
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN8_WOCS);
-		}else{
+		else
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN8);
-		}
+
 		opt->data.dss.dack_dsn.dsn.dsn8 = dsn_val;
-		opt->data.dss.dack_dsn.dack.dack8 = dack_val; 
+		opt->data.dss.dack_dsn.dack.dack8 = dack_val;
 	}
-	
+
+	if(no_checksum){
+		opt->data.dss.dack_dsn.dsn.wo_cs.ssn = ssn;
+		opt->data.dss.dack_dsn.dsn.wo_cs.dll = dll;
+		printf("686: no_chk; ssn: %u, dll: %u\n", ssn, dll);
+	}else{
+		opt->data.dss.dack_dsn.dsn.w_cs.ssn = ssn;
+		opt->data.dss.dack_dsn.dsn.w_cs.dll = dll;
+		printf("686: with chk; ssn: %u, dll: %u\n", ssn, dll);
+	}
+
 //	queue_enqueue(&mp_state.vars_queue, new_el);
-	
+
 	//flag_data_fin:1,flag_dsn8:1,flag_dsn:1,flag_dack8:1,flag_dack:1; F|m|M|a|A
 	opt->data.dss.flag_M = 1;
 	opt->data.dss.flag_m = (dsn_type==8);
@@ -668,10 +675,10 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 	opt->data.dss.reserved_first_bits = DSS_RESERVED;
 	opt->data.dss.reserved_last_bits = DSS_RESERVED;
 
-	return opt; 
+	return opt;
 }
-		
-		
+
+
 
 %}
 
@@ -698,7 +705,7 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 	} tcp_sequence_info;
 	struct {
 		int type; //4 or 8 octects mptcp DSN or -1 (none)
-		u64 val; 
+		u64 val;
 		u64 additional_val;
 	} mptcp_dsn_info;
 	struct {
@@ -717,7 +724,7 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 		bool is_integer;
 		u64 hash;
 		char *str;
-		char *str2; 
+		char *str2;
 	} mptcp_token_or_hmac;
 	struct option_list *option;
 	struct event *event;
@@ -743,7 +750,7 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 %token <reserved> ACK ECR EOL MSS NOP SACK SACKOK TIMESTAMP VAL WIN WSCALE PRO SOCK
 %token <reserved> MP_CAPABLE MP_CAPABLE_NO_CS MP_FASTCLOSE
 %token <reserved> MP_JOIN_SYN MP_JOIN_SYN_BACKUP MP_JOIN_SYN_ACK_BACKUP MP_JOIN_ACK MP_JOIN_SYN_ACK
-%token <reserved> DSS DACK4 DSN4 DACK8 DSN8 FIN NOCS ADDRESS_ID BACKUP TOKEN AUTO RAND TRUNC_R64_HMAC
+%token <reserved> DSS DACK4 DSN4 DACK8 DSN8 FIN SSN DLL NOCS CKSUM ADDRESS_ID BACKUP TOKEN AUTO RAND TRUNC_R64_HMAC
 %token <reserved> SENDER_HMAC TRUNC_L64_HMAC FULL_160_HMAC SHA1_32
 %token <reserved> FAST_OPEN
 %token <reserved> ECT0 ECT1 CE ECT01 NO_ECN
@@ -762,8 +769,8 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 %type <syscall> syscall_spec
 %type <command> command_spec
 %type <code> code_spec
-%type <integer> opt_icmp_mtu socket_fd_spec fin dss_no_checksum
-%type <integer> mp_capable_no_cs is_backup address_id rand 
+%type <integer> opt_icmp_mtu socket_fd_spec fin ssn dll dss_no_checksum
+%type <integer> mp_capable_no_cs is_backup address_id rand
 %type <string> icmp_type opt_icmp_code flags
 %type <string> opt_tcp_fast_open_cookie tcp_fast_open_cookie
 %type <string> opt_note note word_list
@@ -949,7 +956,7 @@ socket_fd_spec
 
 tcp_packet_spec
 : direction opt_ip_info flags seq opt_ack opt_window opt_tcp_options socket_fd_spec {
-	
+
 	char *error = NULL;
 
 	if (($7 == NULL) && ($1 != DIRECTION_OUTBOUND)) {
@@ -957,7 +964,7 @@ tcp_packet_spec
 		semantic_error("<...> for TCP options can only be used with "
 			       "outbound packets");
 	}
-	
+
 	$$ = new_tcp_packet($8, in_config->wire_protocol,
 		    $1, $2, $3, $4.start_sequence, $4.payload_bytes,
                     $5, $6, $7, &error);
@@ -1144,33 +1151,51 @@ dsn
 | DSN4 				{	$$.type = 4;	$$.val = UNDEFINED;}
 | DSN4 '=' TRUNC_R64_HMAC '('  INTEGER ')'	{
 	if(!is_valid_u32($5))
-		semantic_error("mptcp trunc_r64_hmac is not a valid u64.");
-	$$.type = 4;	
+		semantic_error("this is not a valid 32 unsigned integer.");
+	$$.type = 4;
 	$$.val = sha1_least_64bits($5);
 }
 | DSN4 '=' TRUNC_R64_HMAC '('  WORD ')' add_to_var {
-	$$.type = 4; 
+	$$.type = 4;
 	$$.val = SCRIPT_DEFINED_TO_HASH_LSB; // to be added using the variable name
 	if(queue_enqueue(&mp_state.vars_queue, $5)==STATUS_ERR)
-		semantic_error("Too many variables are used in script"); 
+		semantic_error("Too many variables are used in script");
 	if(queue_enqueue_val(&mp_state.vals_queue, $7.additional_val ))
-		semantic_error("Too many values are enqueued in script"); 	
+		semantic_error("Too many values are enqueued in script");
 }
 | DSN8 '=' INTEGER 	{	$$.type = 8;	$$.val = $3;}
 | DSN8 				{	$$.type = 8;	$$.val = UNDEFINED;}
 | DSN8 '=' TRUNC_R64_HMAC '('  INTEGER ')'	{
 	if(!is_valid_u64($5))
 		semantic_error("mptcp trunc_r64_hmac is not a valid u64.");
-	$$.type = 8;	
+	$$.type = 8;
 	$$.val = sha1_least_64bits($5);
 }
 | DSN8 '=' TRUNC_R64_HMAC '('  WORD ')' add_to_var	{
 	$$.type = 8;
 	$$.val = SCRIPT_DEFINED_TO_HASH_LSB; // to be added using the variable name
 	if(queue_enqueue(&mp_state.vars_queue, $5)==STATUS_ERR)
-		semantic_error("Too many variables are used in script"); 	
+		semantic_error("Too many variables are used in script");
 	if(queue_enqueue_val(&mp_state.vals_queue, $7.additional_val ))
-		semantic_error("Too many values are enqueued in script"); 	
+		semantic_error("Too many values are enqueued in script");
+}
+;
+
+ssn
+: 					{	$$ = UNDEFINED;}
+| SSN '=' INTEGER 	{
+	if(!is_valid_u32($3))
+		semantic_error("this is not a valid 32 unsigned integer.");
+	$$ = $3;
+}
+;
+
+dll
+: 					{	$$ = UNDEFINED;}
+| DLL '=' INTEGER 	{
+	if(!is_valid_u16($3))
+		semantic_error("this is not a valid 32 unsigned integer.");
+	$$ = (u16)$3;
 }
 ;
 
@@ -1188,9 +1213,9 @@ dack
 	$$.type = 4;
 	$$.dack = SCRIPT_DEFINED_TO_HASH_LSB; // to be added using the variable name
 	if(queue_enqueue(&mp_state.vars_queue, $5)==STATUS_ERR)
-		semantic_error("Too many variables are used in script"); 	
+		semantic_error("Too many variables are used in script");
 	if(queue_enqueue_val(&mp_state.vals_queue, $7.additional_val ))
-		semantic_error("Too many values are enqueued in script"); 	
+		semantic_error("Too many values are enqueued in script");
 }
 | DACK8 '=' INTEGER {	$$.type = 8;	$$.dack = $3;}
 | DACK8  			{	$$.type = 8;	$$.dack = UNDEFINED;}
@@ -1201,13 +1226,13 @@ dack
 	$$.dack = sha1_least_64bits($5);
 }
 | DACK8 '=' TRUNC_R64_HMAC '('  WORD ')' add_to_var	{
-	
+
 	$$.type = 8;
 	$$.dack = SCRIPT_DEFINED_TO_HASH_LSB; // to be added using the variable name
 	if(queue_enqueue(&mp_state.vars_queue, $5)==STATUS_ERR)
-		semantic_error("Too many variables are used in script"); 
+		semantic_error("Too many variables are used in script");
 	if(queue_enqueue_val(&mp_state.vals_queue, $7.additional_val ))
-		semantic_error("Too many values are enqueued in script"); 	
+		semantic_error("Too many values are enqueued in script");
 }
 ;
 
@@ -1291,13 +1316,13 @@ SENDER_HMAC '=' TRUNC_L64_HMAC '(' INTEGER ')' {
 | SENDER_HMAC '=' TRUNC_L64_HMAC '(' WORD WORD ')' {
 	$$.auto_conf = false;
 	$$.is_integer = false;
-	$$.str = $5; 
+	$$.str = $5;
 	$$.str2 = $6;
 }
 | SENDER_HMAC '=' FULL_160_HMAC '(' WORD WORD ')' {
 	$$.auto_conf = false;
 	$$.is_integer = false;
-	$$.str = $5; 
+	$$.str = $5;
 	$$.str2 = $6;
 }
 | TOKEN '=' AUTO {
@@ -1325,6 +1350,10 @@ fin
 dss_no_checksum
 : {$$ = 0;}
 | NOCS {$$ = 1;}
+| CKSUM '=' INTEGER {
+	printf("1354 cksum: %u\n", (u16)$3);
+	$$ = (u16)$3;
+}
 ;
 
 tcp_option
@@ -1378,12 +1407,12 @@ tcp_option
 }
 
 | mp_capable_no_cs mptcp_var mptcp_var_or_empty {
-		
+
 	unsigned mp_capable_length = TCPOLEN_MP_CAPABLE_SYN;
-	
+
 	if(enqueue_var($2.name))
 		semantic_error("MPTCP variables queue is full, increase queue size.");
-	
+
 	if($2.script_assigned){
 		if(!is_valid_u64($2.value))
 			semantic_error("Value assigned to first mptcp variable is not a valid u64.");
@@ -1392,21 +1421,21 @@ tcp_option
 
 	if($3.exist){
 		mp_capable_length = TCPOLEN_MP_CAPABLE;
-		
+
 		if(enqueue_var($3.name))
 			semantic_error("MPTCP variables queue is full, increase queue size.");
-		
+
 		if($3.script_assigned){
 			if(!is_valid_u64($3.value))
 				semantic_error("Value assigned to second mptcp variable is not a valid u64.");
 			add_mp_var_script_defined($3.name, &$3.value, 8);
 		}
 	}
-	
+
 	$$ = tcp_option_new(TCPOPT_MPTCP, mp_capable_length);
 	$$->data.mp_capable.version = MPTCP_VERSION;
 	$$->data.mp_capable.subtype = MP_CAPABLE_SUBTYPE;
-	
+
 	if($1)
 		$$->data.mp_capable.flags = MP_CAPABLE_FLAGS;
 	else
@@ -1427,25 +1456,25 @@ tcp_option
 	$$ = mp_join_do_ack($2.str, $2.str2);
 }
 
-| DSS dack dsn dss_no_checksum fin {
-	
+| DSS dack dsn ssn dll dss_no_checksum fin {
+
 	if($2.type == -1 && $3.type == -1 )
-		$$ = dss_do_auto($4, $5); // TODO
+		$$ = dss_do_auto($6, $7); // TODO
 	else if($2.type != -1 && $3.type == -1)
-		$$ = dss_do_dack_only($2.type, $2.dack, $5);  	// DONE
+		$$ = dss_do_dack_only($2.type, $2.dack, $7);  	// DONE
 	else if($2.type == -1 && $3.type != -1)
-		$$ = dss_do_dsn_only($3.type, $3.val, $4, $5); 	// TODO
-	else if($2.type != -1 && $3.type != -1) 
-		$$ = dss_do_dsn_dack($2.type, $2.dack, $3.type, $3.val, $4, $5); // $2=dsn, $3=dack, $4=0|1, $5=0|1 XXX
-	
+		$$ = dss_do_dsn_only($3.type, $3.val, $6, $7); 	// TODO
+	else if($2.type != -1 && $3.type != -1)
+		$$ = dss_do_dsn_dack($2.type, $2.dack, $3.type, $3.val, $4, $5, $6, $7); // $2=dsn, $3=dack, $4:ssn, $5:dll, $6=0|1, $7=0|1 XXX
+
 }
 | MP_FASTCLOSE mptcp_var_or_empty add_to_var {
 	$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_MP_FASTCLOSE);
-	
+
 	if($2.exist){ //if there exists a variable
 		if(enqueue_var($2.name))
 			semantic_error("MPTCP variables queue is full, increase queue size.");
-		
+
 		if($2.script_assigned){
 			if(!is_valid_u64($2.value))
 				semantic_error("Value assigned to first mptcp variable is not a valid u64.");
@@ -1454,7 +1483,7 @@ tcp_option
 		}else{
 			if($3.additional_val>0){
 				if(queue_enqueue_val(&mp_state.vals_queue, $3.additional_val ))
-					semantic_error("Too many values are enqueued in script"); 
+					semantic_error("Too many values are enqueued in script");
 				$$->data.mp_fastclose.receiver_key = KEY; // <mp_fastclose b + 123>
 			}else{
 				$$->data.mp_fastclose.receiver_key = SCRIPT_DEFINED; //<mp_fastclose b>
@@ -1463,7 +1492,7 @@ tcp_option
 	}else{
 		$$->data.mp_fastclose.receiver_key = UNDEFINED; // <mp_fastclose>
 	}
-	
+
 	$$->data.mp_fastclose.subtype = MP_FASTCLOSE_SUBTYPE;
 	$$->data.mp_fastclose.reserved_first_bits = DSS_RESERVED;
 	$$->data.mp_fastclose.reserved_last_bits = DSS_RESERVED;

@@ -180,7 +180,7 @@ struct tcp_option {
 					#endif
 					u32 sender_hmac[5];
 				} __packed no_syn;
-			}; 
+			};
 		} __packed mp_join;
 
 		struct {

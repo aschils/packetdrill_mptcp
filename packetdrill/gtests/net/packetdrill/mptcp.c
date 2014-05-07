@@ -905,6 +905,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 		return STATUS_ERR;
 
 	u16 tcp_payload_length = (u16)packet_payload_len(packet_to_modify);
+
 	// add +1 to tcp_payload if FIN falg is set
 	if(dss_opt_script->data.dss.flag_F)
 		tcp_payload_length++;
@@ -952,7 +953,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 					u16 zeros;
 				} __packed buff_chk;
 
-				buff_chk.dsn = mp_state.idsn + bytes_sent_on_all_ssn; //subflow->ssn;
+				buff_chk.dsn = mp_state.idsn + bytes_sent_on_all_ssn;
 				buff_chk.ssn = subflow->ssn;
 				buff_chk.dll = (u16)tcp_payload_length;
 				buff_chk.zeros = (u16)0;
@@ -962,7 +963,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 				*w_cs = htonl(subflow->ssn);
 				u16 *dll_first = (u16*)(w_cs+1);// w_cs + 1 == dll & chk
 				*(dll_first) = htons(tcp_payload_length);
-				*(dll_first+1) = htons(checksum_dss((u16*)&buff_chk, sizeof(buff_chk)));
+				*(dll_first+1) = htons(checksum_dss((u16*)&buff_chk, sizeof(buff_chk))); // dll_first+1 = checksum
 			}else{
 				// ssn + dll + checksum
 				u32* w_cs = (u32*)dsn_live+1;	// w_cs == ssn (== dsn_live + 1 )
@@ -1259,7 +1260,11 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			// get original information from live_packet
 			struct dack *dack_live	= (struct dack*)((u32*)dss_opt_live+1);
 			struct dsn *dsn_live 	= (struct dsn*)((u32*)dss_opt_live+2);
+			struct dsn *dsn_script	= (struct dsn*)(&dss_opt_script->data.dss.dack_dsn.dsn);
 
+		//	u32 *ssn_s = (u32*)&dss_opt_script->data.dss.dack_dsn.dsn;
+		//	printf("1264: dsn4 => %u, ssn: %u==%u==%u;\n", *(ssn_s), dsn_script->w_cs.ssn, *((u16*)&dsn_script->w_cs.ssn+4),
+		//			*(ssn_s+3)>>16);
 			// put information in script packet
 			if(dss_opt_script->data.dss.dack_dsn.dack.dack4 == UNDEFINED){
 				dss_opt_script->data.dss.dack_dsn.dack.dack4 = dack_live->dack4;
@@ -1271,23 +1276,26 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 				dss_opt_script->data.dss.dack_dsn.dack.dack4 = htonl(sha1_least_64bits(*key) + additional_val);
 			}
 
-			// get ssn, dll, and checksum from live_packet
-			u32 ssn 	= *((u32*)dsn_live + 1);
+			// get ssn, dll, and checksum from live_packet or script test if defined
+			u32 ssn 	= dsn_script->w_cs.ssn==UNDEFINED ? *((u32*)dsn_live + 1)
+					:     htonl(dsn_script->w_cs.ssn);
 			u32 dll_chk = (u32)*((u32*)dsn_live + 2);
-			u16 dll 	= (u16)dll_chk;
+			u16 dll 	= 	(u16)dll_chk; /*dss_opt_script->data.dss.dack_dsn.dsn.w_cs.dll==UNDEFINED ? (u16)dll_chk
+					:		dss_opt_script->data.dss.dack_dsn.dsn.w_cs.dll; */
 //			mp_state.last_dsn_rcvd = ntohl(dsn_live->dsn4);
 			mp_state.remote_last_pkt_length = ntohs(dll);
 			mp_state.remote_ssn = ntohl(ssn);
-			u32 *script_dsn4 	= (u32*)dss_opt_script+2;   // jump over 64 bits to reach the dsn
+			u32 *script_dsn4 	= (u32*)dss_opt_script+2;   // jump over 64 bits to reach the dsn4, 1 (version, flags ..) + 1 (dack4)
+
 			//Set dsn being value specified in script
-			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4==UNDEFINED)
+			if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4==UNDEFINED){
 				*script_dsn4 	= dsn_live->dsn4;
-			else if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4 == SCRIPT_DEFINED_TO_HASH_LSB){
+			}else if(dss_opt_script->data.dss.dack_dsn.dsn.dsn4 == SCRIPT_DEFINED_TO_HASH_LSB){
 				u64 additional_val 	= find_next_value();
 				u64 *key 			= find_next_key();
 				if(!key || additional_val==STATUS_ERR)
 					return STATUS_ERR;
-				*script_dsn4 = htobe32(sha1_least_64bits(*key) + additional_val);
+				*script_dsn4 = htonl(sha1_least_64bits(*key) + additional_val);
 			}
 			// put ssn, dll, chk in script_packet
 			u32 *script_ssn 		= script_dsn4 + 1;
@@ -1295,7 +1303,7 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			u32 *script_dll_chk 	= script_ssn + 1;
 			*script_dll_chk 		= dll_chk;
 
-		// DSN4 & DACK8
+			// DSN4 & DACK8
 		}else if(!dss_opt_script->data.dss.flag_m && dss_opt_script->data.dss.flag_a){
 			if(!(!dss_opt_live->data.dss.flag_m && dss_opt_live->data.dss.flag_a))
 				return STATUS_ERR;
@@ -1477,10 +1485,10 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 				dss_opt_script->data.dss.dsn.w_cs.dll =	dll;
 				dss_opt_script->data.dss.dsn.w_cs.ssn = ssn;
 				dss_opt_script->data.dss.dsn.w_cs.checksum = chk;
-			}else{
+			}/*else{
 				dss_opt_script->data.dss.dsn.wo_cs.dll =	dll;
 				dss_opt_script->data.dss.dsn.wo_cs.ssn = ssn;
-			}
+			} WOCS*/
 			mp_state.remote_last_pkt_length = ntohs(dll);
 			mp_state.remote_ssn = ntohl(ssn);
 		}
