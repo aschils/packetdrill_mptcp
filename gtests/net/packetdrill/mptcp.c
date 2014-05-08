@@ -59,8 +59,9 @@ void set_kernel_key(u64 receiver_key)
 int enqueue_var(char *name)
 {
 	unsigned name_length = strlen(name);
-	char *new_el = malloc(sizeof(char)*name_length);
+	char *new_el = malloc(sizeof(char)*name_length+1);
 	memcpy(new_el, name, name_length);
+	new_el[name_length] = '\0';
 	int full_err = queue_enqueue(&mp_state.vars_queue, new_el);
 	return full_err;
 }
