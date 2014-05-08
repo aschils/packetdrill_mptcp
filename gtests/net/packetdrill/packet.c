@@ -153,6 +153,7 @@ static struct packet *packet_copy_with_headroom(struct packet *old_packet,
 	packet->time_usecs	= old_packet->time_usecs;
 	packet->flags		= old_packet->flags;
 	packet->ecn		= old_packet->ecn;
+	packet->socket_script_fd = old_packet->socket_script_fd;
 
 	packet_copy_headers(packet, old_packet, bytes_headroom);
 
