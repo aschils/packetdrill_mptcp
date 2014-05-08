@@ -90,9 +90,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "gre_packet.h"
 #include "ip.h"
+#include "ip_packet.h"
 #include "icmp_packet.h"
 #include "logging.h"
+#include "mpls.h"
+#include "mpls_packet.h"
 #include "tcp_packet.h"
 #include "udp_packet.h"
 #include "parse.h"
@@ -100,7 +104,6 @@
 #include "tcp.h"
 #include "tcp_options.h"
 #include "tcp_options_iterator.h"
-//#include "utils.h"
 
 /* This include of the bison-generated .h file must go last so that we
  * can first include all of the declarations on which it depends.
@@ -174,7 +177,7 @@ void read_script(const char *script_path, struct script *script)
 
 		/* Allocate a buffer big enough for the whole file. */
 		if (stat(script_path, &script_info) != 0)
-			die("stat() of script file '%s': %s\n",
+			die("parse error: stat() of script file '%s': %s\n",
 			    script_path, strerror(errno));
 
 		/* Pick a buffer size larger than the file, so we'll
@@ -188,12 +191,12 @@ void read_script(const char *script_path, struct script *script)
 		/* Read the file into our buffer. */
 		fd = open(script_path, O_RDONLY);
 		if (fd < 0)
-			die("error opening script file '%s': %s\n",
+			die("parse error opening script file '%s': %s\n",
 			    script_path, strerror(errno));
 
 		script->length = read(fd, script->buffer, size);
 		if (script->length < 0)
-			die("error reading script file '%s': %s\n",
+			die("parse error reading script file '%s': %s\n",
 			    script_path, strerror(errno));
 
 		/* If we filled the buffer, then probably another
@@ -237,7 +240,7 @@ int parse_script(const struct config *config,
 	/* Now parse the script from our buffer. */
 	yyin = fmemopen(script->buffer, script->length, "r");
 	if (yyin == NULL)
-		die_perror("fmemopen: error opening script buffer");
+		die_perror("fmemopen: parse error opening script buffer");
 
 	current_script_path = config->script_path;
 	in_config = config;
@@ -277,7 +280,7 @@ static void yyerror(const char *message)
 static void semantic_error(const char* message)
 {
 	assert(current_script_line >= 0);
-	die("%s:%d: error: %s\n",
+	die("%s:%d: semantic error: %s\n",
 	    current_script_path, current_script_line, message);
 }
 
@@ -720,6 +723,8 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 	s64 time_usecs;
 	enum direction_t direction;
 	enum ip_ecn_t ip_ecn;
+	struct mpls_stack *mpls_stack;
+	struct mpls mpls_stack_entry;
 	u16 port;
 	s32 window;
 	u32 sequence_number;
@@ -779,11 +784,12 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 %token <reserved> SENDER_HMAC TRUNC_L64_HMAC FULL_160_HMAC SHA1_32
 %token <reserved> FAST_OPEN
 %token <reserved> ECT0 ECT1 CE ECT01 NO_ECN
-%token <reserved> ICMP UDP MTU
+%token <reserved> IPV4 IPV6 ICMP UDP GRE MTU
+%token <reserved> MPLS LABEL TC TTL
 %token <reserved> OPTION
 %token <floating> FLOAT
 %token <integer> INTEGER HEX_INTEGER
-%token <string> WORD STRING BACK_QUOTED CODE IP_ADDR
+%token <string> WORD STRING BACK_QUOTED CODE IPV4_ADDR IPV6_ADDR
 %type <direction> direction
 %type <ip_ecn> opt_ip_info
 %type <ip_ecn> ip_ecn
@@ -791,9 +797,13 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 %type <event> event events event_time action
 %type <time_usecs> time opt_end_time
 %type <packet> packet_spec tcp_packet_spec udp_packet_spec icmp_packet_spec
+%type <packet> packet_prefix
 %type <syscall> syscall_spec
 %type <command> command_spec
 %type <code> code_spec
+%type <mpls_stack> mpls_stack
+%type <mpls_stack_entry> mpls_stack_entry
+%type <integer> opt_mpls_stack_bottom
 %type <integer> opt_icmp_mtu socket_fd_spec fin ssn dll dss_checksum
 %type <integer> mp_capable_no_cs is_backup address_id rand
 %type <string> icmp_type opt_icmp_code flags
@@ -813,7 +823,7 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 %type <expression_list> expression_list function_arguments
 %type <expression> expression binary_expression array
 %type <expression> decimal_integer hex_integer
-%type <expression> sockaddr msghdr iovec pollfd opt_revents linger
+%type <expression> inaddr sockaddr msghdr iovec pollfd opt_revents linger
 %type <errno_info> opt_errno
 
 %%  /* The grammar follows. */
@@ -859,7 +869,10 @@ option_value
 : INTEGER	{ $$ = strdup(yytext); }
 | WORD		{ $$ = $1; }
 | STRING	{ $$ = $1; }
-| IP_ADDR	{ $$ = $1; }
+| IPV4_ADDR	{ $$ = $1; }
+| IPV6_ADDR	{ $$ = $1; }
+| IPV4		{ $$ = strdup("ipv4"); }
+| IPV6		{ $$ = strdup("ipv6"); }
 ;
 
 opt_init_command
@@ -980,60 +993,156 @@ socket_fd_spec
 ;
 
 tcp_packet_spec
-: direction opt_ip_info flags seq opt_ack opt_window opt_tcp_options socket_fd_spec {
-
+: packet_prefix opt_ip_info flags seq opt_ack opt_window opt_tcp_options socket_fd_spec {
 	char *error = NULL;
+	struct packet *outer = $1, *inner = NULL;
+	enum direction_t direction = outer->direction;
 
-	if (($7 == NULL) && ($1 != DIRECTION_OUTBOUND)) {
+	if (($7 == NULL) && (direction != DIRECTION_OUTBOUND)) {
 		yylineno = @7.first_line;
 		semantic_error("<...> for TCP options can only be used with "
 			       "outbound packets");
 	}
 
-	$$ = new_tcp_packet($8, in_config->wire_protocol,
-		    $1, $2, $3, $4.start_sequence, $4.payload_bytes,
-                    $5, $6, $7, &error);
-
+	inner = new_tcp_packet($8, in_config->wire_protocol,
+			       direction, $2, $3,
+			       $4.start_sequence, $4.payload_bytes,
+			       $5, $6, $7, &error);
 	free($3);
 	free($7);
-	if ($$ == NULL) {
+	if (inner == NULL) {
 		assert(error != NULL);
 		semantic_error(error);
 		free(error);
 	}
+
+	$$ = packet_encapsulate_and_free(outer, inner);
 }
 ;
 
 udp_packet_spec
-: direction UDP '(' INTEGER ')' {
+: packet_prefix UDP '(' INTEGER ')' {
 	char *error = NULL;
+	struct packet *outer = $1, *inner = NULL;
+	enum direction_t direction = outer->direction;
+
 	if (!is_valid_u16($4)) {
 		semantic_error("UDP payload size out of range");
 	}
 
-	$$ = new_udp_packet(in_config->wire_protocol, $1, $4, &error);
-	if ($$ == NULL) {
+	inner = new_udp_packet(in_config->wire_protocol, direction, $4, &error);
+	if (inner == NULL) {
 		assert(error != NULL);
 		semantic_error(error);
 		free(error);
 	}
+
+	$$ = packet_encapsulate_and_free(outer, inner);
 }
 ;
 
-////////////////////
 icmp_packet_spec
-: direction opt_icmp_echoed ICMP icmp_type opt_icmp_code opt_icmp_mtu {
+: packet_prefix opt_icmp_echoed ICMP icmp_type opt_icmp_code opt_icmp_mtu {
 	char *error = NULL;
-	$$ = new_icmp_packet(in_config->wire_protocol,
-			     $1, $4, $5,
-			     $2.protocol, $2.start_sequence, $2.payload_bytes,
-			     $6, &error);
+	struct packet *outer = $1, *inner = NULL;
+	enum direction_t direction = outer->direction;
+
+	inner = new_icmp_packet(in_config->wire_protocol, direction, $4, $5,
+				$2.protocol, $2.start_sequence,
+				$2.payload_bytes, $6, &error);
 	free($4);
 	free($5);
-	if ($$ == NULL) {
+	if (inner == NULL) {
 		semantic_error(error);
 		free(error);
 	}
+
+	$$ = packet_encapsulate_and_free(outer, inner);
+}
+;
+
+
+packet_prefix
+: direction {
+	$$ = packet_new(PACKET_MAX_HEADER_BYTES);
+	$$->direction = $1;
+}
+| packet_prefix IPV4 IPV4_ADDR '>' IPV4_ADDR ':' {
+	char *error = NULL;
+	struct packet *packet = $1;
+	char *ip_src = $3;
+	char *ip_dst = $5;
+	if (ipv4_header_append(packet, ip_src, ip_dst, &error))
+		semantic_error(error);
+	free(ip_src);
+	free(ip_dst);
+	$$ = packet;
+}
+| packet_prefix IPV6 IPV6_ADDR '>' IPV6_ADDR ':' {
+	char *error = NULL;
+	struct packet *packet = $1;
+	char *ip_src = $3;
+	char *ip_dst = $5;
+	if (ipv6_header_append(packet, ip_src, ip_dst, &error))
+		semantic_error(error);
+	free(ip_src);
+	free(ip_dst);
+	$$ = packet;
+}
+| packet_prefix GRE ':' {
+	char *error = NULL;
+	struct packet *packet = $1;
+	if (gre_header_append(packet, &error))
+		semantic_error(error);
+	$$ = packet;
+}
+| packet_prefix MPLS mpls_stack ':' {
+	char *error = NULL;
+	struct packet *packet = $1;
+	struct mpls_stack *mpls_stack = $3;
+
+	if (mpls_header_append(packet, mpls_stack, &error))
+		semantic_error(error);
+	free(mpls_stack);
+	$$ = packet;
+}
+;
+
+mpls_stack
+:				{
+	$$ = mpls_stack_new();
+}
+| mpls_stack mpls_stack_entry	{
+	if (mpls_stack_append($1, $2))
+		semantic_error("too many MPLS labels");
+	$$ = $1;
+}
+;
+
+mpls_stack_entry
+:
+'(' LABEL INTEGER ',' TC INTEGER ',' opt_mpls_stack_bottom TTL INTEGER ')' {
+	char *error = NULL;
+	s64 label = $3;
+	s64 traffic_class = $6;
+	bool is_stack_bottom = $8;
+	s64 ttl = $10;
+	struct mpls mpls;
+
+	if (new_mpls_stack_entry(label, traffic_class, is_stack_bottom, ttl,
+				 &mpls, &error))
+		semantic_error(error);
+	$$ = mpls;
+}
+;
+
+opt_mpls_stack_bottom
+:			{ $$ = 0; }
+| '[' WORD ']' ','	{
+	if (strcmp($2, "S") != 0)
+		semantic_error("expected [S] for MPLS label stack bottom");
+	free($2);
+	$$ = 1;
 }
 ;
 
@@ -1382,8 +1491,7 @@ dss_checksum
 ;
 
 tcp_option
-:
-  NOP              { $$ = tcp_option_new(TCPOPT_NOP, 1); }
+: NOP              { $$ = tcp_option_new(TCPOPT_NOP, 1); }
 | EOL              { $$ = tcp_option_new(TCPOPT_EOL, 1); }
 | MSS INTEGER      {
 	$$ = tcp_option_new(TCPOPT_MAXSEG, TCPOLEN_MAXSEG);
@@ -1614,6 +1722,9 @@ expression
 | array             {
 	$$ = $1;
 }
+| inaddr          {
+	$$ = $1;
+}
 | sockaddr          {
 	$$ = $1;
 }
@@ -1666,6 +1777,13 @@ array
 }
 ;
 
+inaddr
+: INET_ADDR '(' STRING ')' {
+	__be32 ip_address = inet_addr($3);
+	$$ = new_integer_expression(ip_address, "%#lx");
+}
+;
+
 sockaddr
 :   '{' SA_FAMILY '=' WORD ','
 	SIN_PORT '=' _HTONS_ '(' INTEGER ')' ','
@@ -1674,7 +1792,7 @@ sockaddr
 		struct sockaddr_in *ipv4 = malloc(sizeof(struct sockaddr_in));
 		memset(ipv4, 0, sizeof(*ipv4));
 		ipv4->sin_family = AF_INET;
-		ipv4->sin_port = $10;
+		ipv4->sin_port = htons($10);
 		if (inet_pton(AF_INET, $17, &ipv4->sin_addr) == 1) {
 			$$ = new_expression(EXPR_SOCKET_ADDRESS_IPV4);
 			$$->value.socket_address_ipv4 = ipv4;
@@ -1686,7 +1804,7 @@ sockaddr
 		struct sockaddr_in6 *ipv6 = malloc(sizeof(struct sockaddr_in6));
 		memset(ipv6, 0, sizeof(*ipv6));
 		ipv6->sin6_family = AF_INET6;
-		ipv6->sin6_port = $10;
+		ipv6->sin6_port = htons($10);
 		if (inet_pton(AF_INET6, $17, &ipv6->sin6_addr) == 1) {
 			$$ = new_expression(EXPR_SOCKET_ADDRESS_IPV6);
 			$$->value.socket_address_ipv6 = ipv6;

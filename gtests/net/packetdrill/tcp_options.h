@@ -27,6 +27,7 @@
 
 #include <asm/byteorder.h>
 #include "types.h"
+
 #include "packet.h"
 
 #define MAX_TCP_OPTION_BYTES (MAX_TCP_HEADER_BYTES - (int)sizeof(struct tcp))
@@ -86,8 +87,6 @@ struct dsn {
 		} __packed w_cs;
 	};
 }__packed;
-
-
 
 /* Represents a single TCP option in its wire format. Note that for
  * EOL and NOP options the length and data field are not included in

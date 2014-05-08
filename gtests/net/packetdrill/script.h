@@ -32,6 +32,7 @@
 
 /* The types of expressions in a script */
 enum expression_t {
+	EXPR_NONE,
 	EXPR_ELLIPSIS,		  /* ... but no value */
 	EXPR_INTEGER,		  /* integer in 'num' */
 	EXPR_LINGER,		  /* struct linger for SO_LINGER */
@@ -162,16 +163,6 @@ enum event_time_t {
 	RELATIVE_RANGE_TIME,
 	NUM_TIME_TYPES,
 };
-
-/*
- * Save variables used in script.
- * These variables are going to be resolved in run_packet.c
- * at injecting and receiving packets times.
- */
-/*struct mp_cap_key_var{
-	char key_var_a[50];
-	char key_var_b[50];
-};*/
 
 /* An event in a script */
 struct event {

@@ -65,7 +65,6 @@ int main(int argc, char *argv[])
 {
 	struct config config;
 	set_default_config(&config);
-
 	/* Get command line options and list of test scripts. */
 	char **arg = parse_command_line_options(argc, argv, &config);
 
@@ -101,6 +100,10 @@ int main(int argc, char *argv[])
 		if (parse_script_and_set_config(argc, argv, &config, &script,
 						script_path, NULL))
 			exit(EXIT_FAILURE);
+
+		/* If --dry_run, then don't actually execute the script. */
+		if (config.dry_run)
+			continue;
 
 		run_init_scripts(&config);
 		run_script(&config, &script);

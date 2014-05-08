@@ -38,7 +38,7 @@
  * and fills in *error with an error message.
  */
 extern struct packet *new_tcp_packet(int socket_fd,
-					 int address_family,
+				     int address_family,
 				     enum direction_t direction,
 				     enum ip_ecn_t ecn,
 				     const char *flags,
@@ -48,5 +48,4 @@ extern struct packet *new_tcp_packet(int socket_fd,
 				     s32 window,
 				     const struct tcp_options *tcp_options,
 				     char **error);
-
 #endif /* __TCP_PACKET_H__ */

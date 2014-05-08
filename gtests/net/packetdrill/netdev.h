@@ -80,11 +80,17 @@ static inline int netdev_receive(struct netdev *netdev,
 {
 	return netdev->ops->receive(netdev, packet, error);
 }
-int netdev_receive_loop(struct packet_socket *psock,
-			enum packet_layer_t layer,
-			enum direction_t direction,
-			struct packet **packet,
-			char **error);
+
+
+/* Keep sniffing packets leaving the kernel until we see one we know
+ * about and can parse. Return a pointer to the newly-allocated
+ * packet. Caller must free the packet with packet_free().
+ */
+extern int netdev_receive_loop(struct packet_socket *psock,
+			       enum packet_layer_t layer,
+			       enum direction_t direction,
+			       struct packet **packet,
+			       char **error);
 
 /* Allocate and return a new netdev for purely local tests. */
 extern struct netdev *local_netdev_new(struct config *config);

@@ -210,9 +210,8 @@ static struct tcp_option *get_current_option(
 	struct tcp_options_iterator *iter)
 {
 	assert(iter->current_option <= iter->options_end);
-	if (iter->current_option >= iter->options_end){
+	if (iter->current_option >= iter->options_end)
 		iter->current_option = NULL;
-	}
 	return (struct tcp_option *)iter->current_option;
 }
 
@@ -235,8 +234,7 @@ struct tcp_option *tcp_options_next(
 
 	/* Find the length we expect for this kind of option. */
 	u8 length = 0;			/* length of this option in bytes */
-	u8 expected_length;		/* expected length for this kind */
-	expected_length = 0;
+	u8 expected_length = 0;		/* expected length for this kind */
 
 	struct tcp_option *option = (struct tcp_option *)iter->current_option;
 	if (get_expected_tcp_option_length(

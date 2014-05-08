@@ -83,7 +83,6 @@ struct state *state_new(struct config *config,
 	state->syscalls = syscalls_new(state);
 	state->code = code_new(config);
 	state->sockets = NULL;
-
 	return state;
 }
 
@@ -583,6 +582,7 @@ void run_script(struct config *config, struct script *script)
 		free(error);
 	}
 	free_mp_state();
+
 	state_free(state);
 
 	DEBUGP("run_script: done running\n");

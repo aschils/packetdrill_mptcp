@@ -178,7 +178,7 @@ static int check_type(struct expression *expression,
 }
 
 /* Sets the value from the expression argument, checking that it is a
- * valid s32 and matches the expected type. Returns STATUS_OK on
+ * valid s32 or u32, and matches the expected type. Returns STATUS_OK on
  * success; on failure returns STATUS_ERR and sets error message.
  */
 static int get_s32(struct expression *expression,
@@ -186,10 +186,10 @@ static int get_s32(struct expression *expression,
 {
 	if (check_type(expression, EXPR_INTEGER, error))
 		return STATUS_ERR;
-	if ((expression->value.num > INT_MAX) ||
+	if ((expression->value.num > UINT_MAX) ||
 	    (expression->value.num < INT_MIN)) {
 		asprintf(error,
-			 "Value out of range for 32-bit signed int: %lld",
+			 "Value out of range for 32-bit integer: %lld",
 			 expression->value.num);
 		return STATUS_ERR;
 	}
@@ -695,7 +695,6 @@ error_out:
  * Returns STATUS_OK on success; on failure returns STATUS_ERR and
  * sets error message.
  */
-
 static int run_syscall_bind(struct state *state,
 			    struct sockaddr *live_addr,
 			    socklen_t *live_addrlen,
@@ -840,8 +839,6 @@ static int run_syscall_connect(struct state *state,
 	struct socket *socket	= NULL;
 	DEBUGP("run_syscall_connect\n");
 
-
-
 	/* Fill in the live address we want to connect to */
 	ip_to_sockaddr(&state->config->live_connect_ip,
 		       state->config->default_live_connect_port,
@@ -966,9 +963,8 @@ static int set_bind_sockaddr_config(struct state *state,
 }
 
 static int syscall_bind(struct state *state, struct syscall_spec *syscall,
-		struct expression_list *args, char **error)
+			struct expression_list *args, char **error)
 {
-
 	int live_fd, script_fd, result;
 	struct sockaddr_storage live_addr;
 	socklen_t live_addrlen;
@@ -987,15 +983,19 @@ static int syscall_bind(struct state *state, struct syscall_spec *syscall,
 		return STATUS_ERR;
 	}
 
+	begin_syscall(state, syscall);
+	result = bind(live_fd, (struct sockaddr *)&live_addr, live_addrlen);
 	if (ellipsis_arg(args, 2, error))
 		return STATUS_ERR;
 	if (run_syscall_bind(
-			state,
-			(struct sockaddr *)&live_addr, &live_addrlen, script_fd, error))
+		    state,
+		    (struct sockaddr *)&live_addr, &live_addrlen, script_fd, error))
 		return STATUS_ERR;
 
 	begin_syscall(state, syscall);
+
 	result = bind(live_fd, (struct sockaddr *)&live_addr, live_addrlen);
+
 	return end_syscall(state, syscall, CHECK_EXACT, result, error);
 }
 
@@ -1065,7 +1065,6 @@ static int syscall_accept(struct state *state, struct syscall_spec *syscall,
 	int live_fd, script_fd, live_accepted_fd, script_accepted_fd, result;
 	struct sockaddr_storage live_addr;
 	socklen_t live_addrlen = sizeof(live_addr);
-
 	if (check_arg_count(args, 3, error))
 		return STATUS_ERR;
 	if (s32_arg(args, 0, &script_fd, error))

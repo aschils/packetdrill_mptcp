@@ -131,10 +131,32 @@ c_comment	\/\*(([^*])|(\*[^\/]))*\*\/
  */
 code		\%\{(([^}])|(\}[^\%]))*\}\%
 
-/* A regular experssion for an IP address
- * TODO(ncardwell): IPv6
+/* IPv4: a regular experssion for an IPv4 address */
+ipv4_addr		[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+
+
+/* IPv6: a regular experssion for an IPv6 address. The complexity is
+ * unfortunate, but we can't use a super-simple approach because TCP
+ * sequence number ranges like 1:1001 can look like IPv6 addresses if
+ * we use a naive approach.
  */
-ip_addr		[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+
+seg	[0-9a-fA-F]{1,4}
+v0	[:][:]
+v1	({seg}[:]){7,7}{seg}
+v2	({seg}[:]){1,7}[:]
+v3	({seg}[:]){1,6}[:]{seg}
+v4	({seg}[:]){1,5}([:]{seg}){1,2}
+v5	({seg}[:]){1,4}([:]{seg}){1,3}
+v6	({seg}[:]){1,3}([:]{seg}){1,4}
+v7	({seg}[:]){1,2}([:]{seg}){1,5}
+v8	{seg}[:](([:]{seg}){1,6})
+v9	[:]([:]{seg}){1,7}
+/* IPv4-mapped IPv6 address: */
+v10	[:][:]ffff[:]{ipv4_addr}
+/* IPv4-translated IPv6 address: */
+v11	[:][:]ffff[:](0){1,4}[:]{ipv4_addr}
+/* IPv4-embedded IPv6 addresses: */
+v12	({seg}[:]){1,4}[:]{ipv4_addr}
+ipv6_addr ({v0}|{v1}|{v2}|{v3}|{v4}|{v5}|{v6}|{v7}|{v8}|{v9}|{v10}|{v11}|{v12})
 
 %%
 sa_family		return SA_FAMILY;
@@ -151,45 +173,52 @@ revents			return REVENTS;
 onoff			return ONOFF;
 linger			return LINGER;
 htons			return _HTONS_;
-icmp			return ICMP;
-udp			return UDP;
-inet_addr		return INET_ADDR;
-ack			return ACK;
-address_id	return ADDRESS_ID;
-dack4		return DACK4;
-dack8		return DACK8;
-dsn4		return DSN4;
-dsn8		return DSN8;
+address_id		return ADDRESS_ID;
+dack4			return DACK4;
+dack8			return DACK8;
+dsn4			return DSN4;
+dsn8			return DSN8;
 dss			return DSS;
 ssn			return SSN;
-dll 		return DLL;
+dll 			return DLL;
 fin			return FIN;
-nocs		return NOCS;
-cksum		return CKSUM;
+nocs			return NOCS;
+cksum			return CKSUM;
+auto			return AUTO;
+mp_capable		return MP_CAPABLE;
+mp_capable_no_cs	return MP_CAPABLE_NO_CS;
+mp_join_syn		return MP_JOIN_SYN;
+backup			return BACKUP;
+mp_join_syn_ack		return MP_JOIN_SYN_ACK;
+mp_join_syn_ack_backup	return MP_JOIN_SYN_ACK_BACKUP;
+mp_join_ack		return MP_JOIN_ACK;
+mp_fastclose 		return MP_FASTCLOSE;
+rand			return RAND;
+sender_hmac		return SENDER_HMAC;
+sha1_32			return SHA1_32;
+sock			return SOCK;
+token			return TOKEN;
+trunc_l64_hmac		return TRUNC_L64_HMAC;
+trunc_r64_hmac		return TRUNC_R64_HMAC;
+full_160_hmac		return FULL_160_HMAC;
+ipv4			return IPV4;
+ipv6			return IPV6;
+icmp			return ICMP;
+udp			return UDP;
+gre			return GRE;
+mpls			return MPLS;
+label			return LABEL;
+tc			return TC;
+ttl			return TTL;
+inet_addr		return INET_ADDR;
+ack			return ACK;
 eol			return EOL;
 ecr			return ECR;
-auto		return AUTO;
-mp_capable  return MP_CAPABLE;
-mp_capable_no_cs return MP_CAPABLE_NO_CS;
-mp_join_syn		return MP_JOIN_SYN;
-backup return BACKUP;
-mp_join_syn_ack return MP_JOIN_SYN_ACK;
-mp_join_syn_ack_backup return MP_JOIN_SYN_ACK_BACKUP;
-mp_join_ack return MP_JOIN_ACK;
-mp_fastclose 	return MP_FASTCLOSE;
 mss			return MSS;
 mtu			return MTU;
 nop			return NOP;
-rand		return RAND;
 sack			return SACK;
 sackOK			return SACKOK;
-sender_hmac	return SENDER_HMAC;
-sha1_32			return SHA1_32;
-sock		return SOCK;
-token		return TOKEN;
-trunc_l64_hmac	return TRUNC_L64_HMAC;
-trunc_r64_hmac	return TRUNC_R64_HMAC;
-full_160_hmac	return FULL_160_HMAC;
 TS			return TIMESTAMP;
 FO			return FAST_OPEN;
 val			return VAL;
@@ -204,7 +233,7 @@ ce			return CE;
 --[a-zA-Z0-9_]+		yylval.string	= option(yytext); return OPTION;
 [-]?[0-9]*[.][0-9]+	yylval.floating	= atof(yytext);   return FLOAT;
 [-]?[0-9]+		yylval.integer	= atoll(yytext);  return INTEGER;
-0x[0-9]+		yylval.integer	= hextol(yytext); return HEX_INTEGER;
+0x[0-9a-fA-F]+		yylval.integer	= hextol(yytext); return HEX_INTEGER;
 [a-zA-Z0-9_]+		yylval.string	= strdup(yytext); return WORD;
 \"(\\.|[^"])*\"		yylval.string	= quoted(yytext); return STRING;
 \`(\\.|[^`])*\`		yylval.string	= quoted(yytext); return BACK_QUOTED;
@@ -213,5 +242,6 @@ ce			return CE;
 {cpp_comment}		/* ignore C++-style comment */;
 {c_comment}		/* ignore C-style comment */;
 {code}			yylval.string = code(yytext);   return CODE;
-{ip_addr}		yylval.string = strdup(yytext); return IP_ADDR;
+{ipv4_addr}		yylval.string = strdup(yytext); return IPV4_ADDR;
+{ipv6_addr}		yylval.string = strdup(yytext); return IPV6_ADDR;
 %%

@@ -28,7 +28,7 @@
 #include "tcp.h"
 
 /* The full list of valid TCP bit flag characters */
-static const char valid_tcp_flags[] = "FSRPU.EWC";
+static const char valid_tcp_flags[] = "FSRP.EWC";
 
 /* Are all the TCP flags in the given string valid? */
 static bool is_tcp_flags_spec_valid(const char *flags, char **error)
@@ -51,7 +51,7 @@ static inline int is_tcp_flag_set(char flag, const char *flags)
 }
 
 struct packet *new_tcp_packet(int socket_fd,
-				   int address_family,
+			       int address_family,
 			       enum direction_t direction,
 			       enum ip_ecn_t ecn,
 			       const char *flags,
@@ -63,10 +63,11 @@ struct packet *new_tcp_packet(int socket_fd,
 			       char **error)
 {
 	struct packet *packet = NULL;  /* the newly-allocated result packet */
+	struct header *tcp_header = NULL;  /* the TCP header info */
 	/* Calculate lengths in bytes of all sections of the packet */
 	const int ip_option_bytes = 0;
 	const int tcp_option_bytes = tcp_options ? tcp_options->length : 0;
-	const int ip_header_bytes = (ip_header_len(address_family) +
+	const int ip_header_bytes = (ip_header_min_len(address_family) +
 				     ip_option_bytes);
 	const int tcp_header_bytes = sizeof(struct tcp) + tcp_option_bytes;
 	const int ip_bytes =
@@ -77,9 +78,6 @@ struct packet *new_tcp_packet(int socket_fd,
 		asprintf(error, "IP options are not padded correctly "
 			 "to ensure IP header is a multiple of 4 bytes: "
 			 "%d excess bytes", ip_option_bytes & 0x3);
-
-		printf("1\n");
-
 		return NULL;
 	}
 	if (tcp_option_bytes & 0x3) {
@@ -87,9 +85,6 @@ struct packet *new_tcp_packet(int socket_fd,
 			 "TCP options are not padded correctly "
 			 "to ensure TCP header is a multiple of 4 bytes: "
 			 "%d excess bytes", tcp_option_bytes & 0x3);
-
-		printf("2\n");
-
 		return NULL;
 	}
 	assert((tcp_header_bytes & 0x3) == 0);
@@ -105,14 +100,12 @@ struct packet *new_tcp_packet(int socket_fd,
 		return NULL;
 	}
 
-	if (!is_tcp_flags_spec_valid(flags, error)){
+	if (!is_tcp_flags_spec_valid(flags, error))
 		return NULL;
-	}
 
 	/* Allocate and zero out a packet object of the desired size */
 	packet = packet_new(ip_bytes);
 	memset(packet->buffer, 0, ip_bytes);
-	packet->ip_bytes = ip_bytes;
 
 	packet->direction = direction;
 	packet->socket_script_fd = socket_fd;
@@ -120,11 +113,14 @@ struct packet *new_tcp_packet(int socket_fd,
 	packet->ecn = ecn;
 
 	/* Set IP header fields */
-	set_packet_ip_header(packet, address_family, ip_bytes, direction, ecn,
+	set_packet_ip_header(packet, address_family, ip_bytes, ecn,
 			     IPPROTO_TCP);
 
+	tcp_header = packet_append_header(packet, HEADER_TCP, tcp_header_bytes);
+	tcp_header->total_bytes = tcp_header_bytes + tcp_payload_bytes;
+
 	/* Find the start of TCP sections of the packet */
-	packet->tcp = (struct tcp *) (packet_start(packet) + ip_header_bytes);
+	packet->tcp = (struct tcp *) (ip_start(packet) + ip_header_bytes);
 	u8 *tcp_option_start = (u8 *) (packet->tcp + 1);
 
 	/* Set TCP header fields */
@@ -145,13 +141,13 @@ struct packet *new_tcp_packet(int socket_fd,
 		packet->tcp->window = htons(window);
 	}
 	packet->tcp->check = 0;
-	packet->tcp->urg_ptr = htons(is_tcp_flag_set('U', flags));
+	packet->tcp->urg_ptr = 0;
 	packet->tcp->fin = is_tcp_flag_set('F', flags);
 	packet->tcp->syn = is_tcp_flag_set('S', flags);
 	packet->tcp->rst = is_tcp_flag_set('R', flags);
 	packet->tcp->psh = is_tcp_flag_set('P', flags);
-	packet->tcp->urg = is_tcp_flag_set('U', flags);
 	packet->tcp->ack = is_tcp_flag_set('.', flags);
+	packet->tcp->urg = 0;
 	packet->tcp->ece = is_tcp_flag_set('E', flags);
 	packet->tcp->cwr = is_tcp_flag_set('W', flags);
 
@@ -163,5 +159,6 @@ struct packet *new_tcp_packet(int socket_fd,
 		       tcp_options->length);
 	}
 
+	packet->ip_bytes = ip_bytes;
 	return packet;
 }
