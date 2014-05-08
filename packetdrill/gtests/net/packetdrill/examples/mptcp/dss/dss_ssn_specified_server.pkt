@@ -8,11 +8,12 @@
 +0.2  < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4> //=trunc_r64_hmac(b)>
 +0  accept(3, ..., ...) = 4
 
-// Send 2 data segments
-/* the initial data sequence number (IDSN) = least significant 64
-   bits of the SHA-1 hash of the host's key */
-
+// Send 2 data segments, by specifying ssn, dll and checksum
 
 +0  write(4, ..., 1000) = 1000
-+0  > P. 1:1001(1000) ack 1 win 450  <dss dack4 dsn4 ssn=10>  // +1 bc syn/ack consumes one packet
-//+.1 < . 1:1(0) ack 1001 win 225 <dss dack4=trunc_r64_hmac(b)+1001>
++0  > P. 1:1001(1000) ack 1 win 450  <dss dack4 dsn4 ssn=1 dll=1000> 
++.1 < . 1:1(0) ack 1001 win 225 <dss dack4=trunc_r64_hmac(b)+1001>
+
++0  write(4, ..., 1000) = 1000
++0  > P. 1001:2001(1000) ack 1 win 450  <dss dack4 dsn4 ssn=1001 dll=1000> 
++.1 < . 1:1(0) ack 2001 win 225 <dss dack4=trunc_r64_hmac(b)+2001>

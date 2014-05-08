@@ -595,7 +595,7 @@ struct tcp_option *dss_do_dsn_only(int type, int val, bool no_checksum, bool fin
 
 struct tcp_option *dss_do_dack_only(int type, int val, bool fin_flag){
 	struct tcp_option *opt = NULL;
-//	opt->data.dss.dack = (struct dack*)malloc(sizeof(struct dack));
+
 	if(type==4){
 		opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4);
 		opt->data.dss.dack.dack4 = val;
@@ -612,56 +612,81 @@ struct tcp_option *dss_do_dack_only(int type, int val, bool fin_flag){
 	opt->data.dss.reserved_first_bits 	= DSS_RESERVED;
 	opt->data.dss.reserved_last_bits 	= DSS_RESERVED;
 	opt->data.mp_capable.subtype 		= DSS_SUBTYPE;
-
 	return opt;
 }
 
 struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
-		int dsn_type, int dsn_val, int ssn, int dll, bool no_checksum, bool fin_flag){
+		int dsn_type, int dsn_val, int ssn, int dll, int checksum, bool fin_flag){
 
 	struct tcp_option *opt;
-	// DSN
 	if(dsn_type==4 && dack_type==4){
-		if(no_checksum)
+		if(!checksum)
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN4_WOCS);
 		else
-			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN4);
-		opt->data.dss.dack_dsn.dsn.dsn4 = dsn_val;
-		opt->data.dss.dack_dsn.dack.dack4 = dack_val;
+			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN4);
+//		opt->data.dss.dack_dsn.dsn.dsn4 = dsn_val;
+//		opt->data.dss.dack_dsn.dack.dack4 = dack_val;
 	}else if(dsn_type==4 && dack_type==8){
-		if(no_checksum)
+		if(!checksum)
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN4_WOCS);
 		else
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN4);
-		opt->data.dss.dack_dsn.dsn.dsn4 = dsn_val;
-		opt->data.dss.dack_dsn.dack.dack8 = dack_val;
+//		opt->data.dss.dack_dsn.dsn.dsn4 = dsn_val;
+//		opt->data.dss.dack_dsn.dack.dack8 = dack_val;
 	}else if(dsn_type==8 && dack_type==4){
-		if(no_checksum)
+		if(!checksum)
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN8_WOCS);
 		else
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK4_DSN8);
-		opt->data.dss.dack_dsn.dsn.dsn8 = dsn_val;
-		opt->data.dss.dack_dsn.dack.dack4 = dack_val;
+//		opt->data.dss.dack_dsn.dsn.dsn8 = dsn_val;
+//		opt->data.dss.dack_dsn.dack.dack4 = dack_val;
 	}else if(dsn_type==8 && dack_type==8){
-		if(no_checksum)
+		if(!checksum)
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN8_WOCS);
 		else
 			opt = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_DSS_DACK8_DSN8);
-
-		opt->data.dss.dack_dsn.dsn.dsn8 = dsn_val;
-		opt->data.dss.dack_dsn.dack.dack8 = dack_val;
+//		opt->data.dss.dack_dsn.dsn.dsn8 = dsn_val;
+//		opt->data.dss.dack_dsn.dack.dack8 = dack_val;
 	}
 
+	struct dack *dack_script = (struct dack*)(&opt->data.dss.dack_dsn);
+	struct dsn *dsn_script = NULL;
+	if(dack_type == 4){
+		dsn_script = (struct dsn*)((u32*)dack_script+1);
+	}else if(dack_type == 8){
+		dsn_script = (struct dsn*)((u32*)dack_script+2);
+	}else
+		semantic_error("DACK Type is not known");
+	
+	*((u32*)dack_script) 	= dack_val; 	// dack
+	*((u32*)dsn_script) 	= dsn_val;		// dsn
+	
+	if(dsn_type==4){
+		*((u32*)dsn_script+1) = ssn; 		// should be ssn
+		*((u16*)dsn_script+4) = dll; 		// should be dll
+		if(checksum)
+			*((u16*)dsn_script+5) = checksum; 	// checksum
+	}else if(dsn_type==8){
+		*((u32*)dsn_script+2) = ssn; 		// should be ssn
+		*((u16*)dsn_script+6) = dll; 		// should be dll
+		if(checksum)
+			*((u16*)dsn_script+7) = checksum; 	// checksum
+	}else
+		semantic_error("DSN Type is not known");
+
+	
+	/*
 	if(no_checksum){
 		opt->data.dss.dack_dsn.dsn.wo_cs.ssn = ssn;
 		opt->data.dss.dack_dsn.dsn.wo_cs.dll = dll;
 		printf("686: no_chk; ssn: %u, dll: %u\n", ssn, dll);
 	}else{
 		opt->data.dss.dack_dsn.dsn.w_cs.ssn = ssn;
-		opt->data.dss.dack_dsn.dsn.w_cs.dll = dll;
+		*((u32*)(&opt->data.dss.dack_dsn) + 4) = 36; 
+	//	*(&opt->data.dss.dack_dsn.dsn.w_cs.ssn +1) = 35;
 		printf("686: with chk; ssn: %u, dll: %u\n", ssn, dll);
 	}
-
+*/
 //	queue_enqueue(&mp_state.vars_queue, new_el);
 
 	//flag_data_fin:1,flag_dsn8:1,flag_dsn:1,flag_dack8:1,flag_dack:1; F|m|M|a|A
@@ -769,7 +794,7 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 %type <syscall> syscall_spec
 %type <command> command_spec
 %type <code> code_spec
-%type <integer> opt_icmp_mtu socket_fd_spec fin ssn dll dss_no_checksum
+%type <integer> opt_icmp_mtu socket_fd_spec fin ssn dll dss_checksum
 %type <integer> mp_capable_no_cs is_backup address_id rand
 %type <string> icmp_type opt_icmp_code flags
 %type <string> opt_tcp_fast_open_cookie tcp_fast_open_cookie
@@ -1347,9 +1372,9 @@ fin
 | FIN {$$ = 1;}
 ;
 
-dss_no_checksum
-: {$$ = 0;}
-| NOCS {$$ = 1;}
+dss_checksum
+: {$$ = UNDEFINED;} 		// default value
+| NOCS {$$ = 0;}
 | CKSUM '=' INTEGER {
 	printf("1354 cksum: %u\n", (u16)$3);
 	$$ = (u16)$3;
@@ -1456,7 +1481,7 @@ tcp_option
 	$$ = mp_join_do_ack($2.str, $2.str2);
 }
 
-| DSS dack dsn ssn dll dss_no_checksum fin {
+| DSS dack dsn ssn dll dss_checksum fin {
 
 	if($2.type == -1 && $3.type == -1 )
 		$$ = dss_do_auto($6, $7); // TODO
