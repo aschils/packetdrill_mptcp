@@ -1,6 +1,7 @@
-// mptcp v0.88
-// connect() function, connection initiated by the kernel
-
+/* mptcp v0.88
+ * It shows how to specify the dsn and dack options with relative
+ * numbers.
+ */
 // create a socket
 0.000 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
 +0.000 fcntl(3, F_GETFL) = 0x2 (flags O_RDWR)
@@ -14,10 +15,9 @@
 0.200 getsockopt(3, SOL_SOCKET, SO_ERROR, [0], [4]) = 0
 0.200 fcntl(3, F_SETFL, O_RDWR) = 0   // set back to blocking
 
-// Kernel receives 2 segments and should acknowledge both
+// Kernel receives 2 segments, dack4 and dsn4 are specified with relative numbers
++0  < P. 1:1001(1000) ack 1 win 450  <dss dack4=1 dsn4=1>
++0 > . 1:1(0) ack 1001 win 472 <nop,nop,TS val 150 ecr 700, dss dack4=1001>
 
-+0  < P. 1:1001(1000) ack 1 win 450  <dss dack4 dsn4 ssn=1 dll=1000>
-+0 > . 1:1(0) ack 1001 win 472 <nop,nop,TS val 150 ecr 700, dss dack4=trunc_r64_hmac(b)+1001>
-
-+0.001  < P. 1001:2001(1000) ack 1 win 450  <dss dack4 dsn4 ssn=1001 dll=1000>  // cksum=12345 >
-+0 > . 1:1(0) ack 2001 win 488 <nop,nop,TS val 150 ecr 700, dss dack4=trunc_r64_hmac(b)+2001>
++0.001  < P. 1001:2001(1000) ack 1 win 450  <dss dack4=1 dsn4=1001 >
++0 > . 1:1(0) ack 2001 win 488 <nop,nop,TS val 150 ecr 700, dss dack4=2001>
