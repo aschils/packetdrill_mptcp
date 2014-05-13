@@ -19,7 +19,7 @@
 
 // Send 2 data segment and get an ACK for each.
 +0  < P. 1:11(10) ack 1 win 450 <dss dack4=trunc_r64_hmac(b)+1 dsn4=trunc_r64_hmac(a)+1>
-+0	> . 1:1(0) ack 11 win 450  <dss dack4=trunc_r64_hmac(a)+11>
++0	> . 1:1(0) ack 11 <dss dack4=trunc_r64_hmac(a)+11>
 
 +0  < P. 11:16(5) ack 1 win 450 <dss dack4=trunc_r64_hmac(b)+1 dsn4=trunc_r64_hmac(a)+11>
-+0	> . 1:1(0) ack 16 win 450  <dss dack4=trunc_r64_hmac(a)+16>
++0	> . 1:1(0) ack 16 <dss dack4=trunc_r64_hmac(a)+16>

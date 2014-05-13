@@ -28,5 +28,5 @@
 
 +0 close(4) = 0 // Problem, here: it should 
 //0.0 > F. 1001:1001(0) ack 1 win 450 <dss dack4 dsn4 FIN> // instead of
-0.0 > . 1001:1001(0) ack 1 win 450 <dss dack4 dsn4 FIN>
+0.0 > . 1001:1001(0) ack 1 <dss dack4 dsn4 FIN>
 +0 < . 1001:1001(0) ack 1001 win 257 <dss dack4 FIN>

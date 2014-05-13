@@ -28,7 +28,7 @@
 +0  < . 1:1(0) ack 1 win 32792 <mss 1460,nop,nop,sackOK,nop,wscale 7,mp_join_ack sender_hmac=full_160_hmac(key_a key_b)> sock(5)
 +0 mp_join_accept(5) = 6
 
-+0 > . 1:1(0) ack 1 win 675 <dss dack4> sock(6)
++0 > . 1:1(0) ack 1 <dss dack4> sock(6)
 
 //Second subflow
 +0  < S 0:0(0) win 32792 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_join_syn backup=0 address_id=3 token=auto> sock(10)
@@ -36,4 +36,4 @@
 +0  < . 1:1(0) ack 1 win 32792 <mss 1460,nop,nop,sackOK,nop,wscale 7,mp_join_ack sender_hmac=full_160_hmac(key_a key_b)> sock(10)
 +0 mp_join_accept(10) = 11
 
-+0 > . 1:1(0) ack 1 win 900 <dss dack4> sock(11)
++0 > . 1:1(0) ack 1 <dss dack4> sock(11)
