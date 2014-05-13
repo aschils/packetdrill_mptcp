@@ -1485,7 +1485,6 @@ dss_checksum
 : {$$ = UNDEFINED;} 		// default value
 | NOCS {$$ = 0;}
 | CKSUM '=' INTEGER {
-	printf("1354 cksum: %u\n", (u16)$3);
 	$$ = (u16)$3;
 }
 ;
