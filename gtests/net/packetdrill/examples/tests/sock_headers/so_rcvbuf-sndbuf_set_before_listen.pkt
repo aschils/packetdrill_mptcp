@@ -22,8 +22,7 @@
 0.200  < . 1:1(0) ack 1 win 257 <mp_capable a b>
 0.200  accept(3, ..., ...) = 4
 
-// SO_RCVBUF, should be 80000 and not 160000 => error?
-0.400 getsockopt(4, SOL_SOCKET, SO_RCVBUF, [160000], [4]) = 0
+0.400 getsockopt(4, SOL_SOCKET, SO_RCVBUF, [80000], [4]) = 0
 +0.1 setsockopt(4, SOL_SOCKET, SO_RCVBUF, [50000], 4) = 0
 +0.1 getsockopt(4, SOL_SOCKET, SO_RCVBUF, [100000], [4]) = 0
 
