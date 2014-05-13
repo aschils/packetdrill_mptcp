@@ -28,7 +28,7 @@
 #include "tcp.h"
 
 /* The full list of valid TCP bit flag characters */
-static const char valid_tcp_flags[] = "FSRP.EWC";
+static const char valid_tcp_flags[] = "FSRPU.EWC";
 
 /* Are all the TCP flags in the given string valid? */
 static bool is_tcp_flags_spec_valid(const char *flags, char **error)
@@ -141,13 +141,13 @@ struct packet *new_tcp_packet(int socket_fd,
 		packet->tcp->window = htons(window);
 	}
 	packet->tcp->check = 0;
-	packet->tcp->urg_ptr = 0;
+	packet->tcp->urg_ptr = htons(is_tcp_flag_set('U', flags));
 	packet->tcp->fin = is_tcp_flag_set('F', flags);
 	packet->tcp->syn = is_tcp_flag_set('S', flags);
 	packet->tcp->rst = is_tcp_flag_set('R', flags);
 	packet->tcp->psh = is_tcp_flag_set('P', flags);
+	packet->tcp->urg = is_tcp_flag_set('U', flags);
 	packet->tcp->ack = is_tcp_flag_set('.', flags);
-	packet->tcp->urg = 0;
 	packet->tcp->ece = is_tcp_flag_set('E', flags);
 	packet->tcp->cwr = is_tcp_flag_set('W', flags);
 
