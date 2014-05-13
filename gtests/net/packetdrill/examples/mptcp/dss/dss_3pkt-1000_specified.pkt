@@ -21,10 +21,10 @@
  */
 
 +0 < P. 1:1001(1000) ack 1 win 450 <dss dack4=trunc_r64_hmac(b)+1 dsn4=trunc_r64_hmac(a)+1  >
-+0 > . 1:1(0) ack 1001 win 466 <dss dack4=trunc_r64_hmac(a)+1001>
++0 > . 1:1(0) ack 1001 <dss dack4=trunc_r64_hmac(a)+1001>
 
 +0 < P. 1001:2001(1000) ack 1 win 450  <dss dack4=trunc_r64_hmac(b)+1 dsn4=trunc_r64_hmac(a)+1001 >
-+0 > . 1:1(0) ack 2001 win 482 <dss dack4=trunc_r64_hmac(a)+2001>
++0 > . 1:1(0) ack 2001 <dss dack4=trunc_r64_hmac(a)+2001>
 
 +0 < P. 2001:3001(1000) ack 1 win 450  <dss dack4=trunc_r64_hmac(b)+1 dsn4=trunc_r64_hmac(a)+2001 > 
-+0 > . 1:1(0) ack 3001 win 497 <dss dack4=trunc_r64_hmac(a)+3001>
++0 > . 1:1(0) ack 3001 <dss dack4=trunc_r64_hmac(a)+3001>

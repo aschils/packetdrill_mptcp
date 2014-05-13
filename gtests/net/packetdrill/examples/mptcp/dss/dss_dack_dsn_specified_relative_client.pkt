@@ -11,13 +11,13 @@
 +0.0 connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)
 +0.0 > S 0:0(0) win 29200 <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 7,mp_capable a> sock(3)
 +0.0 < S. 0:0(0) ack 1 win 5792 <mss 1460,sackOK,TS val 700 ecr 100,nop,wscale 7,mp_capable b> sock(3)
-+0.0 > . 1:1(0) ack 1 win 457 <nop,nop,TS val 100 ecr 700,mp_capable a b, dss dack4=trunc_r64_hmac(b)+1> sock(3)
++0.0 > . 1:1(0) ack 1 <nop,nop,TS val 100 ecr 700,mp_capable a b, dss dack4=trunc_r64_hmac(b)+1> sock(3)
 0.200 getsockopt(3, SOL_SOCKET, SO_ERROR, [0], [4]) = 0
 0.200 fcntl(3, F_SETFL, O_RDWR) = 0   // set back to blocking
 
 // Kernel receives 2 segments, dack4 and dsn4 are specified with relative numbers
 +0  < P. 1:1001(1000) ack 1 win 450  <dss dack4=1 dsn4=1>
-+0 > . 1:1(0) ack 1001 win 472 <nop,nop,TS val 150 ecr 700, dss dack4=1001>
++0 > . 1:1(0) ack 1001 <nop,nop,TS val 150 ecr 700, dss dack4=1001>
 
 +0.001  < P. 1001:2001(1000) ack 1 win 450  <dss dack4=1 dsn4=1001 >
-+0 > . 1:1(0) ack 2001 win 488 <nop,nop,TS val 150 ecr 700, dss dack4=2001>
++0 > . 1:1(0) ack 2001 <nop,nop,TS val 150 ecr 700, dss dack4=2001>
