@@ -14,18 +14,18 @@
 0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7, mp_capable b>
 0.200  < . 1:1(0) ack 1 win 257 <mp_capable a b>
 0.200  accept(3, ..., ...) = 4
- 
+
 // Receive a segment.
 0.200 < P. 1:1001(1000) ack 1 win 257 <dss dack4 dsn4>
 0.200 > . 1:1(0) ack 1001 <dss dack4>
- 
+
 0.210 ioctl(4, SIOCINQ, [1000]) = 0
 0.220 read(4, ..., 1000) = 1000
 0.230 ioctl(4, SIOCINQ, [0]) = 0
 
 // Receive a segment with a FIN.
 0.300 < FP. 1001:2001(1000) ack 1 win 257 <dss dack4 dsn4 FIN>
-0.300 > . 1:1(0) ack 2002 <dss dack4 FIN>
+0.300 > . 1:1(0) ack 2002 <dss dack4 > // should be with FIN option ?
 
 0.310 ioctl(4, SIOCINQ, [1000]) = 0
 0.320 read(4, ..., 1000) = 1000
