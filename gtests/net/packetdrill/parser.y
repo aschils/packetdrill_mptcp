@@ -660,10 +660,10 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 		dsn_script = (struct dsn*)((u32*)dack_script+2);
 	}else
 		semantic_error("DACK Type is not known");
-	
+
 	*((u32*)dack_script) 	= dack_val; 	// dack
 	*((u32*)dsn_script) 	= dsn_val;		// dsn
-	
+
 	if(dsn_type==4){
 		*((u32*)dsn_script+1) = ssn; 		// should be ssn
 		*((u16*)dsn_script+4) = dll; 		// should be dll
@@ -676,21 +676,6 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 			*((u16*)dsn_script+7) = checksum; 	// checksum
 	}else
 		semantic_error("DSN Type is not known");
-
-	
-	/*
-	if(no_checksum){
-		opt->data.dss.dack_dsn.dsn.wo_cs.ssn = ssn;
-		opt->data.dss.dack_dsn.dsn.wo_cs.dll = dll;
-		printf("686: no_chk; ssn: %u, dll: %u\n", ssn, dll);
-	}else{
-		opt->data.dss.dack_dsn.dsn.w_cs.ssn = ssn;
-		*((u32*)(&opt->data.dss.dack_dsn) + 4) = 36; 
-	//	*(&opt->data.dss.dack_dsn.dsn.w_cs.ssn +1) = 35;
-		printf("686: with chk; ssn: %u, dll: %u\n", ssn, dll);
-	}
-*/
-//	queue_enqueue(&mp_state.vars_queue, new_el);
 
 	//flag_data_fin:1,flag_dsn8:1,flag_dsn:1,flag_dack8:1,flag_dack:1; F|m|M|a|A
 	opt->data.dss.flag_M = 1;
@@ -756,6 +741,13 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 		char *str;
 		char *str2;
 	} mptcp_token_or_hmac;
+	struct {
+		int type;
+		union{
+			struct in_addr ip_addr;
+			struct in6_addr ip6_addr;
+		};
+	} address;
 	struct option_list *option;
 	struct event *event;
 	struct packet *packet;
@@ -782,6 +774,7 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 %token <reserved> MP_JOIN_SYN MP_JOIN_SYN_BACKUP MP_JOIN_SYN_ACK_BACKUP MP_JOIN_ACK MP_JOIN_SYN_ACK
 %token <reserved> DSS DACK4 DSN4 DACK8 DSN8 FIN SSN DLL NOCS CKSUM ADDRESS_ID BACKUP TOKEN AUTO RAND TRUNC_R64_HMAC
 %token <reserved> SENDER_HMAC TRUNC_L64_HMAC FULL_160_HMAC SHA1_32
+%token <reserved> ADD_ADDRESS ADD_ADDR_IPV4 ADD_ADDR_IPV6 PORT
 %token <reserved> FAST_OPEN
 %token <reserved> ECT0 ECT1 CE ECT01 NO_ECN
 %token <reserved> IPV4 IPV6 ICMP UDP GRE MTU
@@ -805,7 +798,7 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 %type <mpls_stack_entry> mpls_stack_entry
 %type <integer> opt_mpls_stack_bottom
 %type <integer> opt_icmp_mtu socket_fd_spec fin ssn dll dss_checksum
-%type <integer> mp_capable_no_cs is_backup address_id rand
+%type <integer> mp_capable_no_cs is_backup address_id rand port
 %type <string> icmp_type opt_icmp_code flags
 %type <string> opt_tcp_fast_open_cookie tcp_fast_open_cookie
 %type <string> opt_note note word_list
@@ -819,6 +812,7 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 %type <mptcp_token_or_hmac> mptcp_token sender_hmac
 %type <tcp_options> opt_tcp_options tcp_option_list
 %type <tcp_option> tcp_option sack_block_list sack_block
+%type <address> add_addr_ip
 %type <string> function_name
 %type <expression_list> expression_list function_arguments
 %type <expression> expression binary_expression array
@@ -1406,8 +1400,8 @@ is_backup
 ;
 
 address_id
-:
-ADDRESS_ID '=' INTEGER
+:	{	$$ = UNDEFINED; }
+|ADDRESS_ID '=' INTEGER
   {
 	if(!is_valid_u8($3))
 		semantic_error("MPTCP mp_join address_id should be a 8 bits unsigned integer.");
@@ -1415,7 +1409,25 @@ ADDRESS_ID '=' INTEGER
   }
 | ADDRESS_ID '=' AUTO
 {
-	$$ = -1;
+	$$ = UNDEFINED;
+}
+;
+
+add_addr_ip
+:			{$$.type = UNDEFINED;	 }
+| IPV4 '=' INET_ADDR '(' STRING ')' {
+	struct ip_address ip_formatted = ipv4_parse($5);
+	$$.ip_addr = ip_formatted.ip.v4;
+	$$.type = AF_INET;
+}// TODO IPV6  (redward)
+;
+
+port
+: 						{$$ = UNDEFINED; }
+| 	PORT '=' INTEGER 	{
+	if(!is_valid_u16($3))
+		semantic_error("ADD_ADDRESS: the port is a 16 bits unsigned integer");
+	$$ = $3;
 }
 ;
 
@@ -1599,6 +1611,31 @@ tcp_option
 	else if($2.type != -1 && $3.type != -1)
 		$$ = dss_do_dsn_dack($2.type, $2.dack, $3.type, $3.val, $4, $5, $6, $7); // $2=dsn, $3=dack, $4:ssn, $5:dll, $6=0|1, $7=0|1 XXX
 
+}
+| ADD_ADDRESS address_id add_addr_ip port {
+	// ipv4
+	if($3.type == AF_INET && $4 == UNDEFINED){
+		$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_ADD_ADDR_V4);
+		$$->data.add_addr.ipv4 = $3.ip_addr;
+	// ipv4 + port
+	}else if($3.type == AF_INET && $4 != UNDEFINED){
+		$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_ADD_ADDR_V4_PORT);
+		$$->data.add_addr.ipv4_w_port.ipv4 = $3.ip_addr;
+		$$->data.add_addr.ipv4_w_port.port = $4;
+/*	// ipv6, TODO (redward)
+	}else if($3.type == 6 && $4 == UNDEFINED){
+		$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_ADD_ADDR_V6);
+	// ipv6 + port
+	}else if($3.type == 6 && $4 != UNDEFINED){
+		$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_ADD_ADDR_V6_PORT);
+	// undefined = ipv4
+	}else if($3 == UNDEFINED){
+		$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_ADD_ADDR_V4);
+*/	}else{
+		semantic_error("Values assigned to add_address option are not valid");
+	}
+	$$->data.add_addr.address_id = $2;
+	$$->data.mp_capable.subtype = ADD_ADDR_SUBTYPE;
 }
 | MP_FASTCLOSE mptcp_var_or_empty add_to_var {
 	$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_MP_FASTCLOSE);
@@ -1809,7 +1846,7 @@ sockaddr
 			$$->value.socket_address_ipv6 = ipv6;
 		} else {
 			free(ipv6);
-			semantic_error("invalid IPv6 address");
+			semantic_error("invalid IPv6 ");
 		}
 	}
 }

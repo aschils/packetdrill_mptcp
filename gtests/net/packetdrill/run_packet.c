@@ -1049,6 +1049,30 @@ bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b, struct p
 				}
 			}
 			break;
+		case ADD_ADDR_SUBTYPE:
+			// TODO: add in_addr comparison
+			if(opt_a->data.add_addr.address_id != opt_b->data.add_addr.address_id){
+				return false;
+			}else if(opt_a->length == TCPOLEN_ADD_ADDR_V4){
+				if(opt_b->length != TCPOLEN_ADD_ADDR_V4 )
+					return false;
+
+			}else if(opt_a->length == TCPOLEN_ADD_ADDR_V4_PORT){
+				if(	opt_b->length != TCPOLEN_ADD_ADDR_V4_PORT ||
+					opt_a->data.add_addr.ipv4_w_port.port != opt_b->data.add_addr.ipv4_w_port.port )
+					return false;
+
+			}if(opt_a->length == TCPOLEN_ADD_ADDR_V6 ){
+				if(	opt_b->length != TCPOLEN_ADD_ADDR_V6 )
+					return false;
+
+			}if(opt_a->length == TCPOLEN_ADD_ADDR_V6_PORT ){
+				if(	opt_b->length != TCPOLEN_ADD_ADDR_V6_PORT ||
+					opt_a->data.add_addr.ipv6_w_port.port != opt_b->data.add_addr.ipv6_w_port.port )
+					return false;
+
+			}
+			break;
 		case MP_FASTCLOSE_SUBTYPE:
 			if(opt_a->data.mp_fastclose.receiver_key != opt_b->data.mp_fastclose.receiver_key)
 				return false;
@@ -1096,10 +1120,10 @@ static bool same_tcp_options(struct packet *packet_a,
 
 		//NOP option only contains a kind field (not length)
 		if(opt_a->kind != TCPOPT_NOP){
-			if(opt_a->length != opt_b->length || memcmp(opt_b, opt_a, opt_a->length))
-				return false;
-
-			if(opt_a->kind == TCPOPT_MPTCP){
+			if(opt_a->kind != TCPOPT_MPTCP){
+				if(opt_a->length != opt_b->length || memcmp(opt_b, opt_a, opt_a->length))
+					return false;
+			}else{
 				if(!same_mptcp_opt(opt_a, opt_b, packet_a))
 					return false;
 

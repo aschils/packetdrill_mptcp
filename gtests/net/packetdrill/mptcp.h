@@ -39,7 +39,7 @@
 #define MP_CAPABLE_SUBTYPE 0
 #define MP_JOIN_SUBTYPE 1
 #define DSS_SUBTYPE 2
-#define ADD_ADDR_SUBTYPE 3
+#define ADD_ADDR_SUBTYPE 3	// in progress
 #define REMOVE_ADDR_SUBTYPE 4 // TODO
 #define MP_PRIO_SUBTYPE 5 // TODO, Change Subflow Priority
 #define MP_FAIL_SUBTYPE 6 // TODO
@@ -71,8 +71,10 @@
 #define TCPOLEN_DSS_DACK8_DSN4_WOCS 22
 #define TCPOLEN_DSS_DACK8_DSN8_WOCS 26
 //ADD_ADDR
-#define TCPOLEN_ADD_ADDR 8
-#define TCPOLEN_ADD_ADDR_PORT 10
+#define TCPOLEN_ADD_ADDR_V4 8
+#define TCPOLEN_ADD_ADDR_V4_PORT 10
+#define TCPOLEN_ADD_ADDR_V6 20
+#define TCPOLEN_ADD_ADDR_V6_PORT 22
 //MP_FASTCLOSE
 #define TCPOLEN_MP_FASTCLOSE 12
 //MPTCP Flags
@@ -108,10 +110,10 @@ struct mp_join_info {
 			u32 rand;
 		} syn_or_syn_ack;
 		struct {
-			bool is_script_defined; 
+			bool is_script_defined;
 			bool is_var;
 			char var[255];
-			char var2[255]; 
+			char var2[255];
 			u32 hash[5];
 		} ack;
 	};

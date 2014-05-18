@@ -136,11 +136,17 @@ static int get_expected_tcp_option_length(struct tcp_option *opt, u8 *expected_l
 
 		case ADD_ADDR_SUBTYPE:
 			switch(opt->length){
-			case TCPOLEN_ADD_ADDR:
-				*expected_length = TCPOLEN_ADD_ADDR;
+			case TCPOLEN_ADD_ADDR_V4:
+				*expected_length = TCPOLEN_ADD_ADDR_V4;
 				break;
-			case TCPOLEN_ADD_ADDR_PORT:
-				*expected_length = TCPOLEN_ADD_ADDR_PORT;
+			case TCPOLEN_ADD_ADDR_V4_PORT:
+				*expected_length = TCPOLEN_ADD_ADDR_V4_PORT;
+				break;
+			case TCPOLEN_ADD_ADDR_V6:
+				*expected_length = TCPOLEN_ADD_ADDR_V6;
+				break;
+			case TCPOLEN_ADD_ADDR_V6_PORT:
+				*expected_length = TCPOLEN_ADD_ADDR_V6_PORT;
 				break;
 			default:
 				asprintf(error, "unexpected MPTCP add_addr length: %u", opt->length);

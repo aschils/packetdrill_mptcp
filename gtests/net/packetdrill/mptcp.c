@@ -1794,7 +1794,7 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 	struct tcp_options_iterator tcp_opt_iter;
 	struct tcp_option *tcp_opt_to_modify =
 			tcp_options_begin(packet_to_modify, &tcp_opt_iter);
-	int error;
+	int error = STATUS_OK;
 	while(tcp_opt_to_modify != NULL){
 		if(tcp_opt_to_modify->kind == TCPOPT_MPTCP){
 			switch(tcp_opt_to_modify->data.mp_capable.subtype){
@@ -1819,8 +1819,9 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 						tcp_opt_to_modify,
 						direction);
 				break;
-			case ADD_ADDR_SUBTYPE: 	//03 TODO
-				printf("ADD_ADDR_SUBTYPE, todo\n");
+			case ADD_ADDR_SUBTYPE: 	//03 TODO: in progress
+				//printf("mptcp.c:1823 ADD_ADDR_SUBTYPE, todo\n");
+				//error = false;
 				break;
 			case REMOVE_ADDR_SUBTYPE:	// 04 TODO
 				printf("REMOVE_ADDR_SUBTYPE, todo\n");
@@ -1837,15 +1838,10 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 						tcp_opt_to_modify,
 						direction);
 				break;
-			default:
-				error =  STATUS_ERR;
-				break;
 			}
-			if(error)
-				return STATUS_ERR;
 		}
 		tcp_opt_to_modify = tcp_options_next(&tcp_opt_iter, NULL);
 	}
 
-	return STATUS_OK;
+	return error;
 }

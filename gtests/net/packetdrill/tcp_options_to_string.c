@@ -183,6 +183,7 @@ int tcp_options_to_string(struct packet *packet,
 
 	struct tcp_options_iterator iter;
 	struct tcp_option *option = NULL;
+	char src_string[ADDR_STR_LEN];
 	for (option = tcp_options_begin(packet, &iter);
 	     option != NULL; option = tcp_options_next(&iter, error)) {
 		if (index > 0)
@@ -239,7 +240,7 @@ int tcp_options_to_string(struct packet *packet,
 				goto out;
 			}
 			break;
-        
+
         case TCPOPT_MPTCP:
 
         	switch(option->data.mp_capable.subtype){
@@ -263,10 +264,6 @@ int tcp_options_to_string(struct packet *packet,
 
         	case DSS_SUBTYPE:
         		print_dss_subtype(s, option);
-        		break;
-
-        	case ADD_ADDR_SUBTYPE:
-        		fprintf(s, "add_addr");
         		break;
 
         	case MP_JOIN_SUBTYPE:
@@ -302,15 +299,48 @@ int tcp_options_to_string(struct packet *packet,
         		}
 
         		break;
+        	case ADD_ADDR_SUBTYPE:
+
+        		if(option->length == TCPOLEN_ADD_ADDR_V4){
+        			if (!inet_ntop(AF_INET, &option->data.add_addr.ipv4, src_string, ADDR_STR_LEN))
+						die_perror("inet_ntop");
+        			fprintf(s, "add_address address_id: %u ipv4: %s",
+						option->data.add_addr.address_id,
+						src_string);
+        		}else if(option->length == TCPOLEN_ADD_ADDR_V4_PORT){
+        			if (!inet_ntop(AF_INET, &option->data.add_addr.ipv4_w_port.ipv4, src_string, ADDR_STR_LEN))
+						die_perror("inet_ntop");
+        			fprintf(s, "add_address address_id: %u ipv4: %s port: %u",
+						option->data.add_addr.address_id,
+						src_string,
+						option->data.add_addr.ipv4_w_port.port);
+        		}else if(option->length == TCPOLEN_ADD_ADDR_V6){
+        			if (!inet_ntop(AF_INET, &option->data.add_addr.ipv6, src_string, ADDR_STR_LEN))
+						die_perror("inet_ntop");
+					fprintf(s, "add_address address_id: %u ipv6: %s",
+						option->data.add_addr.address_id,
+						src_string);
+        		}else if(option->length == TCPOLEN_ADD_ADDR_V6_PORT){
+        			if (!inet_ntop(AF_INET6, &option->data.add_addr.ipv6_w_port.ipv6, src_string, ADDR_STR_LEN))
+						die_perror("inet_ntop");
+					fprintf(s, "add_address address_id: %u ipv6: %s port: %u",
+						option->data.add_addr.address_id,
+						src_string,
+						option->data.add_addr.ipv6_w_port.port);
+        		}else{
+        			fprintf(s, "add_address bad length");
+        		}
+        		break;
         	case MP_FASTCLOSE_SUBTYPE:
         		fprintf(s, "mp_fastclose receiver key: %lu",
         				(unsigned long)option->data.mp_fastclose.receiver_key);
         		break;
         	default:
         		fprintf(s, "unknow MPTCP subtype");
+        		break;
         	}
         	break;
-        
+
 		default:
 			asprintf(error, "unexpected TCP option kind: %u",
 				 option->kind);

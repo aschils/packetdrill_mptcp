@@ -251,6 +251,40 @@ struct tcp_option {
        +---------------------------------------------------------------+
 			 */
 		} __packed mp_fastclose;
+		struct {
+			#if defined(__LITTLE_ENDIAN_BITFIELD)
+			__u8 ipver:4, subtype:4;
+			__u8 address_id;
+			#elif defined(__BIG_ENDIAN_BITFIELD)
+			__u8 subtype:4, ipver:4;
+			__u8 address_id;
+			#else
+			#error "Adjust your <asm/byteorder.h> defines"
+			#endif
+			/*
+						1                   2                   3
+		0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2
+		+---------------+---------------+-------+-------+---------------+
+		|     Kind      |     Length    |Subtype| IPVer |  Address ID   |
+		+---------------+---------------+-------+-------+---------------+
+		|          Address (IPv4 - 4 octets / IPv6 - 16 octets)         |
+		+-------------------------------+-------------------------------+
+		|   Port (2 octets, optional)   |
+		+-------------------------------+
+			 */
+			union{
+				struct in_addr ipv4;
+				struct{
+					struct in_addr ipv4;
+					u16 port;
+				}ipv4_w_port;
+				struct in6_addr ipv6;
+				struct{
+					struct in6_addr ipv6;
+					u16 port;
+				}ipv6_w_port;
+			};
+		} __packed add_addr;
 		/*******END MPTCP options*********/
 	} __packed data;
 } __packed tcp_option;
