@@ -597,12 +597,10 @@ static int map_inbound_packet(
 	struct socket *socket, struct packet *live_packet, char **error)
 {
 	DEBUGP("map_inbound_packet\n");
-
 	/* Remap packet to live values. */
 	struct tuple live_inbound;
 	socket_get_inbound(&socket->live, &live_inbound);
 	set_packet_tuple(live_packet, &live_inbound);
-
 	if ((live_packet->icmpv4 != NULL) || (live_packet->icmpv6 != NULL))
 		return map_inbound_icmp_packet(socket, live_packet, error);
 
@@ -1050,27 +1048,30 @@ bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b, struct p
 			}
 			break;
 		case ADD_ADDR_SUBTYPE:
-			// TODO: add in_addr comparison
 			if(opt_a->data.add_addr.address_id != opt_b->data.add_addr.address_id){
 				return false;
 			}else if(opt_a->length == TCPOLEN_ADD_ADDR_V4){
 				if(opt_b->length != TCPOLEN_ADD_ADDR_V4 )
 					return false;
-
+				if(memcmp(&opt_a->data.add_addr.ipv4, &opt_b->data.add_addr.ipv4, sizeof(opt_b->data.add_addr.ipv4)))
+					return false;
 			}else if(opt_a->length == TCPOLEN_ADD_ADDR_V4_PORT){
 				if(	opt_b->length != TCPOLEN_ADD_ADDR_V4_PORT ||
 					opt_a->data.add_addr.ipv4_w_port.port != opt_b->data.add_addr.ipv4_w_port.port )
 					return false;
-
+				if(memcmp(&opt_a->data.add_addr.ipv4_w_port.ipv4, &opt_b->data.add_addr.ipv4_w_port.ipv4, sizeof(struct in_addr)))
+					return false;
 			}if(opt_a->length == TCPOLEN_ADD_ADDR_V6 ){
 				if(	opt_b->length != TCPOLEN_ADD_ADDR_V6 )
 					return false;
-
+				if(memcmp(&opt_a->data.add_addr.ipv6, &opt_b->data.add_addr.ipv6, sizeof(struct in6_addr)))
+					return false;
 			}if(opt_a->length == TCPOLEN_ADD_ADDR_V6_PORT ){
 				if(	opt_b->length != TCPOLEN_ADD_ADDR_V6_PORT ||
 					opt_a->data.add_addr.ipv6_w_port.port != opt_b->data.add_addr.ipv6_w_port.port )
 					return false;
-
+				if(memcmp(&opt_a->data.add_addr.ipv6_w_port.ipv6, &opt_b->data.add_addr.ipv6_w_port.ipv6, sizeof(struct in6_addr)))
+					return false;
 			}
 			break;
 		case MP_FASTCLOSE_SUBTYPE:

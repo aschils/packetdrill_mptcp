@@ -1741,7 +1741,77 @@ int mptcp_subtype_dss(struct packet *packet_to_modify,
 
 	return STATUS_OK;
 }
+int mptcp_subtype_add_address(struct packet *packet_to_modify,
+		struct packet *live_packet,
+		struct tcp_option *dss_opt_script,
+		unsigned direction)
+{
 
+
+	struct tcp_option* dss_opt_live = get_mptcp_option(live_packet, ADD_ADDR_SUBTYPE);
+	if(!dss_opt_live)
+		return STATUS_ERR;
+
+	struct in_addr adr4_zero = ipv4_parse("0.0.0.0").ip.v4;
+	struct in6_addr adr6_zero = ipv6_parse("::").ip.v6;
+	if(direction == DIRECTION_INBOUND){
+		struct mp_subflow *subflow = find_subflow_matching_inbound_packet(packet_to_modify);
+		if(!subflow)
+			return STATUS_ERR;
+		// TODO: it does not take in account the ipv4 given in script
+		if((s8)dss_opt_script->data.add_addr.address_id == UNDEFINED)
+			dss_opt_live->data.add_addr.address_id = subflow->packetdrill_addr_id;
+
+		if(dss_opt_live->length == TCPOLEN_ADD_ADDR_V4){
+			if(!memcmp(&dss_opt_script->data.add_addr.ipv4, &adr4_zero, sizeof(struct in_addr)))
+				dss_opt_live->data.add_addr.ipv4.s_addr = inet_netof(subflow->src_ip.ip.v4);
+			else{
+				dss_opt_live->data.add_addr.ipv4.s_addr = inet_netof(dss_opt_live->data.add_addr.ipv4);
+			}
+		}else if(dss_opt_live->length == TCPOLEN_ADD_ADDR_V4_PORT){
+			if(!memcmp(&dss_opt_script->data.add_addr.ipv4_w_port.ipv4, &adr4_zero, sizeof(struct in_addr)))
+				dss_opt_live->data.add_addr.ipv4_w_port.ipv4 = subflow->src_ip.ip.v4;
+			if(dss_opt_script->data.add_addr.ipv4_w_port.port == UNDEFINED)
+				dss_opt_live->data.add_addr.ipv4_w_port.port= subflow->src_port;
+		}else if(dss_opt_live->length == TCPOLEN_ADD_ADDR_V6){
+			if(!memcmp(&dss_opt_script->data.add_addr.ipv6, &adr6_zero, sizeof(struct in6_addr)))
+				dss_opt_live->data.add_addr.ipv6 = subflow->src_ip.ip.v6;
+		}else if(dss_opt_live->length == TCPOLEN_ADD_ADDR_V6_PORT){
+			if(!memcmp(&dss_opt_script->data.add_addr.ipv6_w_port.ipv6, &adr6_zero, sizeof(struct in6_addr)))
+				dss_opt_script->data.add_addr.ipv6_w_port.ipv6 = subflow->src_ip.ip.v6;
+			if(dss_opt_script->data.add_addr.ipv6_w_port.port == UNDEFINED)
+				dss_opt_live->data.add_addr.ipv6_w_port.port = subflow->src_port;
+		}else
+			return STATUS_ERR;
+	}else if(direction == DIRECTION_OUTBOUND){
+		if((s8)dss_opt_script->data.add_addr.address_id == UNDEFINED)
+			dss_opt_script->data.add_addr.address_id = dss_opt_live->data.add_addr.address_id;
+
+		if(dss_opt_script->length == TCPOLEN_ADD_ADDR_V4){
+			if(!memcmp(&dss_opt_script->data.add_addr.ipv4, &adr4_zero, sizeof(struct in_addr)))
+				dss_opt_script->data.add_addr.ipv4 = dss_opt_live->data.add_addr.ipv4;
+		}else if(dss_opt_script->length == TCPOLEN_ADD_ADDR_V4_PORT){
+			if(!memcmp(&dss_opt_script->data.add_addr.ipv4_w_port.ipv4, &adr4_zero, sizeof(struct in_addr)))
+				dss_opt_script->data.add_addr.ipv4_w_port.ipv4 = dss_opt_live->data.add_addr.ipv4_w_port.ipv4 ;
+			if(dss_opt_script->data.add_addr.ipv4_w_port.port == UNDEFINED)
+				dss_opt_script->data.add_addr.ipv4_w_port.port = dss_opt_live->data.add_addr.ipv4_w_port.port;
+		}else if(dss_opt_script->length == TCPOLEN_ADD_ADDR_V6){
+			if(!memcmp(&dss_opt_script->data.add_addr.ipv6, &adr6_zero, sizeof(struct in6_addr)))
+				dss_opt_script->data.add_addr.ipv6 = dss_opt_live->data.add_addr.ipv6 ;
+		}else if(dss_opt_script->length == TCPOLEN_ADD_ADDR_V6_PORT){
+			if(!memcmp(&dss_opt_script->data.add_addr.ipv6_w_port.ipv6, &adr6_zero, sizeof(struct in6_addr)))
+				dss_opt_script->data.add_addr.ipv6_w_port.ipv6 = dss_opt_live->data.add_addr.ipv6_w_port.ipv6;
+			if(dss_opt_script->data.add_addr.ipv6_w_port.port == UNDEFINED)
+				dss_opt_script->data.add_addr.ipv6_w_port.port = dss_opt_live->data.add_addr.ipv6_w_port.port;
+		}else{
+			return STATUS_ERR;
+		}
+	}else{
+		return STATUS_ERR;
+	}
+
+	return STATUS_OK;
+}
 
 /**
  * Insert appropriate key in mp_fastclose mptcp option.
@@ -1797,8 +1867,8 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 	int error = STATUS_OK;
 	while(tcp_opt_to_modify != NULL){
 		if(tcp_opt_to_modify->kind == TCPOPT_MPTCP){
+			printf("1864: before switch\n");
 			switch(tcp_opt_to_modify->data.mp_capable.subtype){
-
 			case MP_CAPABLE_SUBTYPE:	// 00
 				error = mptcp_subtype_mp_capable(packet_to_modify,
 						live_packet,
@@ -1820,8 +1890,10 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 						direction);
 				break;
 			case ADD_ADDR_SUBTYPE: 	//03 TODO: in progress
-				//printf("mptcp.c:1823 ADD_ADDR_SUBTYPE, todo\n");
-				//error = false;
+				error = mptcp_subtype_add_address(packet_to_modify,
+						live_packet,
+						tcp_opt_to_modify,
+						direction);
 				break;
 			case REMOVE_ADDR_SUBTYPE:	// 04 TODO
 				printf("REMOVE_ADDR_SUBTYPE, todo\n");

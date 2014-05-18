@@ -1419,7 +1419,12 @@ add_addr_ip
 	struct ip_address ip_formatted = ipv4_parse($5);
 	$$.ip_addr = ip_formatted.ip.v4;
 	$$.type = AF_INET;
-}// TODO IPV6  (redward)
+}
+| IPV6 '=' INET_ADDR '(' STRING ')' {
+	struct ip_address ip_formatted = ipv6_parse($5);
+	$$.ip6_addr = ip_formatted.ip.v6;
+	$$.type = AF_INET6;
+}
 ;
 
 port
@@ -1612,9 +1617,21 @@ tcp_option
 		$$ = dss_do_dsn_dack($2.type, $2.dack, $3.type, $3.val, $4, $5, $6, $7); // $2=dsn, $3=dack, $4:ssn, $5:dll, $6=0|1, $7=0|1 XXX
 
 }
-| ADD_ADDRESS address_id add_addr_ip port {
+| ADD_ADDRESS address_id add_addr_ip port { // address_id = $2, add_addr_ip = $3, port = $4
 	// ipv4
-	if($3.type == AF_INET && $4 == UNDEFINED){
+	if($3.type == UNDEFINED){
+		struct in_addr adr4_zero = ipv4_parse("0.0.0.0").ip.v4;
+//		struct in6_addr adr6_zero = ipv6_parse("::").ip.v6;
+
+		if($4 == UNDEFINED){
+			$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_ADD_ADDR_V4);
+			$$->data.add_addr.ipv4 = adr4_zero;
+		}else if($4 != UNDEFINED){
+			$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_ADD_ADDR_V4_PORT);
+			$$->data.add_addr.ipv4_w_port.ipv4 = adr4_zero;
+			$$->data.add_addr.ipv4_w_port.port = $4;
+		}
+	}else if($3.type == AF_INET && $4 == UNDEFINED){
 		$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_ADD_ADDR_V4);
 		$$->data.add_addr.ipv4 = $3.ip_addr;
 	// ipv4 + port
@@ -1622,16 +1639,18 @@ tcp_option
 		$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_ADD_ADDR_V4_PORT);
 		$$->data.add_addr.ipv4_w_port.ipv4 = $3.ip_addr;
 		$$->data.add_addr.ipv4_w_port.port = $4;
-/*	// ipv6, TODO (redward)
 	}else if($3.type == 6 && $4 == UNDEFINED){
 		$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_ADD_ADDR_V6);
+	// ipv6
+	}else if($3.type == AF_INET6 && $4 == UNDEFINED){
+		$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_ADD_ADDR_V6);
+		$$->data.add_addr.ipv6 = $3.ip6_addr;
 	// ipv6 + port
-	}else if($3.type == 6 && $4 != UNDEFINED){
+	}else if($3.type == AF_INET6 && $4 != UNDEFINED){
 		$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_ADD_ADDR_V6_PORT);
-	// undefined = ipv4
-	}else if($3 == UNDEFINED){
-		$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_ADD_ADDR_V4);
-*/	}else{
+		$$->data.add_addr.ipv6_w_port.ipv6 = $3.ip6_addr;
+		$$->data.add_addr.ipv6_w_port.port = $4;
+	}else{
 		semantic_error("Values assigned to add_address option are not valid");
 	}
 	$$->data.add_addr.address_id = $2;
