@@ -1867,7 +1867,6 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 	int error = STATUS_OK;
 	while(tcp_opt_to_modify != NULL){
 		if(tcp_opt_to_modify->kind == TCPOPT_MPTCP){
-			printf("1864: before switch\n");
 			switch(tcp_opt_to_modify->data.mp_capable.subtype){
 			case MP_CAPABLE_SUBTYPE:	// 00
 				error = mptcp_subtype_mp_capable(packet_to_modify,
