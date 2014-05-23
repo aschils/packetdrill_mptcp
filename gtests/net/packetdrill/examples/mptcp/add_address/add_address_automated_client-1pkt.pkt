@@ -12,8 +12,7 @@
 0.200 fcntl(3, F_SETFL, O_RDWR) = 0   // set back to blocking
 
 
-+0 < P. 1:1001(1000) ack 1 win 450 <dss dack4 dsn4, add_address address_id=8 ipv4=inet_addr("192.0.2.2")> //ipv4=inet_addr("192.0.2.2")>
-+0 > . 1:1(0) ack 1001 <nop,nop,TS val 150 ecr 700, dss dack4 >
+// Send a add_adress option with only a different port
++0  < P. 1:1001(1000) ack 1 win 450 <dss dack4 dsn4, add_address port=8081, nop,nop>
++0 > . 1:1(0) ack 1001 <nop,nop,TS val 150 ecr 700, dss dack4>
 
-//+0.1 < P. 1001:1001(0) ack 1 win 450 <add_address ipv4=inet_addr("192.0.2.2") port=8089, nop, nop> //ipv4=inet_addr("192.0.2.2")>
-//+0 > . 1:1(0) ack 1001 <nop,nop,TS val 185 ecr 700, dss dack4, add_address >

@@ -1758,15 +1758,16 @@ int mptcp_subtype_add_address(struct packet *packet_to_modify,
 		struct mp_subflow *subflow = find_subflow_matching_inbound_packet(packet_to_modify);
 		if(!subflow)
 			return STATUS_ERR;
-		// TODO: it does not take in account the ipv4 given in script
+		// TODO: find next correct ip_address automatically, actually
+		// it lets the possibility to change only the port number with an already assigned addr_id
 		if((s8)dss_opt_script->data.add_addr.address_id == UNDEFINED)
 			dss_opt_live->data.add_addr.address_id = subflow->packetdrill_addr_id;
 
 		if(dss_opt_live->length == TCPOLEN_ADD_ADDR_V4){
 			if(!memcmp(&dss_opt_script->data.add_addr.ipv4, &adr4_zero, sizeof(struct in_addr)))
-				dss_opt_live->data.add_addr.ipv4.s_addr = inet_netof(subflow->src_ip.ip.v4);
+				dss_opt_live->data.add_addr.ipv4 = subflow->src_ip.ip.v4;
 			else{
-				dss_opt_live->data.add_addr.ipv4.s_addr = inet_netof(dss_opt_live->data.add_addr.ipv4);
+				dss_opt_live->data.add_addr.ipv4 = dss_opt_script->data.add_addr.ipv4;
 			}
 		}else if(dss_opt_live->length == TCPOLEN_ADD_ADDR_V4_PORT){
 			if(!memcmp(&dss_opt_script->data.add_addr.ipv4_w_port.ipv4, &adr4_zero, sizeof(struct in_addr)))

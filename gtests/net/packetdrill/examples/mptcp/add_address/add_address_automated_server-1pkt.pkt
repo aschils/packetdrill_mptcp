@@ -13,10 +13,7 @@
 +0.2  < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
 +0  accept(3, ..., ...) = 4
 
-//+0  < P. 1:1001(1000) ack 1 win 450 <add_address address_id=3 ipv4=inet_addr("192.168.0.104")>
-
+// Getting an add_address option and acknowledges it
 +0  write(4, ..., 1000) = 1000
 +0  > P. 1:1001(1000) ack 1 win 450 <add_address, dss dack4 dsn4 >
-//+0  > P. 1:1001(1000) ack 1 win 450 <add_address address_id=7 ipv4=inet_addr("192.168.0.104") port=8080,nop,nop, dss dack4 dsn4 >
 +.1 < . 1:1(0) ack 1001 win 225 <dss dack4>
-
