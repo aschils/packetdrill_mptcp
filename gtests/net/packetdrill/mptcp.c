@@ -928,7 +928,6 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 			struct dack *dack_script= (struct dack*)((u32*)dss_opt_script+1);
 			struct dsn *dsn_script	= (struct dsn*) ((u32*)dss_opt_script+2);
 
-
 			// put information in script packet automatically
 			if(dss_opt_script->data.dss.dack_dsn.dack.dack4 == UNDEFINED)
 				dack_live->dack4 = htonl(mp_state.remote_idsn + mp_state.remote_ssn + mp_state.remote_last_pkt_length);
@@ -1848,6 +1847,8 @@ int mptcp_subtype_mp_fail(struct packet *packet_to_modify,
 	if(!dss_opt_live)
 		return STATUS_ERR;
 
+	// TODO(redward): verify if it really converts correctly the dsn8
+
 	if(direction == DIRECTION_INBOUND){
 		u32 bytes_sent_on_all_ssn = get_sum_ssn();
 
@@ -1861,12 +1862,11 @@ int mptcp_subtype_mp_fail(struct packet *packet_to_modify,
 				return STATUS_ERR;
 			dss_opt_script->data.dss.dsn.dsn8 = htonll(sha1_least_64bits(*key) + additional_val);
 		}else{
+			// this is to get the relative numbers from script
 			if(dss_opt_script->data.dss.dsn.dsn8>0)
 				dss_opt_script->data.dss.dsn.dsn8 = htonll(sha1_least_64bits(mp_state.packetdrill_key) +
 						dss_opt_script->data.dss.dsn.dsn8 );
 		}
-		printf("1868: %llu\n", dss_opt_script->data.dss.dsn.dsn8);
-
 	}else if(direction == DIRECTION_OUTBOUND){
 		//Set dsn being value specified in script
 		if(dss_opt_script->data.mp_fail.dsn8 == UNDEFINED){
@@ -1878,6 +1878,7 @@ int mptcp_subtype_mp_fail(struct packet *packet_to_modify,
 				return STATUS_ERR;
 			dss_opt_script->data.dss.dsn.dsn8  = htonll(sha1_least_64bits(*key) + additional_val);
 		}else{
+			// this is to get the relative numbers from script
 			if(dss_opt_script->data.dss.dsn.dsn8 >0){
 				dss_opt_script->data.dss.dsn.dsn8  = htonll(sha1_least_64bits(mp_state.kernel_key) +
 						dss_opt_script->data.dss.dsn.dsn8 );
