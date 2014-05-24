@@ -1074,6 +1074,9 @@ bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b, struct p
 					return false;
 			}
 			break;
+		case REMOVE_ADDR_SUBTYPE:
+			// TODO (redward): compare different ids
+			break;
 		case MP_FASTCLOSE_SUBTYPE:
 			if(opt_a->data.mp_fastclose.receiver_key != opt_b->data.mp_fastclose.receiver_key)
 				return false;

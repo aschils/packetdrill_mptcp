@@ -331,12 +331,28 @@ int tcp_options_to_string(struct packet *packet,
         			fprintf(s, "add_address bad length");
         		}
         		break;
+        	case REMOVE_ADDR_SUBTYPE:
+        		fprintf(s, "remove_address address_id:[");
+        		int nb_ids = option->length - TCPOLEN_REMOVE_ADDR;
+        		if(nb_ids<1){
+        			fprintf(s, "a REMOVE_ADDR option should have at least one id");
+        			goto out;
+        		}
+        		int i;
+        		u8 *cur_id = (u8*)&option->data.remove_addr.address_id;
+        		fprintf(s, "%u",(unsigned)*(cur_id));
+        		for (i=1; i<nb_ids; i++){
+        			fprintf(s, ",%u",
+        				(unsigned)*(cur_id+i));
+        		}
+        		fprintf(s, "]");
+        		break;
         	case MP_FASTCLOSE_SUBTYPE:
         		fprintf(s, "mp_fastclose receiver key: %lu",
         				(unsigned long)option->data.mp_fastclose.receiver_key);
         		break;
         	default:
-        		fprintf(s, "unknow MPTCP subtype");
+        		fprintf(s, "unknown MPTCP subtype");
         		break;
         	}
         	break;

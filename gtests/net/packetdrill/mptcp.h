@@ -75,6 +75,8 @@
 #define TCPOLEN_ADD_ADDR_V4_PORT 10
 #define TCPOLEN_ADD_ADDR_V6 20
 #define TCPOLEN_ADD_ADDR_V6_PORT 22
+//REMOVE_ADDR
+#define TCPOLEN_REMOVE_ADDR 3 // the rest is the number of address_id's added
 //MP_FASTCLOSE
 #define TCPOLEN_MP_FASTCLOSE 12
 //MPTCP Flags
@@ -82,7 +84,7 @@
 #define MP_CAPABLE_FLAGS_CS 129 //With checksum
 #define MP_JOIN_SYN_FLAGS_BACKUP 1
 #define MP_JOIN_SYN_FLAGS_NO_BACKUP 0
-#define DSS_RESERVED 0
+#define ZERO_RESERVED 0
 
 //SUBFLOW states
 #define ESTABLISHED 1 //for Subflow state
@@ -172,7 +174,8 @@ struct mp_state_s {
      *
      */
     queue_t 	vars_queue;
-    queue_t_val vals_queue;
+    queue_t_val vals_queue; // this is used to pass values from scipt to packetdrill
+    queue_t_val script_only_vals_queue; // used to queu and dequeue in script file
     //hashmap, contains <key:variable_name, value: variable_value>
     struct mp_var *vars;
     struct mp_subflow *subflows;

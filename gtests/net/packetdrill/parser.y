@@ -104,6 +104,7 @@
 #include "tcp.h"
 #include "tcp_options.h"
 #include "tcp_options_iterator.h"
+#include "queue/queue.h"
 
 /* This include of the bison-generated .h file must go last so that we
  * can first include all of the declarations on which it depends.
@@ -585,8 +586,8 @@ struct tcp_option *dss_do_auto(bool no_checksum, bool fin_flag){
 	opt->data.dss.flag_F = (char)fin_flag;
 	opt->data.dss.subtype = DSS_SUBTYPE;
 	opt->data.mp_capable.subtype = DSS_SUBTYPE;
-	opt->data.dss.reserved_first_bits = DSS_RESERVED;
-	opt->data.dss.reserved_last_bits = DSS_RESERVED;
+	opt->data.dss.reserved_first_bits = ZERO_RESERVED;
+	opt->data.dss.reserved_last_bits = ZERO_RESERVED;
 	return opt;
 }
 
@@ -612,8 +613,8 @@ struct tcp_option *dss_do_dack_only(int type, int val, bool fin_flag){
 	opt->data.dss.flag_a 	= (type==8);
 	opt->data.dss.flag_F 	= fin_flag;
 	opt->data.dss.subtype 	= DSS_SUBTYPE;
-	opt->data.dss.reserved_first_bits 	= DSS_RESERVED;
-	opt->data.dss.reserved_last_bits 	= DSS_RESERVED;
+	opt->data.dss.reserved_first_bits 	= ZERO_RESERVED;
+	opt->data.dss.reserved_last_bits 	= ZERO_RESERVED;
 	opt->data.mp_capable.subtype 		= DSS_SUBTYPE;
 	return opt;
 }
@@ -685,13 +686,11 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 	opt->data.dss.flag_F = fin_flag;
 	opt->data.dss.subtype = DSS_SUBTYPE;
 	opt->data.mp_capable.subtype = DSS_SUBTYPE;
-	opt->data.dss.reserved_first_bits = DSS_RESERVED;
-	opt->data.dss.reserved_last_bits = DSS_RESERVED;
+	opt->data.dss.reserved_first_bits = ZERO_RESERVED;
+	opt->data.dss.reserved_last_bits = ZERO_RESERVED;
 
 	return opt;
 }
-
-
 
 %}
 
@@ -774,7 +773,8 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 %token <reserved> MP_JOIN_SYN MP_JOIN_SYN_BACKUP MP_JOIN_SYN_ACK_BACKUP MP_JOIN_ACK MP_JOIN_SYN_ACK
 %token <reserved> DSS DACK4 DSN4 DACK8 DSN8 FIN SSN DLL NOCS CKSUM ADDRESS_ID BACKUP TOKEN AUTO RAND TRUNC_R64_HMAC
 %token <reserved> SENDER_HMAC TRUNC_L64_HMAC FULL_160_HMAC SHA1_32
-%token <reserved> ADD_ADDRESS ADD_ADDR_IPV4 ADD_ADDR_IPV6 PORT
+%token <reserved> ADD_ADDRESS ADD_ADDR_IPV4 ADD_ADDR_IPV6 PORT MP_PRIO MP_FAIL
+%token <reserved> REMOVE_ADDRESS ADDRESSES_ID LIST_ID
 %token <reserved> FAST_OPEN
 %token <reserved> ECT0 ECT1 CE ECT01 NO_ECN
 %token <reserved> IPV4 IPV6 ICMP UDP GRE MTU
@@ -1413,6 +1413,24 @@ address_id
 }
 ;
 
+addresses_id
+: ADDRESS_ID '=' '[' list_id ']' {}
+
+list_id
+: INTEGER {
+	if(!is_valid_u8($1))
+		semantic_error("REMOVE_ADDRESS: address_id should be a 8 bits unsigned integer.");
+	if(queue_enqueue_val(&mp_state.script_only_vals_queue, $1 ))
+		semantic_error("Too many values are enqueued in script");
+}
+| INTEGER ',' list_id {
+	if(!is_valid_u8($1))
+		semantic_error("REMOVE_ADDRESS: address_id should be a 8 bits unsigned integer.");
+	if(queue_enqueue_val(&mp_state.script_only_vals_queue, $1 ))
+		semantic_error("Too many values are enqueued in script");
+}
+;
+
 add_addr_ip
 :			{$$.type = UNDEFINED;	 }
 | IPV4 '=' INET_ADDR '(' STRING ')' {
@@ -1660,6 +1678,27 @@ tcp_option
 	$$->data.add_addr.address_id = $2;
 	$$->data.mp_capable.subtype = ADD_ADDR_SUBTYPE;
 }
+| REMOVE_ADDRESS addresses_id{
+
+	if(queue_size_val(&mp_state.script_only_vals_queue) == 0)
+		semantic_error("REMOVE_ADDRESS: at least one address_id has to be mentionned");
+
+	u8 nb_ids = queue_size_val(&mp_state.script_only_vals_queue);
+	$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_REMOVE_ADDR + nb_ids);
+	$$->data.remove_addr.resvd = ZERO_RESERVED;
+	u64 val;
+	int i = 0;
+	u8 *cur_id = &$$->data.remove_addr.address_id;
+	for (i=0; i< nb_ids; i++){
+		if(queue_dequeue_val(&mp_state.script_only_vals_queue, &val))
+			semantic_error("REMOVE_ADDRESS: problem dequeuing values from script_only_vals_queue");
+		*(cur_id + i) = (u8)val;
+	}
+	$$->data.mp_capable.subtype = REMOVE_ADDR_SUBTYPE;
+
+	// free all used memory for this values
+	queue_free_val(&mp_state.script_only_vals_queue);
+}
 | MP_FASTCLOSE mptcp_var_or_empty add_to_var {
 	$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_MP_FASTCLOSE);
 
@@ -1686,8 +1725,8 @@ tcp_option
 	}
 
 	$$->data.mp_fastclose.subtype = MP_FASTCLOSE_SUBTYPE;
-	$$->data.mp_fastclose.reserved_first_bits = DSS_RESERVED;
-	$$->data.mp_fastclose.reserved_last_bits = DSS_RESERVED;
+	$$->data.mp_fastclose.reserved_first_bits = ZERO_RESERVED;
+	$$->data.mp_fastclose.reserved_last_bits = ZERO_RESERVED;
 //	$$->data.mp_capable.version = MPTCP_VERSION;
 	$$->data.mp_capable.subtype = MP_FASTCLOSE_SUBTYPE;
 }

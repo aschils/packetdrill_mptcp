@@ -14,6 +14,7 @@ void init_mp_state()
 	mp_state.kernel_key_set = false;
 	queue_init(&mp_state.vars_queue);
 	queue_init_val(&mp_state.vals_queue);
+	queue_init_val(&mp_state.script_only_vals_queue);
 	mp_state.vars = NULL; //Init hashmap
 	mp_state.last_packetdrill_addr_id = 0;
 	mp_state.idsn = UNDEFINED;
@@ -1741,13 +1742,12 @@ int mptcp_subtype_dss(struct packet *packet_to_modify,
 
 	return STATUS_OK;
 }
+
 int mptcp_subtype_add_address(struct packet *packet_to_modify,
 		struct packet *live_packet,
 		struct tcp_option *dss_opt_script,
 		unsigned direction)
 {
-
-
 	struct tcp_option* dss_opt_live = get_mptcp_option(live_packet, ADD_ADDR_SUBTYPE);
 	if(!dss_opt_live)
 		return STATUS_ERR;
@@ -1811,6 +1811,26 @@ int mptcp_subtype_add_address(struct packet *packet_to_modify,
 		return STATUS_ERR;
 	}
 
+	return STATUS_OK;
+}
+
+int mptcp_subtype_remove_address(struct packet *packet_to_modify,
+		struct packet *live_packet,
+		struct tcp_option *dss_opt_script,
+		unsigned direction)
+{
+/*
+	u8 *cur_id = (u8*)&dss_opt_script->data.remove_addr.address_id;
+	int nb_ids  = dss_opt_script->length - TCPOLEN_REMOVE_ADDR;
+
+//	printf("1822: processing remove_address packet, %d ids, [%u, %u, %u, %u, %u]\n", nb_ids, (unsigned)*cur_id, (unsigned)*(cur_id+1), (unsigned)*(cur_id+2), (unsigned)*(cur_id+3), (unsigned)*(cur_id+4));
+*/
+	if(direction == DIRECTION_INBOUND){
+
+	}else if(direction == DIRECTION_OUTBOUND){
+
+	}else
+		return STATUS_ERR;
 	return STATUS_OK;
 }
 
@@ -1889,14 +1909,17 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 						tcp_opt_to_modify,
 						direction);
 				break;
-			case ADD_ADDR_SUBTYPE: 	//03 TODO: in progress
+			case ADD_ADDR_SUBTYPE: 		//03
 				error = mptcp_subtype_add_address(packet_to_modify,
 						live_packet,
 						tcp_opt_to_modify,
 						direction);
 				break;
-			case REMOVE_ADDR_SUBTYPE:	// 04 TODO
-				printf("REMOVE_ADDR_SUBTYPE, todo\n");
+			case REMOVE_ADDR_SUBTYPE:	// 04 TODO: in progress
+				/*error = mptcp_subtype_remove_address(packet_to_modify,
+						live_packet,
+						tcp_opt_to_modify,
+						direction); */
 				break;
 			case MP_PRIO_SUBTYPE: 		// 05 TODO
 				printf("MP_PRIO_SUBTYPE, todo\n");
