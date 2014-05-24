@@ -1819,12 +1819,14 @@ int mptcp_subtype_remove_address(struct packet *packet_to_modify,
 		struct tcp_option *dss_opt_script,
 		unsigned direction)
 {
-/*
+/*	// TODO(reward): complete automatically the field
+
 	u8 *cur_id = (u8*)&dss_opt_script->data.remove_addr.address_id;
 	int nb_ids  = dss_opt_script->length - TCPOLEN_REMOVE_ADDR;
 
 //	printf("1822: processing remove_address packet, %d ids, [%u, %u, %u, %u, %u]\n", nb_ids, (unsigned)*cur_id, (unsigned)*(cur_id+1), (unsigned)*(cur_id+2), (unsigned)*(cur_id+3), (unsigned)*(cur_id+4));
 */
+
 	if(direction == DIRECTION_INBOUND){
 
 	}else if(direction == DIRECTION_OUTBOUND){
@@ -1915,17 +1917,16 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 						tcp_opt_to_modify,
 						direction);
 				break;
-			case REMOVE_ADDR_SUBTYPE:	// 04 TODO: in progress
+			case REMOVE_ADDR_SUBTYPE:	// 04 TODO(redward): in progress
 				/*error = mptcp_subtype_remove_address(packet_to_modify,
 						live_packet,
 						tcp_opt_to_modify,
 						direction); */
 				break;
-			case MP_PRIO_SUBTYPE: 		// 05 TODO
-				printf("MP_PRIO_SUBTYPE, todo\n");
+			case MP_PRIO_SUBTYPE: 		// 05 TODO(redward): in progress
 				break;
-			case MP_FAIL_SUBTYPE: 		// 06 TODO
-				printf("MP_FAIL_SUBTYPE, todo\n");
+			case MP_FAIL_SUBTYPE: 		// 06 TODO(redward): in progress
+			//	printf("MP_FAIL_SUBTYPE, todo\n");
 				break;
 			case MP_FASTCLOSE_SUBTYPE:		// 07
 				error = mptcp_subtype_mp_fastclose(packet_to_modify,

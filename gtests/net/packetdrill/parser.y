@@ -773,8 +773,9 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 %token <reserved> MP_JOIN_SYN MP_JOIN_SYN_BACKUP MP_JOIN_SYN_ACK_BACKUP MP_JOIN_ACK MP_JOIN_SYN_ACK
 %token <reserved> DSS DACK4 DSN4 DACK8 DSN8 FIN SSN DLL NOCS CKSUM ADDRESS_ID BACKUP TOKEN AUTO RAND TRUNC_R64_HMAC
 %token <reserved> SENDER_HMAC TRUNC_L64_HMAC FULL_160_HMAC SHA1_32
-%token <reserved> ADD_ADDRESS ADD_ADDR_IPV4 ADD_ADDR_IPV6 PORT MP_PRIO MP_FAIL
+%token <reserved> ADD_ADDRESS ADD_ADDR_IPV4 ADD_ADDR_IPV6 PORT MP_FAIL
 %token <reserved> REMOVE_ADDRESS ADDRESSES_ID LIST_ID
+%token <reserved> MP_PRIO
 %token <reserved> FAST_OPEN
 %token <reserved> ECT0 ECT1 CE ECT01 NO_ECN
 %token <reserved> IPV4 IPV6 ICMP UDP GRE MTU
@@ -1698,6 +1699,18 @@ tcp_option
 
 	// free all used memory for this values
 	queue_free_val(&mp_state.script_only_vals_queue);
+}
+| MP_PRIO is_backup address_id {
+	if($3 == UNDEFINED)
+		$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_MP_PRIO);
+	else{
+		$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_MP_PRIO_ID);
+		if(!is_valid_u8($3))
+			semantic_error("Value assigned to address_id is not a valid unsigned 8 bits number.");
+		$$->data.mp_prio.address_id = $3;
+	}
+	$$->data.mp_prio.flags = $2;
+	$$->data.mp_capable.subtype = MP_PRIO_SUBTYPE;
 }
 | MP_FASTCLOSE mptcp_var_or_empty add_to_var {
 	$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_MP_FASTCLOSE);

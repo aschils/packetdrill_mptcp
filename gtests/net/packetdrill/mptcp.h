@@ -70,16 +70,19 @@
 #define TCPOLEN_DSS_DACK4_DSN8_WOCS 22
 #define TCPOLEN_DSS_DACK8_DSN4_WOCS 22
 #define TCPOLEN_DSS_DACK8_DSN8_WOCS 26
-//ADD_ADDR
+// ADD_ADDR
 #define TCPOLEN_ADD_ADDR_V4 8
 #define TCPOLEN_ADD_ADDR_V4_PORT 10
 #define TCPOLEN_ADD_ADDR_V6 20
 #define TCPOLEN_ADD_ADDR_V6_PORT 22
-//REMOVE_ADDR
+// REMOVE_ADDR
 #define TCPOLEN_REMOVE_ADDR 3 // the rest is the number of address_id's added
-//MP_FASTCLOSE
+// MP_PRIO
+#define TCPOLEN_MP_PRIO 3
+#define TCPOLEN_MP_PRIO_ID 4	// when an address id is specified
+// MP_FASTCLOSE
 #define TCPOLEN_MP_FASTCLOSE 12
-//MPTCP Flags
+// MPTCP Flags
 #define MP_CAPABLE_FLAGS 1
 #define MP_CAPABLE_FLAGS_CS 129 //With checksum
 #define MP_JOIN_SYN_FLAGS_BACKUP 1

@@ -156,6 +156,16 @@ static int get_expected_tcp_option_length(struct tcp_option *opt, u8 *expected_l
 		case REMOVE_ADDR_SUBTYPE:
 			*expected_length = opt->length; // we don't know in advance => variable
 			break;
+		case MP_PRIO_SUBTYPE:
+			if(opt->length == TCPOLEN_MP_PRIO)
+				*expected_length = TCPOLEN_MP_PRIO;
+			else if(opt->length == TCPOLEN_MP_PRIO_ID)
+				*expected_length = TCPOLEN_MP_PRIO_ID;
+			else{
+				asprintf(error, "unexpected MPTCP mp_prio length: %u", opt->length);
+				return STATUS_ERR;
+			}
+			break;
 		case MP_FASTCLOSE_SUBTYPE:
 			*expected_length = TCPOLEN_MP_FASTCLOSE;
 			break;
