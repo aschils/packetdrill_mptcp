@@ -1091,6 +1091,10 @@ bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b, struct p
 					return false;
 			}
 			break;
+		case MP_FAIL_SUBTYPE:
+			if(opt_a->data.mp_fail.dsn8 != opt_b->data.mp_fail.dsn8)
+				return false;
+			break;
 		case MP_FASTCLOSE_SUBTYPE:
 			if(opt_a->data.mp_fastclose.receiver_key != opt_b->data.mp_fastclose.receiver_key)
 				return false;

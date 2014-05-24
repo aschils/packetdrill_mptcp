@@ -80,6 +80,8 @@
 // MP_PRIO
 #define TCPOLEN_MP_PRIO 3
 #define TCPOLEN_MP_PRIO_ID 4	// when an address id is specified
+// MP_FAIL
+#define TCPOLEN_MP_FAIL 12
 // MP_FASTCLOSE
 #define TCPOLEN_MP_FASTCLOSE 12
 // MPTCP Flags

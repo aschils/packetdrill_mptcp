@@ -1247,7 +1247,7 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 				dsn_live->dsn8 = htonll(sha1_least_64bits(*key) + additional_val);
 			}else{
 				if(dsn_script->dsn8>0)
-					dsn_live->dsn8 = htonl(sha1_least_64bits(mp_state.packetdrill_key) + dsn_script->dsn8);
+					dsn_live->dsn8 = htonll(sha1_least_64bits(mp_state.packetdrill_key) + dsn_script->dsn8);
 			}
 
 			if(dss_opt_script->length == TCPOLEN_DSS_DACK4_DSN4){
@@ -1837,6 +1837,57 @@ int mptcp_subtype_remove_address(struct packet *packet_to_modify,
 }
 
 /**
+ * Insert appropriate key in mp_fail mptcp option.
+ */
+int mptcp_subtype_mp_fail(struct packet *packet_to_modify,
+		struct packet *live_packet,
+		struct tcp_option *dss_opt_script,
+		unsigned direction)
+{
+	struct tcp_option* dss_opt_live = get_tcp_option(live_packet, TCPOPT_MPTCP);
+	if(!dss_opt_live)
+		return STATUS_ERR;
+
+	if(direction == DIRECTION_INBOUND){
+		u32 bytes_sent_on_all_ssn = get_sum_ssn();
+
+		//Set dsn being value specified in script
+		if(dss_opt_script->data.dss.dsn.dsn8 == UNDEFINED)
+			dss_opt_script->data.dss.dsn.dsn8 = htonll(mp_state.idsn + bytes_sent_on_all_ssn); //subflow->ssn);
+		else if(dss_opt_script->data.dss.dsn.dsn8 == SCRIPT_DEFINED_TO_HASH_LSB){
+			u64 additional_val 	= find_next_value();
+			u64 *key = find_next_key();
+			if(!key || additional_val==STATUS_ERR)
+				return STATUS_ERR;
+			dss_opt_script->data.dss.dsn.dsn8 = htonll(sha1_least_64bits(*key) + additional_val);
+		}else{
+			if(dss_opt_script->data.dss.dsn.dsn8>0)
+				dss_opt_script->data.dss.dsn.dsn8 = htonll(sha1_least_64bits(mp_state.packetdrill_key) +
+						dss_opt_script->data.dss.dsn.dsn8 );
+		}
+		printf("1868: %llu\n", dss_opt_script->data.dss.dsn.dsn8);
+
+	}else if(direction == DIRECTION_OUTBOUND){
+		//Set dsn being value specified in script
+		if(dss_opt_script->data.mp_fail.dsn8 == UNDEFINED){
+			dss_opt_script->data.mp_fail.dsn8 		= dss_opt_live->data.mp_fail.dsn8;
+		}else if(dss_opt_script->data.dss.dsn.dsn8  == SCRIPT_DEFINED_TO_HASH_LSB){
+			u64 additional_val 	= find_next_value();
+			u64 *key 			= find_next_key();
+			if(!key || additional_val==STATUS_ERR)
+				return STATUS_ERR;
+			dss_opt_script->data.dss.dsn.dsn8  = htonll(sha1_least_64bits(*key) + additional_val);
+		}else{
+			if(dss_opt_script->data.dss.dsn.dsn8 >0){
+				dss_opt_script->data.dss.dsn.dsn8  = htonll(sha1_least_64bits(mp_state.kernel_key) +
+						dss_opt_script->data.dss.dsn.dsn8 );
+			}
+		}
+	}else
+		return STATUS_ERR;
+	return STATUS_OK;
+}
+/**
  * Insert appropriate key in mp_fastclose mptcp option.
  */
 int mptcp_subtype_mp_fastclose(struct packet *packet_to_modify,
@@ -1926,7 +1977,10 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 			case MP_PRIO_SUBTYPE: 		// 05 TODO(redward): in progress
 				break;
 			case MP_FAIL_SUBTYPE: 		// 06 TODO(redward): in progress
-			//	printf("MP_FAIL_SUBTYPE, todo\n");
+				error = mptcp_subtype_mp_fail(packet_to_modify,
+						live_packet,
+						tcp_opt_to_modify,
+						direction);
 				break;
 			case MP_FASTCLOSE_SUBTYPE:		// 07
 				error = mptcp_subtype_mp_fastclose(packet_to_modify,

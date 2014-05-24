@@ -1712,6 +1712,17 @@ tcp_option
 	$$->data.mp_prio.flags = $2;
 	$$->data.mp_capable.subtype = MP_PRIO_SUBTYPE;
 }
+| MP_FAIL dsn {
+	if($2.type == 4)
+		semantic_error("Value assigned to a MP_FAIL option is not a valid unsigned 64 bits number.");
+
+	$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_MP_FAIL);
+	$$->data.mp_fail.dsn8 = $2.val;
+	$$->data.mp_fail.resvd1 =ZERO_RESERVED;
+	$$->data.mp_fail.resvd2 =ZERO_RESERVED;
+
+	$$->data.mp_capable.subtype = MP_FAIL_SUBTYPE;
+}
 | MP_FASTCLOSE mptcp_var_or_empty add_to_var {
 	$$ = tcp_option_new(TCPOPT_MPTCP, TCPOLEN_MP_FASTCLOSE);
 

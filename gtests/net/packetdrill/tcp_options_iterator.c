@@ -166,6 +166,9 @@ static int get_expected_tcp_option_length(struct tcp_option *opt, u8 *expected_l
 				return STATUS_ERR;
 			}
 			break;
+		case MP_FAIL_SUBTYPE:
+			*expected_length = TCPOLEN_MP_FAIL;
+			break;
 		case MP_FASTCLOSE_SUBTYPE:
 			*expected_length = TCPOLEN_MP_FASTCLOSE;
 			break;
