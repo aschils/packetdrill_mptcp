@@ -1741,6 +1741,8 @@ tcp_option
 					semantic_error("Too many values are enqueued in script");
 				$$->data.mp_fastclose.receiver_key = KEY; // <mp_fastclose b + 123>
 			}else{
+				if(queue_enqueue(&mp_state.vars_queue, $2.name)==STATUS_ERR)
+					semantic_error("Too many variables are used in script");
 				$$->data.mp_fastclose.receiver_key = SCRIPT_DEFINED; //<mp_fastclose b>
 			}
 		}

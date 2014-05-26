@@ -98,8 +98,8 @@
 
 //Variable types
 #define KEY 0
-#define SCRIPT_DEFINED 1
-#define SCRIPT_ASSIGNED 2
+#define SCRIPT_DEFINED -4
+#define SCRIPT_ASSIGNED -5
 #define IGNORED -2
 #define SCRIPT_DEFINED_TO_HASH_LSB -3 // used to hash the variable
 
