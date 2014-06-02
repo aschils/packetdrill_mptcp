@@ -1,0 +1,39 @@
+/* mptcp 0.88
+ * A simple test using tcp_nodelay from initiator
+ * Example: write 3 times with 4, 5 and 6 bytes respectively on the socket.
+ * First packet is sent, the other 2 are waiting for the first Ack, then
+ * the 2 other writes (5 and 6 bytes) are put together and sent after that
+ */
+
+0.000 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+0.000 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+0.000 bind(3, ..., ...) = 0
+0.000 listen(3, 1) = 0
+
+0 `ip link set dev tun0 multipath off`
+
+0.100  < S 0:0(0) win 32792 <mss 1020,sackOK,nop,nop,nop,wscale 7,mp_capable a>
+0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
+0.200  < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
+0.200  accept(3, ..., ...) = 4
+
+// Set TCP_NODELAY disabled => Nagle algorithm is on
++0 setsockopt(4, IPPROTO_TCP, TCP_NODELAY, [1], 4) = 0
+
+// Write 3 packets on the socket
++0 write(4, ..., 1000) = 1000
++0 write(4, ..., 5) = 5
++0 write(4, ..., 6) = 6
++0 write(4, ..., 1000) = 1000
+
+// Send this 3 packets on the wire
++0 > P. 1:1001(1000) ack 1 <dss dack4 dsn4>
++0 > P. 1001:1006(5) ack 1 <dss dack4 dsn4>
++0 > P. 1006:1012(6) ack 1 <dss dack4 dsn4>
++0 > P. 1012:2012(1000) ack 1 <dss dack4 dsn4>
+
+// Ack each of them
++0 < . 1:1(0) ack 1001 win 257 <dss dack4>
++.0 < . 1:1(0) ack 106 win 257 <dss dack4>
++.0 < . 1:1(0) ack 1012 win 257 <dss dack4>
++.0 < . 1:1(0) ack 2012 win 257 <dss dack4>
