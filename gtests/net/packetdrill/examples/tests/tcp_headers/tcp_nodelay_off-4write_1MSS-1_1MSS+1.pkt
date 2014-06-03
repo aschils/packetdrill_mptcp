@@ -1,0 +1,45 @@
+/* mptcp 0.88
+ * A simple test using tcp_nodelay from initiator
+ * Example: 3 write call.
+ * First is a small one sent directly.
+ * Second has the size of MSS - 1
+ * The third has the size of MSS + 1
+ * Total number of packets sould equal to 3.
+ */
+
+0.000 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+0.000 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+0.000 bind(3, ..., ...) = 0
+0.000 listen(3, 1) = 0
+
+
+0.1 < S 0:0(0) win 32792 <mss 1020,sackOK,nop,nop,nop,wscale 7,mp_capable a>
+0.1 > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
+0.2 < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
+0.2 accept(3, ..., ...) = 4
+
+// Set TCP_NODELAY disabled => Nagle algorithm is on
++0 setsockopt(4, IPPROTO_TCP, TCP_NODELAY, [0], 4) = 0
+
+// Write 3 packets on the socket
++0 write(4, ..., 5) = 5
++0 write(4, ..., 999) = 999
++0 write(4, ..., 2001) = 2001
+
+// First one without wiaintg
++0 > P. 1:6(5) ack 1 <dss dack4 dsn4 dll=5>
+
+//second one completed up to the MSS = 1000
++0 > . 6:1006(1000) ack 1 <dss dack4 dsn4=6 dll=1000>
+
+// The last overpassed MSS 1000 bytes = size of MSS itsel
++0 > . 1006:2006(1000) ack 1 <dss dack4 dsn4=1006 dll=1000>
+
+// The last overpassed MSS 1000 bytes = size of MSS itsel
++0 > P. 2006:3006(1000) ack 1 <dss dack4 dsn4=2006 dll=1000>
+
++0 < . 1:1(0) ack 6 win 257 <dss dack4=6>
++0 < . 1:1(0) ack 1006 win 257 <dss dack4=1006>
++0 < . 1:1(0) ack 2006 win 257 <dss dack4=2006>
++0 < . 1:1(0) ack 3006 win 257 <dss dack4=3006>
+

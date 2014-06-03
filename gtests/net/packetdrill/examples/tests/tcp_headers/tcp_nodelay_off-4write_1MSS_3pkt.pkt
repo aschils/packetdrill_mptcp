@@ -1,0 +1,40 @@
+/* mptcp 0.88
+ * A simple test using tcp_nodelay from initiator
+ * Example: 3 write call.
+ * First is a packet with the size of a MSS
+ * Second is sent then directly as a small packet
+ * Third and fourth are grouped together to be sent
+ */
+
+0.000 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+0.000 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+0.000 bind(3, ..., ...) = 0
+0.000 listen(3, 1) = 0
+
+0.1 < S 0:0(0) win 32792 <mss 1020,sackOK,nop,nop,nop,wscale 7,mp_capable a>
+0.1 > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
+0.2 < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
+0.2 accept(3, ..., ...) = 4
+
+// Set TCP_NODELAY disabled => Nagle algorithm is on
++0 setsockopt(4, IPPROTO_TCP, TCP_NODELAY, [0], 4) = 0
+
+// Write 3 packets on the socket
++0 write(4, ..., 1000) = 1000
++0 write(4, ..., 10) = 10
++0 write(4, ..., 10) = 10
++0 write(4, ..., 10) = 10
+
+// First one without waiting
++0 > P. 1:1001(1000) ack 1 <dss dack4 dsn4 dll=1000>
++0 < . 1:1(0) ack 1001 win 257 <dss dack4=1001>
+
+
+//second one without waiting
++0 > P. 1001:1011(10) ack 1 <dss dack4 dsn4 dll=10>
++0 < . 1:1(0) ack 1011 win 257 <dss dack4=1011>
+
+// Third is sent grouped with fourth
++0 > P. 1011:1031(20) ack 1 <dss dack4 dsn4 dll=20>
++0 < . 1:1(0) ack 1031 win 257 <dss dack4=1031>
+
