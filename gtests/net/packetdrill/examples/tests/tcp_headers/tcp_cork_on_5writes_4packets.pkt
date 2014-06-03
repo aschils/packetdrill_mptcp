@@ -1,0 +1,45 @@
+/*
+ * tcp_cork_on_5writes_3packets.pkt
+ *
+ *  Created on: Jun 3, 2014
+ *      Author: eduard
+ *
+ * mptcp v0.88
+ * Test buffering several packets before sending it.
+ * It's done using TCP_CORK flag.
+ */
+
+
+0.000 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+0.000 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+0.000 bind(3, ..., ...) = 0
+0.000 listen(3, 1) = 0
+
+0.1 < S 0:0(0) win 32792 <mss 1020,sackOK,nop,nop,nop,wscale 7,mp_capable a>
+0.1 > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
+0.2 < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
+0.2 accept(3, ..., ...) = 4
+
+// Put TCP_CORK flag ON
++0 setsockopt(4, SOL_TCP, TCP_CORK, [1], 4) = 0
+
+// Send 1 entire packet
++0 write(4, ..., 800) = 800
++0 write(4, ..., 1200) = 1200
+
++0 > . 1:1001(1000) ack 1 <dss dack4 dsn4>
++0 < . 1:1(0) ack 1001 win 257 <dss dack4>
+
+// Sent immediately
++0 > P. 1001:2001(1000) ack 1 <dss dack4 dsn4>
++0 < . 1:1(0) ack 2001 win 257 <dss dack4>
+
++0 write(4, ..., 1100) = 1100
++0 write(4, ..., 100) = 100
++0 write(4, ..., 800) = 800
+// Once the sending buffer is full, it's sent immediately
++0 > . 2001:3001(1000) ack 1 <dss dack4 dsn4>
++0 < . 1:1(0) ack 3001 win 257 <dss dack4>
+
++0 > P. 3001:4001(1000) ack 1 <dss dack4 dsn4>
++0 < . 1:1(0) ack 4001 win 257 <dss dack4>

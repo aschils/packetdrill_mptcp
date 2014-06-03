@@ -1,6 +1,7 @@
 /* mptcp 0.88
  * Test buffering several packets before sending it.
- * It's done using TCP_CORK flag
+ * It's done using TCP_CORK flag.
+ * This show there is no ceiling time if it writes the MSS size
  */
 
 0.000 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
@@ -17,11 +18,12 @@
 +0 setsockopt(4, SOL_TCP, TCP_CORK, [1], 4) = 0
 
 // Send 1 entire packet
-+0  write(4, ..., 1000) = 1000
-+0 > P. 1:1001(1000) ack 1 <dss dack4 dsn4>
-+0   <  . 1:1(0) ack 1001 win 257 <dss dack4>
-
++0 write(4, ..., 1000) = 1000
 +0 write(4, ..., 100) = 100
 +0 write(4, ..., 900) = 900
-+0 > P. 1001:2001(1000) ack 1 <dss dack4 dsn4> // at +0.78
+
++0 > P. 1:1001(1000) ack 1 <dss dack4 dsn4>
++0 > P. 1001:2001(1000) ack 1 <dss dack4 dsn4>
+
++0   <  . 1:1(0) ack 1001 win 257 <dss dack4>
 +0 <  . 1:1(0) ack 2001 win 257 <dss dack4>
