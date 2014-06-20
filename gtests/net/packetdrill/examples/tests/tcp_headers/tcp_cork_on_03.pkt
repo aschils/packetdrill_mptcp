@@ -1,5 +1,5 @@
 /*
- * tcp_cork_on_5writes_3packets.pkt
+ * tcp_cork_on_03.pkt
  *
  *  Created on: Jun 3, 2014
  *      Author: eduard
@@ -27,7 +27,7 @@
 +0 write(4, ..., 100) = 100
 
 // The time is not respected. it's sent at +0.6 instead of +0.2
-+0.2 > P. 1:901(900) ack 1 <dss dack4 dsn4>
++0.6 > P. 1:901(900) ack 1 <dss dack4 dsn4>
 +0 < . 1:1(0) ack 901 win 257 <dss dack4>
 
 // overpass the MSS by 1 byte.
@@ -36,9 +36,9 @@
 +0 write(4, ..., 901) = 901
 
 +0 > . 901:1901(1000) ack 1 <dss dack4 dsn4>
-+0 < . 1:1(0) ack 1901 win 257 <dss dack4>
++0.01 < . 1:1(0) ack 1901 win 257 <dss dack4>
 
 // The time is not respected. it's sent at +0.58 instead of +0.2
 +0.2 > P. 1901:1902(1) ack 1 <dss dack4 dsn4>
-+0 < . 1:1(0) ack 1902 win 257 <dss dack4>
++0.01 < . 1:1(0) ack 1902 win 257 <dss dack4>
 
