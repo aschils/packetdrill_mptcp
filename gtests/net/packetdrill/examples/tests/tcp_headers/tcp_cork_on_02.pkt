@@ -19,11 +19,10 @@
 
 // Send 1 entire packet
 +0 write(4, ..., 1000) = 1000
-+0 write(4, ..., 100) = 100
-+0 write(4, ..., 900) = 900
-
 +0 > P. 1:1001(1000) ack 1 <dss dack4 dsn4>
-+0 > P. 1001:2001(1000) ack 1 <dss dack4 dsn4>
++0 <  . 1:1(0) ack 1001 win 257 <dss dack4>
 
-+0   <  . 1:1(0) ack 1001 win 257 <dss dack4>
++0.05 write(4, ..., 100) = 100
++0 write(4, ..., 900) = 900
++0 > P. 1001:2001(1000) ack 1 <dss dack4 dsn4>
 +0 <  . 1:1(0) ack 2001 win 257 <dss dack4>

@@ -17,11 +17,11 @@
 +0.1 setsockopt(4, SOL_TCP, TCP_CORK, [1], 4) = 0
 
 // Send 3 data segment and get an ACK for each.
-+0.1  write(4, ..., 104) = 104
++0  write(4, ..., 104) = 104
 +0  write(4, ..., 396) = 396
 +0  write(4, ..., 4) = 4
 
-// All data is buffered before sending 
-+0.20  > P. 1:505(504) ack 1 <dss dack4=trunc_r64_hmac(a)+1 dsn4=trunc_r64_hmac(b)+1>
+// All data is buffered before sending, TODO: it responds at +0.406 and not +0.2
++0.2  > P. 1:505(504) ack 1 <dss dack4=trunc_r64_hmac(a)+1 dsn4=trunc_r64_hmac(b)+1>
 +0  < .  1:1(0) ack 505 win 257 <dss dack4=trunc_r64_hmac(b)+505>
 
