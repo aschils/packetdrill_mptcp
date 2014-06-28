@@ -1,0 +1,51 @@
+/*
+ * tcp_cork_on_08.pkt
+ *
+ *  Created on: Jun 24, 2014
+ *      Author: eduard
+ *
+ * mptcp v0.88
+ * Test buffering several packets before sending it.
+ * It's done using TCP_CORK flag.
+ * It tests if data are sent on different paths with different MSS
+ */
+
+0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0  setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
++0  bind(3, {sa_family = AF_INET, sin_port = htons(13000), sin_addr = inet_addr("192.168.0.1")}, ...) = 0
++0  listen(3, 1) = 0
+
++0  socket(..., SOCK_STREAM, IPPROTO_TCP) = 5
++0  setsockopt(5, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
++0  bind(5, {sa_family = AF_INET, sin_port = htons(13001), sin_addr = inet_addr("192.168.0.1")}, ...) = 0
++0  listen(5,1) = 0
+
++0  < S 0:0(0) win 32792 <mss 1020,sackOK,nop,nop,nop,wscale 7,mp_capable key_a> sock(3)
++0  > S. 0:0(0) ack 1 win 28800 <mss 1460,nop,nop,sackOK,nop,wscale 7,mp_capable key_b> sock(3)
++0.1  < . 1:1(0) ack 1 win 257 <mp_capable key_a key_b> sock(3)
++0  accept(3, ..., ...) = 4
+
+//First subflow
++0  < S 0:0(0) win 32792 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_join_syn backup=0 address_id=0 token=sha1_32(key_b) rand=1234> sock(5)
++0  > S. 0:0(0) ack 1 win 28800 <mss 1460,nop,nop,sackOK,nop,wscale 7, mp_join_syn_ack backup=0 address_id=0 sender_hmac=trunc_l64_hmac(key_b key_a) > sock(5)
++0.1  < . 1:1(0) ack 1 win 32792 <mp_join_ack sender_hmac=full_160_hmac(key_a key_b)> sock(5) 
++0 mp_join_accept(5) = 6
+
++0 > . 1:1(0) ack 1 <...> sock(6) // reliably mp_join_ack 
+
++0 setsockopt(4, SOL_TCP, TCP_CORK, [1], 4) = 0 
++0 setsockopt(6, SOL_TCP, TCP_CORK, [1], 4) = 0 
+
++0.1  write(4, ..., 1440) = 1440 
++0 > P. 1:1441(1440) ack 1 <dss dack4=trunc_r64_hmac(key_a)+1 dsn4=trunc_r64_hmac(key_b)+1 >  sock(6)
++0.3 < . 1:1(0) ack 1441 win 225 <dss dack4=trunc_r64_hmac(key_b)+1441> sock(6)
+
++0  write(4, ..., 1440) = 1440
++0  > . 1:1001(1000) ack 1 <dss dack4=trunc_r64_hmac(key_a)+1 dsn4=trunc_r64_hmac(key_b)+1> sock(4)
++0  < . 1:1(0) ack 1001 win 225 <dss dack4=trunc_r64_hmac(key_b)+2001> sock(4)
+
+// TODO(redward) It should be not +0 => should be at least +0.2
++0  > P. 1001:1441(440) ack 1 <dss dack4 dsn4> sock(4)
++0.01 < . 1:1(0) ack 1441 win 225 <dss dack4> sock(4)
+
+

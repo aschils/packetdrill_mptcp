@@ -1,0 +1,38 @@
+/*
+ * tcp_cork_on_09.pkt
+ *
+ *  Created on: Jun 28, 2014
+ *      Author: eduard
+ *
+ * mptcp v0.88
+ * Test buffering several packets before sending it.
+ * It's done using TCP_CORK flag.
+ * It tests if a big MSS has the same behaviour as normal MSS
+ */
+
+// Put kernel MTU to 5040 to have 5000 as MSS
+0.0 `ifconfig tun0 mtu 5060`
++0.0 `ethtool -K tun0 tso off` // don't send big segments > MSS
+
++0.015 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0.0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
++0.0 bind(3, ..., ...) = 0
+
++0.0 setsockopt(3, SOL_SOCKET, SO_SNDBUF, [2000], 4) = 0
+
++0.0 listen(3, 1) = 0
+
++0 < S 0:0(0) win 24900 <mss 5020,sackOK,nop,nop,nop,wscale 7, mp_capable a>
++0 > S. 0:0(0) ack 1 <mss 5020,sackOK,nop,nop,nop,wscale 7, mp_capable b>
++0 < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
++0 accept(3, ..., ...) = 4
+
+// Put TCP_CORK flag ON
++0 setsockopt(4, SOL_TCP, TCP_CORK, [1], 4) = 0
+
++0 write(4, ..., 9999) = 9999
++0.0 > . 1:5001(5000) ack 1 <dss dack4 dsn4 >
++0.01 <  . 1:1(0) ack 5001 win 257 <dss dack4>
+
++0.406 > P. 5001:10000(4999) ack 1 <dss dack4 dsn4 >
++0.01 <  . 1:1(0) ack 10000 win 257 <dss dack4>

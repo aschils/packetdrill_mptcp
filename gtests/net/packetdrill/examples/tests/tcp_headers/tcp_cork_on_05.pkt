@@ -1,7 +1,7 @@
 /*
- * tcp_cork_on_03.pkt
+ * tcp_cork_on_05.pkt
  *
- *  Created on: Jun 3, 2014
+ *  Created on: Jun 20, 2014
  *      Author: eduard
  *
  * mptcp v0.88
@@ -23,22 +23,15 @@
 +0 setsockopt(4, SOL_TCP, TCP_CORK, [1], 4) = 0
 
 // Send 1 entire packet
-+0 write(4, ..., 800) = 800
-+0 write(4, ..., 100) = 100
++0 write(4, ..., 999) = 999
++0.15 write(4, ..., 1002) = 1002
 
-// The time is not respected. it's sent at +0.6 instead of +0.2
-+0.2 > P. 1:901(900) ack 1 <dss dack4 dsn4>
-+0.01 < . 1:1(0) ack 901 win 257 <dss dack4>
++0 > . 1:1001(1000) ack 1 <dss dack4 dsn4>
++0 > . 1001:2001(1000) ack 1 <dss dack4 dsn4>
++0.01 <  . 1:1(0) ack 2001 win 257 <dss dack4>
 
-// overpass the MSS by 1 byte.
-+0.01 write(4, ..., 50) = 50
-+0 write(4, ..., 50) = 50
-+0 write(4, ..., 901) = 901
 
-+0 > . 901:1901(1000) ack 1 <dss dack4 dsn4>
-+0.01 < . 1:1(0) ack 1901 win 257 <dss dack4>
-
-// The time is not respected. TODO: it's sent at +0.58 instead of +0.2
-+0.2 > P. 1901:1902(1) ack 1 <dss dack4 dsn4>
-+0.01 < . 1:1(0) ack 1902 win 257 <dss dack4>
-
+// Send the left byte after 200ms after the last write call
+// It's sent at +0.597 instead of +0.2 => is ok?(redward)
++0.2 > P. 2001:2002(1) ack 1 <dss dack4 dsn4>
++0 <  . 1:1(0) ack 2002 win 257 <dss dack4>

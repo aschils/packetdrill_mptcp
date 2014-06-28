@@ -1,5 +1,5 @@
 /*
- * tcp_cork_on_5writes_3packets.pkt
+ * tcp_cork_on_04.pkt
  *
  *  Created on: Jun 3, 2014
  *      Author: eduard
@@ -32,7 +32,7 @@
 
 // Sent immediately
 +0 > P. 1001:2001(1000) ack 1 <dss dack4 dsn4>
-+0 < . 1:1(0) ack 2001 win 257 <dss dack4>
++0.01 < . 1:1(0) ack 2001 win 257 <dss dack4>
 
 +0 write(4, ..., 1100) = 1100
 +0 write(4, ..., 100) = 100

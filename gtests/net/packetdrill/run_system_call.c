@@ -577,6 +577,7 @@ static struct socket *find_socket_by_script_fd(
 	struct socket *socket = NULL;
 	for (socket = state->sockets; socket != NULL; socket = socket->next)
 		if (!socket->is_closed && (socket->script.fd == script_fd)) {
+			// TODO: Modify the right fd (redward)
 			assert(socket->live.fd >= 0);
 			assert(socket->script.fd >= 0);
 			return socket;
@@ -1050,8 +1051,9 @@ static int mp_join_accept(struct state *state, struct syscall_spec *syscall,
 			//assert(is_equal_ip(&socket->live.remote.ip, &ip));
 			//assert(is_equal_port(socket->live.remote.port,
 			//		htons(port)));
+			socket->live.fd	= script_accepted_fd;
 			socket->script.fd	= script_accepted_fd;
-			socket->live.fd		= -1; //no live fd
+		//	socket->live.fd		= -1; //no live fd
 			return STATUS_OK;
 		}
 	}

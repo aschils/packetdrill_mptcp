@@ -45,6 +45,6 @@
 +0 < . 1:1(0) ack 1001 win 225 <dss dack4=trunc_r64_hmac(key_b)+1001> sock(11)
 
 +0.1  write(4, ..., 1000) = 1000
-+0  > P. 1:1001(1000) ack 1 <dss dack4=trunc_r64_hmac(key_a)+1 dsn4=trunc_r64_hmac(key_b)+1001> sock(6)
-+0 < . 1:1(0) ack 1001 win 225 <dss dack4=trunc_r64_hmac(key_b)+2001> sock(6)
++0  > P. 1001:2001(1000) ack 1 <dss dack4=trunc_r64_hmac(key_a)+1 dsn4=trunc_r64_hmac(key_b)+1001> sock(11)
++0 < . 1:1(0) ack 2001 win 225 <dss dack4=trunc_r64_hmac(key_b)+2001> sock(11)
 

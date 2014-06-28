@@ -1,0 +1,38 @@
+/*
+ * tcp_cork_on_06.pkt
+ *
+ *  Created on: Jun 20, 2014
+ *      Author: eduard
+ *
+ * mptcp v0.88
+ * Test buffering several packets before sending it.
+ * It's done using TCP_CORK flag.
+ * It tests if writing 0 bytes triggers buffering (time)
+ */
+
+0.000 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+0.000 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+0.000 bind(3, ..., ...) = 0
+0.000 listen(3, 1) = 0
+
+0.1 < S 0:0(0) win 32792 <mss 1020,sackOK,nop,nop,nop,wscale 7, mp_capable a>
+0.1 > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7, mp_capable b>
+0.2 < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
+0.2 accept(3, ..., ...) = 4
+
+// Put TCP_CORK flag ON
++0 setsockopt(4, SOL_TCP, TCP_CORK, [1], 4) = 0
+
+// Write 0 bytes to trigger the ceiling time
++0.1 write(4, ..., 0) = 0
++0.1 write(4, ..., 800) = 800
+// it's sent at +0.597, should it be +0.2? (redward)
++0.2  > P. 1:801(800) ack 1  <dss dack4 dsn4>  // TCP is at +0.377
++0.01   <  . 1:1(0) ack 801 win 257 <dss dack4>
+
+// Write 1 byte to compare with 0 byte here above
++0.1 write(4, ..., 1) = 1
++0.1 write(4, ..., 800) = 800
+// it's sent at +0.485, should it be +0.1 ? (rewdard)
++0.1  > P. 801:1602(801) ack 1 <dss dack4 dsn4> // TCP is at +0.187
++0.01   <  . 1:1(0) ack 1602 win 257 <dss dack4>
