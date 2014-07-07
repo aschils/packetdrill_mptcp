@@ -1,0 +1,13 @@
+// Test mp_capable mptcp option, first syn sent by packetdrill
+
++0   socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0  setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
++0  bind(3, ..., ...) = 0
++0  listen(3, 1) = 0
+
++0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable a>
++0  > S. 0:0(0) ack 1 <mss 1460,sackOK,nop,nop,nop,wscale 8,mp_capable b>
++0.1  < . 1:1(0) ack 1 win 257 <mp_capable a b>
+
++0  accept(3, ..., ...) = 4
+
