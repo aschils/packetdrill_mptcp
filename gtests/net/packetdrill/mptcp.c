@@ -1388,6 +1388,8 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 				*chk_script = htons(*chk_script);
 
 			mp_state.remote_last_pkt_length = ntohs(*dll_script);
+			if(dss_opt_live->data.dss.flag_F)
+				mp_state.remote_last_pkt_length++;
 			mp_state.remote_ssn = ntohl(*ssn_script);
 
 			// DSN4 & DACK8
@@ -1454,6 +1456,8 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 				*chk_script = htons(*chk_script);
 
 			mp_state.remote_last_pkt_length = ntohs(*dll_script);
+			if(dss_opt_live->data.dss.flag_F)
+				mp_state.remote_last_pkt_length++;
 			mp_state.remote_ssn = ntohl(*ssn_script);
 
 			// DSN8 & DACK4
@@ -1521,6 +1525,8 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 				*chk_script = htons(*chk_script);
 
 			mp_state.remote_last_pkt_length = ntohs(*dll_script);
+			if(dss_opt_live->data.dss.flag_F)
+				mp_state.remote_last_pkt_length++;
 			mp_state.remote_ssn = ntohl(*ssn_script);
 
 		// DSN8 & DACK8
@@ -1588,6 +1594,8 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 				*chk_script = htons(*chk_script);
 
 			mp_state.remote_last_pkt_length = ntohs(*dll_script);
+			if(dss_opt_live->data.dss.flag_F)
+				mp_state.remote_last_pkt_length++;
 			mp_state.remote_ssn = ntohl(*ssn_script);
 
 		}else{
@@ -1636,6 +1644,8 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 				dss_opt_script->data.dss.dsn.wo_cs.ssn = ssn;
 			} WOCS*/
 			mp_state.remote_last_pkt_length = ntohs(dll);
+			if(dss_opt_live->data.dss.flag_F)
+				mp_state.remote_last_pkt_length++;
 			mp_state.remote_ssn = ntohl(ssn);
 		}
 		// if DSN is 4 octets
@@ -1667,6 +1677,8 @@ int dss_outbound_parser(struct packet *packet_to_modify,
 			u32 *script_dll_chk 	= script_ssn + 1;
 			*script_dll_chk 		= dll_chk;
 			mp_state.remote_last_pkt_length = ntohs(dll);
+			if(dss_opt_live->data.dss.flag_F)
+				mp_state.remote_last_pkt_length++;
 			mp_state.remote_ssn = ntohl(ssn);
 		}
 
