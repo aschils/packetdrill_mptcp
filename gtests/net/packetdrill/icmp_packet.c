@@ -321,7 +321,6 @@ struct packet *new_icmp_packet(int address_family,
 	/* Allocate and zero out a packet object of the desired size */
 	packet = packet_new(ip_bytes);
 	memset(packet->buffer, 0, ip_bytes);
-	packet->ip_bytes = ip_bytes;
 
 	packet->direction = direction;
 	packet->flags = 0;
