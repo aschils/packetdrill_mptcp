@@ -22,7 +22,7 @@ env.skip_bad_hosts=True
 env.timeout=1
 env.warn_only=True
 """
-env.warn_only=True
+
 
 # first step: saves all default data to sysctl_values.default file
 @task
@@ -126,13 +126,133 @@ def restore_all_values(): # last step
                 local("sysctl -w " + vals)
     fd_def.close()
 
+# Create all file tests concerned by the connection level
+def create_connection_tests():
+  import random
+  sock =  "+0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3\n" 
+  reuse = "+0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0\n"
+  bind =  "+0 bind(3, ..., ...) = 0\n"
+  listen = "+0 listen(3, 1) = 0\n"
+
+  syn =    "+0  < S 0:0(0) win 32792 <mss 1028,sackOK,nop,nop,nop,wscale 7,mp_capable a>\n"
+  synack = "+0  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 8,mp_capable b>\n"
+  ack =    "+0  < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>\n"
+  accept = "+0  accept(3, ..., ...) = 4\n"
+  
+  # Server and client side of connection. The goal is to have the same number with checksum and without
+  # Create server side of connection
+  for nb in range(4):
+    filename = "automated_tests/connection/mp_capable_server_"+str(nb)+".pkt"
+    fd = open(filename, 'w') 
+    if(nb<2):
+      fd.write("+0 `sysctl -w net.mptcp.mptcp_checksum=0`\n")
+    fd.write(sock + reuse + bind + listen)
+    nb_rand = random.getrandbits(64) #random.randint(1, 10)
+    if(nb<2):	# no checksum
+      fd.write("+0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable_no_cs a="+str(nb_rand)+">\n") 
+      fd.write("+0  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 8,mp_capable_no_cs b>\n")
+      fd.write("+0 < . 1:1(0) ack 1 win 257 <mp_capable_no_cs a="+str(nb_rand)+" b, dss dack4>\n") 
+    else:	# with checksum
+      fd.write("+0 < S 0:0(0) win 32792 <mss 1028,sackOK,nop,nop,nop,wscale 7,mp_capable a="+str(nb_rand)+">\n") 
+      fd.write(synack)
+      fd.write("+0 < . 1:1(0) ack 1 win 257 <mp_capable a="+str(nb_rand)+" b, dss dack4>\n") 
+    fd.write(accept)
+    if(nb<2):
+      fd.write("+0 `sysctl -w net.mptcp.mptcp_checksum=1`\n")
+    print("Created: "+filename)
+    fd.close()
+    
+    # Create client side of connection
+    filename = "automated_tests/connection/mp_capable_client_"+str(nb)+".pkt"
+    fd = open(filename, 'w') 
+    if(nb<2):
+      fd.write("+0 `sysctl -w net.mptcp.mptcp_checksum=0`\n")
+    nonblock = "+0.0 fcntl(3, F_GETFL) = 0x2 (flags O_RDWR)\n+0.000 fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0\n"
+    connect = "+0.0 connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)\n"
+    blocking = "+0.1 getsockopt(3, SOL_SOCKET, SO_ERROR, [0], [4]) = 0\n+0.0 fcntl(3, F_SETFL, O_RDWR) = 0   // set back to blocking\n"
+    fd.write(sock + nonblock + connect)
+
+    if(nb<2): 	# no checksum
+      fd.write("+0.0 > S 0:0(0) win 29200 <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 8,mp_capable_no_cs a>\n") 
+      fd.write("+0.0 < S. 0:0(0) ack 1 win 5792 <mss 1460,sackOK,TS val 700 ecr 100,nop,wscale 7,mp_capable_no_cs b="+str(nb_rand)+">\n")
+      fd.write("+0.0 > . 1:1(0) ack 1 <nop,nop,TS val 100 ecr 700,mp_capable_no_cs a b="+str(nb_rand)+", dss dack4> \n")
+    else:  	# with checksum
+      fd.write("+0.0 > S 0:0(0) win 29200 <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 8,mp_capable a>\n") 
+      fd.write("+0.0 < S. 0:0(0) ack 1 win 5792 <mss 1460,sackOK,TS val 700 ecr 100,nop,wscale 7,mp_capable b="+str(nb_rand)+">\n")
+      fd.write("+0.0 > . 1:1(0) ack 1 <nop,nop,TS val 100 ecr 700,mp_capable a b="+str(nb_rand)+", dss dack4=1>\n")
+    fd.write(blocking)
+    if(nb<2):
+      fd.write("+0 `sysctl -w net.mptcp.mptcp_checksum=1`\n")
+    print("Created: "+filename)
+    fd.close()
+
+def create_data_tests():
+  import random
+  sock = "+0.0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3\n"
+  reuse = "+0.0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0\n"
+  bind = "+0.0 bind(3, ..., ...) = 0\n"
+  listen = "+0.0 listen(3, 1) = 0\n\n"
+  syn = "+0 < S 0:0(0) win 24900 <mss 1460,sackOK,nop,nop,nop,wscale 8, mp_capable a>\n"
+  synack = "+0 > S. 0:0(0) ack 1 <mss 1460,sackOK,nop,nop,nop,wscale 8, mp_capable b>\n"
+  ack = "+0 < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>\n"
+  accept ="+0 accept(3, ..., ...) = 4\n"
+
+  # send and receive at the same time data
+  filename = "automated_tests/data/dss_server_both_directions.pkt"
+  fd = open(filename, 'w') 
+  fd.write(sock+reuse+bind+listen+syn+synack+ack+accept+"\n")
+  nb_total = 1
+  nb_total_sent = 1
+  for nb_i in range(80):
+    nb_rand_i = random.randint(1, 1420)
+    fd.write("+0.01 write(4, ..., "+str(nb_rand_i)+") = "+str(nb_rand_i)+"\n")
+    fd.write("+0.0 > P. "+str(nb_total)+":"+str(nb_rand_i+nb_total)+"("+str(nb_rand_i)+") ack "+str(nb_total_sent)+" <dss dack4 dsn4>\n")
+    # fd.write("+0.0 <  . "+str(nb_total_sent)+":"+str(nb_total_sent)+"(0) ack "+str(nb_rand_i+nb_total)+" win 257 <dss dack4>\n\n")
+    nb_total = nb_total + nb_rand_i
+    
+    nb_rand_ii = random.randint(1, 1420)
+    fd.write("+0.0 < P. "+str(nb_total_sent)+":"+str(nb_total_sent+nb_rand_ii)+"("+str(nb_rand_ii)+") ack "+str(nb_total)+" win 450 <dss dack4 dsn4 >\n")
+    if nb_i%2 == 0:
+      fd.write("+0.0 > . "+str(nb_total)+":"+str(nb_total)+"(0) ack "+str(nb_total_sent+nb_rand_ii)+" <dss dack4>\n\n")
+    else:
+      fd.write("+0.04 > . "+str(nb_total)+":"+str(nb_total)+"(0) ack "+str(nb_total_sent+nb_rand_ii)+" <dss dack4>\n\n")
+    nb_total_sent = nb_total_sent + nb_rand_ii
+    
+  fd.close()
+  print("Created: "+filename)
+
+  #send big segments to server -> ack only one
+  filename = "automated_tests/data/dss_server_random_big_data.pkt"
+  fd = open(filename, 'w') 
+  fd.write("+0.0 `ethtool -K tun0 tso off`\n")
+  fd.write(sock+reuse+bind+listen+syn+synack+ack+accept+"\n")
+  nb_random = random.randint(1420, 999990) #random.getrandbits(32)
+  fd.write("+0.0 write(4, ..., "+str(nb_random)+") = "+str(nb_random)+"\n\n")
+  nb_total = 1
+  for nb in range(nb_random/1420):
+    fd.write("+0.0 > . "+str(nb_total)+":"+str(nb_total+1420)+"(1420) ack 1 <dss dack4 dsn4 >\n")
+    #fd.write("+0.0 < . 1:1(0) ack "+str(nb_total+1420)+" win 257 <dss dack4>\n")
+    nb_total += 1420
+  fd.write("+0.0 > . "+str(nb_total)+":"+str(nb_random)+"("+str(nb_random - nb_total)+") ack 1 <dss dack4 dsn4 >\n")
+  fd.write("+0.0 < . 1:1(0) ack "+str(nb_random)+" win 257 <dss dack4>\n")
+  fd.close()
+
+def create_close_tests():
+  print("CLosing tests")
+  
+  
 @task 
 def create_tests():
+    import os
     print("Creating file tests in automated_tests folder ...")
-
+    
     #create folder it does not exist
     if not os.path.exists("automated_tests"): os.makedirs("automated_tests")
-
-#    with open("sysctl_values.default") as fd_def:
-
-
+    if not os.path.exists("automated_tests/connection"): os.makedirs("automated_tests/connection")
+    if not os.path.exists("automated_tests/data"): os.makedirs("automated_tests/data")
+    #if not os.path.exists("automated_tests/"): os.makedirs("automated_tests")
+    if not os.path.exists("automated_tests/close"): os.makedirs("automated_tests/close")
+    
+    #create_connection_tests()
+    create_data_tests()
+    #create_close_tests()
