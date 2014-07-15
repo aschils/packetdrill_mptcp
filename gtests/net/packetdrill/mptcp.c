@@ -903,8 +903,10 @@ int dss_inbound_parser(struct packet *packet_to_modify,
 		struct packet *live_packet,
 		struct tcp_option *dss_opt_script){
 	struct mp_subflow *subflow = find_subflow_matching_inbound_packet(packet_to_modify);
-	if(!subflow)
+	if(!subflow){
+		printf("May-be not a MPTCP connection : no subflow found --- \n");
 		return STATUS_ERR;
+	}
 
 	u16 tcp_payload_length = (u16)packet_payload_len(packet_to_modify);
 

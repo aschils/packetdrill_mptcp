@@ -1,0 +1,14 @@
+This Readme is to describe how to create file tests automatically. 
+
+
+First, install fabric tools for python (2.7) http://www.fabfile.org/:
+
+$ sudo apt-get install fabric or [$ pip install fabric]
+
+
+How to use it: 
+$ fab -l 		# to list all possible actions
+$ fab create_tests 	# create file tests in subdirectories
+
+$ sudo ./run_tests.sh # to run all tests craeted by 'fab create_tests' command line
+
