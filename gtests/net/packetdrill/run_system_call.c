@@ -532,7 +532,8 @@ static int end_syscall(struct state *state, struct syscall_spec *syscall,
 	if (get_s32(syscall->result, &expected, error))
 		return STATUS_ERR;
 	if (mode == CHECK_NON_NEGATIVE) {
-		if (actual < 0) {
+		if ((expected < 0 && actual != expected) ||
+		    (actual < 0 && expected > 0 )) {
 			asprintf(error,
 				 "Expected non-negative result but got %d "
 				 "with errno %d (%s)",
