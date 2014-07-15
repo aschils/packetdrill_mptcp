@@ -1915,6 +1915,8 @@ int mptcp_subtype_mp_fastclose(struct packet *packet_to_modify,
 		unsigned direction)
 {
 	struct tcp_option* dss_opt_live = get_mptcp_option(live_packet, MP_FASTCLOSE_SUBTYPE);
+	if(!dss_opt_live)
+		return STATUS_ERR;
 
 	if(dss_opt_script->data.mp_fastclose.receiver_key == UNDEFINED){ // <mp_fastclose>
 		if(direction == DIRECTION_INBOUND)
