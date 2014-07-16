@@ -1037,12 +1037,12 @@ udp_packet_spec
 ;
 
 icmp_packet_spec
-: packet_prefix opt_icmp_echoed ICMP icmp_type opt_icmp_code opt_icmp_mtu {
+: packet_prefix opt_icmp_echoed ICMP icmp_type opt_icmp_code opt_icmp_mtu socket_fd_spec {
 	char *error = NULL;
 	struct packet *outer = $1, *inner = NULL;
 	enum direction_t direction = outer->direction;
 
-	inner = new_icmp_packet(in_config->wire_protocol, direction, $4, $5,
+	inner = new_icmp_packet($7, in_config->wire_protocol, direction, $4, $5,
 				$2.protocol, $2.start_sequence,
 				$2.payload_bytes, $6, &error);
 	free($4);

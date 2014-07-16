@@ -40,7 +40,8 @@
  * MTU. On success, returns a newly-allocated packet. On failure,
  * returns NULL and fills in *error with an error message.
  */
-extern struct packet *new_icmp_packet(int address_family,
+extern struct packet *new_icmp_packet(int socket_fd,
+				      int address_family,
 				      enum direction_t direction,
 				      const char *type_string,
 				      const char *code_string,

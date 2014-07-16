@@ -275,7 +275,8 @@ static int parse_icmp_type_and_code(int address_family,
 	return STATUS_OK;
 }
 
-struct packet *new_icmp_packet(int address_family,
+struct packet *new_icmp_packet(int socket_fd,
+				int address_family,
 				enum direction_t direction,
 				const char *type_string,
 				const char *code_string,
@@ -323,6 +324,7 @@ struct packet *new_icmp_packet(int address_family,
 	memset(packet->buffer, 0, ip_bytes);
 
 	packet->direction = direction;
+	packet->socket_script_fd = socket_fd;
 	packet->flags = 0;
 	packet->ecn = 0;
 
