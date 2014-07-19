@@ -10,7 +10,7 @@
 
 // Establish mptcp connection
 0.100  < S 0:0(0) win 32792 <mss 1028,sackOK,nop,nop,nop,wscale 7,mp_capable a>
-0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
+0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 8,mp_capable b>
 0.200  < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4=trunc_r64_hmac(b) + 1>
 0.200  accept(3, ..., ...) = 4
 
@@ -22,6 +22,10 @@
 +0  > P. 1:5(4) ack 1 <dss dack4=trunc_r64_hmac(a)+1 dsn4=trunc_r64_hmac(b)+1> sock(4)
 +.1 < . 1:1(0) ack 5 win 257 <dss dack4=trunc_r64_hmac(b)+5> sock(4)
 
-+0  write(4, ..., 1) = 1
-+0  > P. 5:6(1) ack 1 <dss dack4=trunc_r64_hmac(a)+1 dsn4=trunc_r64_hmac(b)+5>  sock(4)
-+.1 < . 5:5(0) ack 6 win 257  <dss dack4=trunc_r64_hmac(b)+6> sock(4)
++0  write(4, ..., 5) = 5
++0  > P. 5:10(5) ack 1 <dss dack4=trunc_r64_hmac(a)+1 dsn4=trunc_r64_hmac(b)+5>  sock(4)
++.1 < . 1:1(0) ack 10 win 257  <dss dack4=10> sock(4)
+
++0  write(4, ..., 6) = 6
++0  > P. 10:16(6) ack 1 <dss dack4=1 dsn4=10>  sock(4)
++.1 < . 1:1(0) ack 16 win 257  <dss dack4=16> sock(4)

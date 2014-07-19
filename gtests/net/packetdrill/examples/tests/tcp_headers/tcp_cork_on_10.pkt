@@ -22,7 +22,7 @@
 +0.0 listen(3, 1) = 0
 
 +0 < S 0:0(0) win 24900 <mss 70,sackOK,nop,nop,nop,wscale 7, mp_capable a>
-+0 > S. 0:0(0) ack 1 <mss 1460,sackOK,nop,nop,nop,wscale 7, mp_capable b>
++0 > S. 0:0(0) ack 1 <mss 1460,sackOK,nop,nop,nop,wscale 8, mp_capable b>
 +0 < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
 +0 accept(3, ..., ...) = 4
 
@@ -33,36 +33,28 @@
 +0.400 	write(4, ..., 500) = 500
 
 +0.0 > . 1:51(50) ack 1 <dss dack4 dsn4 >
-+0 < . 1:1(0) ack 50 win 257 <dss dack4>
-
 +0.0 > . 51:101(50) ack 1 <dss dack4 dsn4 >
-+0 < . 1:1(0) ack 101 win 257 <dss dack4>
-
 +0.0 > . 101:151(50) ack 1 <dss dack4 dsn4 >
-+0 < . 1:1(0) ack 151 win 257 <dss dack4>
-
 +0.0 > . 151:201(50) ack 1 <dss dack4 dsn4 >
-+0 < . 1:1(0) ack 201 win 257 <dss dack4>
-
 +0.0 > . 201:251(50) ack 1 <dss dack4 dsn4 >
-+0 < . 1:1(0) ack 251 win 257 <dss dack4>
-
 +0.0 > . 251:301(50) ack 1 <dss dack4 dsn4 >
-+0 < . 1:1(0) ack 301 win 257 <dss dack4>
-
 +0.0 > . 301:351(50) ack 1 <dss dack4 dsn4 >
-+0 < . 1:1(0) ack 351 win 257 <dss dack4>
-
 +0.0 > . 351:401(50) ack 1 <dss dack4 dsn4 >
-+0 < . 1:1(0) ack 401 win 257 <dss dack4>
-
 +0.0 > . 401:451(50) ack 1 <dss dack4 dsn4 >
-+0 < . 1:1(0) ack 451 win 257 <dss dack4>
-
 +0.0 > . 451:501(50) ack 1 <dss dack4 dsn4 >
-+0 < . 1:1(0) ack 501 win 257 <dss dack4>
+
++0.05 < . 1:1(0) ack 50 win 257 <dss dack4>
++0   < . 1:1(0) ack 101 win 257 <dss dack4>
++0   < . 1:1(0) ack 151 win 257 <dss dack4>
++0   < . 1:1(0) ack 201 win 257 <dss dack4>
++0   < . 1:1(0) ack 251 win 257 <dss dack4>
++0   < . 1:1(0) ack 301 win 257 <dss dack4>
++0   < . 1:1(0) ack 351 win 257 <dss dack4>
++0   < . 1:1(0) ack 401 win 257 <dss dack4>
++0   < . 1:1(0) ack 451 win 257 <dss dack4>
++0   < . 1:1(0) ack 501 win 257 <dss dack4>
 
 // The last is not complete => should wait 407 ms
-+0.407 > P. 501:550(49) ack 1 <dss dack4 dsn4 >
++0.472 > P. 501:550(49) ack 1 <dss dack4 dsn4 >
 +0 < . 1:1(0) ack 550 win 257 <dss dack4>
 

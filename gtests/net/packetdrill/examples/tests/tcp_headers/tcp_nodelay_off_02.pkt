@@ -14,7 +14,7 @@
 
 
 0.1 < S 0:0(0) win 32792 <mss 1020,sackOK,nop,nop,nop,wscale 7,mp_capable a>
-0.1 > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
+0.1 > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 8,mp_capable b>
 0.2 < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
 0.2 accept(3, ..., ...) = 4
 
@@ -38,8 +38,8 @@
 // The last overpassed MSS 1000 bytes = size of MSS itsel
 +0 > P. 2006:3006(1000) ack 1 <dss dack4 dsn4=2006 dll=1000>
 
-+0 < . 1:1(0) ack 6 win 257 <dss dack4=6>
-+0 < . 1:1(0) ack 1006 win 257 <dss dack4=1006>
-+0 < . 1:1(0) ack 2006 win 257 <dss dack4=2006>
-+0 < . 1:1(0) ack 3006 win 257 <dss dack4=3006>
++0.01 < . 1:1(0) ack 6 win 257 <dss dack4=6>
++0    < . 1:1(0) ack 1006 win 257 <dss dack4=1006>
++0    < . 1:1(0) ack 2006 win 257 <dss dack4=2006>
++0    < . 1:1(0) ack 3006 win 257 <dss dack4=3006>
 

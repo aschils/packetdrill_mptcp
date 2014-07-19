@@ -13,7 +13,7 @@
 0 `ip link set dev tun0 multipath off`
 
 0.100  < S 0:0(0) win 32792 <mss 1020,sackOK,nop,nop,nop,wscale 7,mp_capable a>
-0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
+0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 8,mp_capable b>
 0.200  < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
 0.200  accept(3, ..., ...) = 4
 
@@ -21,19 +21,19 @@
 +0 setsockopt(4, IPPROTO_TCP, TCP_NODELAY, [1], 4) = 0
 
 // Write 3 packets on the socket
-+0 write(4, ..., 1000) = 1000
++0 write(4, ..., 999) = 999
 +0 write(4, ..., 5) = 5
 +0 write(4, ..., 6) = 6
-+0 write(4, ..., 1000) = 1000
++0 write(4, ..., 990) = 990
 
 // Send this 3 packets on the wire
-+0 > P. 1:1001(1000) ack 1 <dss dack4 dsn4>
-+0 > P. 1001:1006(5) ack 1 <dss dack4 dsn4>
-+0 > P. 1006:1012(6) ack 1 <dss dack4 dsn4>
-+0 > P. 1012:2012(1000) ack 1 <dss dack4 dsn4>
++0 > P. 1:1000(999) ack 1 <dss dack4 dsn4>
++0 > P. 1000:1005(5) ack 1 <dss dack4 dsn4>
++0 > P. 1005:1011(6) ack 1 <dss dack4 dsn4>
++0 > P. 1011:2001(990) ack 1 <dss dack4 dsn4>
 
 // Ack each of them
-+0 < . 1:1(0) ack 1001 win 257 <dss dack4>
-+.0 < . 1:1(0) ack 106 win 257 <dss dack4>
-+.0 < . 1:1(0) ack 1012 win 257 <dss dack4>
-+.0 < . 1:1(0) ack 2012 win 257 <dss dack4>
++ 0.1 < . 1:1(0) ack 1000 win 257 <dss dack4>
++.0   < . 1:1(0) ack 1005 win 257 <dss dack4>
++.0   < . 1:1(0) ack 1011 win 257 <dss dack4>
++.0   < . 1:1(0) ack 2001 win 257 <dss dack4>

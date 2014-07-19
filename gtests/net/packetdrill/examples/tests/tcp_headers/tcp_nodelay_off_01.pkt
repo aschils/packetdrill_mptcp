@@ -12,32 +12,31 @@
 0.000 bind(3, ..., ...) = 0
 0.000 listen(3, 1) = 0
 
-
 0.1 < S 0:0(0) win 32792 <mss 1020,sackOK,nop,nop,nop,wscale 7,mp_capable a>
-0.1 > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
+0.1 > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 8,mp_capable b>
 0.2 < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
 0.2 accept(3, ..., ...) = 4
 
 // Set TCP_NODELAY disabled => Nagle algorithm is on
 +0 setsockopt(4, IPPROTO_TCP, TCP_NODELAY, [0], 4) = 0
 
-
 // Write 3 packets on the socket
-+0 write(4, ..., 1000) = 1000
++0 write(4, ..., 999) = 999
 +0 write(4, ..., 5) = 5
 +0 write(4, ..., 6) = 6
 +0 write(4, ..., 990) = 990
 
+
 // Send this 3 packets on the wire
 
 // First one without wiaintg
-+0 > P. 1:1001(1000) ack 1 <dss dack4 dsn4>
-+0 < . 1:1(0) ack 1001 win 257 <dss dack4>
++0    > P. 1:1000(999) ack 1 <dss dack4 dsn4>
++0.01 < . 1:1(0) ack 1001 win 257 <dss dack4>
 
-//second one completed up to the MSS = 1008, is this correct without Push flag ?
-+0 > P. 1001:1006(1000) ack 1 <dss dack4 dsn4>
-+0 < . 1:1(0) ack 2001 win 257 <dss dack4>
+//second one completed up to the MSS 
++0    > . 1000:2000(1000) ack 1 <dss dack4 dsn4>
++0.01 < . 1:1(0) ack 2000 win 257 <dss dack4>
 
-// The last overpassed MSS 3 bytes
-+0 > P. 2001:2002(1) ack 1 <dss dack4 dsn4>
-+0 < . 1:1(0) ack 2002 win 257 <dss dack4>
+// The last overpassed MSS 1 byte with delay
++0.2  > P. 2000:2001(1) ack 1 <dss dack4 dsn4>
++0.01 < . 1:1(0) ack 2001 win 257 <dss dack4>

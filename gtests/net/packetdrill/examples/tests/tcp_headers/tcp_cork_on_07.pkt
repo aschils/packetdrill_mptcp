@@ -7,7 +7,7 @@
  * mptcp v0.88
  * Test buffering several packets before sending it.
  * It's done using TCP_CORK flag.
- * It tests if a segment is sent if DLL == MSS using close call system
+ * It tests if a segment is sent directly when using close call system
  */
 
 0.000 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
@@ -16,17 +16,17 @@
 0.000 listen(3, 1) = 0
 
 +0 < S 0:0(0) win 32792 <mss 1020,sackOK,nop,nop,nop,wscale 7, mp_capable a>
-+0 > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7, mp_capable b>
++0 > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 8, mp_capable b>
 +0 < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
 +0 accept(3, ..., ...) = 4
 
 // Put TCP_CORK flag ON
 +0 setsockopt(4, SOL_TCP, TCP_CORK, [1], 4) = 0
 
-+0 write(4, ..., 999) = 999
++0 write(4, ..., 800) = 800
 +0.1 close(4) = 0 
 
-
-+0 > P. 1:1000(999) ack 1 <dss dack4 dsn4 dll=1000 FIN>
-+0.01   <  . 1:1(0) ack 1000 win 257 <dss dack4>
+// Send it automatically without waiting end of time ceiling
++0    > P. 1:801(800) ack 1 <dss dack4 dsn4 dll=801 FIN>
++0.01 <  . 1:1(0) ack 801 win 257 <dss dack4>
 
