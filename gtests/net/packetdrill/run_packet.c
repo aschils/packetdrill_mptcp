@@ -954,6 +954,7 @@ bool same_mptcp_opt(struct tcp_option *opt_a, struct tcp_option *opt_b, struct p
 		case MP_CAPABLE_SUBTYPE:
 			if(opt_a->data.mp_capable.flags != opt_b->data.mp_capable.flags)
 				return false;
+
 			if(opt_a->length == TCPOLEN_MP_CAPABLE_SYN){
 				if(opt_a->data.mp_capable.syn.key != opt_b->data.mp_capable.syn.key)
 					return false;
@@ -1124,7 +1125,6 @@ static bool same_tcp_options(struct packet *packet_a,
 		while(opt_b != NULL && opt_a->kind != opt_b->kind){
 			opt_b = tcp_options_next(&iter_b, NULL);
 		}
-
 		//opt_a not found in packet_b
 		if(opt_b == NULL){
 			return false;
@@ -1132,6 +1132,7 @@ static bool same_tcp_options(struct packet *packet_a,
 
 		// loop on subtypes of mptcp, to compare the right option
 		if(opt_a->kind == TCPOPT_MPTCP){
+
 			while(opt_b != NULL && opt_a->data.mp_capable.subtype!=opt_b->data.mp_capable.subtype)
 				opt_b = tcp_options_next(&iter_b, NULL);
 

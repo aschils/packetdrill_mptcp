@@ -769,7 +769,7 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 %token <reserved> MSG_NAME MSG_IOV MSG_FLAGS
 %token <reserved> FD EVENTS REVENTS ONOFF LINGER
 %token <reserved> ACK ECR EOL MSS NOP SACK SACKOK TIMESTAMP VAL WIN WSCALE PRO SOCK
-%token <reserved> MP_CAPABLE MP_CAPABLE_NO_CS MP_FASTCLOSE
+%token <reserved> MP_CAPABLE MP_CAPABLE_NO_CS MP_FASTCLOSE FLAG_A FLAG_B FLAG_C FLAG_D FLAG_E FLAG_F FLAG_G FLAG_H NO_FLAGS
 %token <reserved> MP_JOIN_SYN MP_JOIN_SYN_BACKUP MP_JOIN_SYN_ACK_BACKUP MP_JOIN_ACK MP_JOIN_SYN_ACK
 %token <reserved> DSS DACK4 DSN4 DACK8 DSN8 FIN SSN DLL NOCS CKSUM ADDRESS_ID BACKUP TOKEN AUTO RAND TRUNC_R64_HMAC
 %token <reserved> SENDER_HMAC TRUNC_L64_HMAC FULL_160_HMAC SHA1_32
@@ -800,6 +800,7 @@ struct tcp_option *dss_do_dsn_dack( int dack_type, int dack_val,
 %type <integer> opt_mpls_stack_bottom
 %type <integer> opt_icmp_mtu socket_fd_spec fin ssn dll dss_checksum
 %type <integer> mp_capable_no_cs is_backup address_id rand port
+%type <integer> flag_a flag_b flag_c flag_d flag_e flag_f flag_g flag_h no_flags
 %type <string> icmp_type opt_icmp_code flags
 %type <string> opt_tcp_fast_open_cookie tcp_fast_open_cookie
 %type <string> opt_note note word_list
@@ -1390,6 +1391,34 @@ MP_CAPABLE {$$ = false;}
 | MP_CAPABLE_NO_CS {$$ = true;}
 ;
 
+
+flag_a : {$$ = 0;}
+| FLAG_A {$$ = 1;};
+
+flag_b : {$$ = 0;}
+| FLAG_B {$$ = 1;} ;
+
+flag_c : {$$ = 0;}
+| FLAG_C {$$ = 1;};
+
+flag_d : {$$ = 0;}
+| FLAG_D {$$ = 1;};
+
+flag_e : {$$ = 0;}
+| FLAG_E {$$ = 1;};
+
+flag_f: {$$ = 0;}
+| FLAG_F {$$ = 1;};
+
+flag_g : {$$ = 0;}
+| FLAG_G {$$ = 1;};
+
+flag_h : {$$ = 0;}
+| FLAG_H {$$ = 1;};
+
+no_flags : {$$ = 0;}
+| NO_FLAGS {$$ = 1;};
+
 is_backup
 : {$$ = 0;}
 | BACKUP '=' INTEGER
@@ -1574,7 +1603,7 @@ tcp_option
 	}
 }
 
-| mp_capable_no_cs mptcp_var mptcp_var_or_empty {
+| mp_capable_no_cs mptcp_var mptcp_var_or_empty flag_a flag_b flag_c flag_d flag_e flag_f flag_g flag_h no_flags{
 
 	unsigned mp_capable_length = TCPOLEN_MP_CAPABLE_SYN;
 
@@ -1592,7 +1621,7 @@ tcp_option
 
 		if(enqueue_var($3.name))
 			semantic_error("MPTCP variables queue is full, increase queue size.");
-
+		
 		if($3.script_assigned){
 			if(!is_valid_u64($3.value))
 				semantic_error("Value assigned to second mptcp variable is not a valid u64.");
@@ -1603,11 +1632,35 @@ tcp_option
 	$$ = tcp_option_new(TCPOPT_MPTCP, mp_capable_length);
 	$$->data.mp_capable.version = MPTCP_VERSION;
 	$$->data.mp_capable.subtype = MP_CAPABLE_SUBTYPE;
-
-	if($1)
-		$$->data.mp_capable.flags = MP_CAPABLE_FLAGS;
-	else
-		$$->data.mp_capable.flags = MP_CAPABLE_FLAGS_CS;
+	u32 flags = ZERO_RESERVED;
+	
+	if($4) // A
+		flags += 128;
+	if($5) // B
+		flags += 64;
+	if($6>0) // C
+		flags += 32;	
+	if($7>0) // D
+		flags += 16;
+	if($8>0) // E
+		flags += 8;
+	if($9>0) // F
+		flags += 4;
+	if($10>0) //G
+		flags += 2;
+	if($11>0) //H
+		flags += 1;
+	
+	if($12>0)
+		flags = 0;
+	else if(flags==0){
+		if($1)
+			flags = MP_CAPABLE_FLAGS;
+		else
+			flags = MP_CAPABLE_FLAGS_CS;
+	}
+	
+	$$->data.mp_capable.flags = flags;
 }
 
 | MP_JOIN_SYN is_backup address_id mptcp_token rand {

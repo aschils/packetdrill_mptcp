@@ -1966,6 +1966,7 @@ int mptcp_insert_and_extract_opt_fields(struct packet *packet_to_modify,
 		if(tcp_opt_to_modify->kind == TCPOPT_MPTCP){
 			switch(tcp_opt_to_modify->data.mp_capable.subtype){
 			case MP_CAPABLE_SUBTYPE:	// 00
+
 				error = mptcp_subtype_mp_capable(packet_to_modify,
 						live_packet,
 						tcp_opt_to_modify,

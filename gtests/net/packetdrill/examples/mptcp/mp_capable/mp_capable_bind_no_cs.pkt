@@ -1,7 +1,7 @@
 //No checksum mp_capable
 
 // disable checksum tests
-0 `sysctl -w net.mptcp.mptcp_checksum=0`
++0 `sysctl -w net.mptcp.mptcp_checksum=0`
 
 +0   socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
 +0  setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0

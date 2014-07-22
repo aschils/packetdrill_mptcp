@@ -247,21 +247,56 @@ int tcp_options_to_string(struct packet *packet,
 
         	case MP_CAPABLE_SUBTYPE:
         		if(option->length == TCPOLEN_MP_CAPABLE){
-        			fprintf(s, "mp_capable sender_key: %lu receiver_key: %lu, flags %u",
+        			fprintf(s, "mp_capable sender_key: %lu receiver_key: %lu",
         					(unsigned long)option->data.mp_capable.no_syn.sender_key,
-        					(unsigned long)option->data.mp_capable.no_syn.receiver_key,
-        					option->data.mp_capable.flags);
-        		}
-        		else if(option->length == TCPOLEN_MP_CAPABLE_SYN){
-        			fprintf(s, "mp_capable sender_key: %lu, flags: %u",
-        					(unsigned long)option->data.mp_capable.syn.key,
-        					option->data.mp_capable.flags);
-        		}
-        		else{
+        					(unsigned long)option->data.mp_capable.no_syn.receiver_key);
+        		}else if(option->length == TCPOLEN_MP_CAPABLE_SYN){
+        			fprintf(s, "mp_capable sender_key: %lu",
+        					(unsigned long)option->data.mp_capable.syn.key);
+        		}else
         			fprintf(s, "mp_capable unknown length");
-        		}
-        		break;
 
+				fprintf(s, ", flags: ");
+				u8 flags = option->data.mp_capable.flags;
+				if(flags==0){
+					fprintf(s, "| |");
+				}else{
+					if(flags>=128){
+						fprintf(s, "|A");
+						flags = flags-128;
+					}
+					if(flags>=64){
+						fprintf(s, "|B");
+						flags = flags-64;
+					}
+					if(flags>=32){
+						fprintf(s, "|C");
+						flags = flags-32;
+					}
+					if(flags>=16){
+						fprintf(s, "|D");
+						flags = flags-16;
+					}
+					if(flags>=8){
+						fprintf(s, "|E");
+						flags = flags-8;
+					}
+					if(flags>=4){
+						fprintf(s, "|F");
+						flags = flags-4;
+					}
+					if(flags>=2){
+						fprintf(s, "|G");
+						flags = flags-2;
+					}
+					if(flags>=1){
+						fprintf(s, "|H");
+						flags = flags-1;
+					}
+					fprintf(s, "|");
+        		}
+
+				break;
         	case DSS_SUBTYPE:
         		print_dss_subtype(s, option);
         		break;
