@@ -35,19 +35,20 @@ def save_all_values():
 # from: http://wwwx.cs.unc.edu/~sparkst/howto/network_tuning.php
 def configure_core_only():
     #This sets the max OS receive buffer size for all types of connections.
-    local("sysctl -w net.core.rmem_max=8388608")
+    local("sysctl -w net.core.rmem_max=212992") #  8388608
     #This sets the max OS send buffer size for all types of connections.
-    local("sysctl -w net.core.wmem_max=8388608")
+    local("sysctl -w net.core.wmem_max=212992")
     #This sets the default OS receive buffer size for all types of connections.
-    local("sysctl -w net.core.rmem_default=65536") 
+    local("sysctl -w net.core.rmem_default=212992") 
     #This sets the default OS send buffer size for all types of connections.   
-    local("sysctl -w net.core.wmem_default=65536") 
+    local("sysctl -w net.core.wmem_default=212992") 
 
 def configure_tcp_only():
-    local('sysctl -w net.ipv4.tcp_mem="8388608 8388608 8388608"') #default: 132324	176434	264648
-    local('sysctl -w net.ipv4.tcp_rmem="4096 87380 8388608"') # default:    4096    87380	6291456
-    local('sysctl -w net.ipv4.tcp_wmem="4096 65536 8388608"') #default:     4096    16384	4194304
-   # local('sysctl -w net.ipv4.tcp_congestion_control = "coupled"' )
+    local('sysctl -w net.ipv4.tcp_mem="132324	176434 	264648"') #default: 132324	176434	264648
+    local('sysctl -w net.ipv4.tcp_rmem="4096    87380 6291456"') # default:    4096    87380	6291456
+    local('sysctl -w net.ipv4.tcp_wmem="4096	16384 4194304"') #default:     4096    16384	4194304
+	# local('sysctl -w net.ipv4.tcp_window_scaling="0"')
+   	# local('sysctl -w net.ipv4.tcp_congestion_control = "coupled"' )
 
 def configure_mptcp_only():
     local('sysctl -w net.mptcp.mptcp_checksum=1')
@@ -128,17 +129,18 @@ def restore_all_values(): # last step
 
 # Create all file tests concerned by the connection level
 def create_connection_tests():
-  import random
-  sock =  "+0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3\n" 
-  reuse = "+0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0\n"
-  bind =  "+0 bind(3, ..., ...) = 0\n"
-  listen = "+0 listen(3, 1) = 0\n"
+    import random
+    sock =  "+0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3\n" 
+    reuse = "+0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0\n"
+    bind =  "+0 bind(3, ..., ...) = 0\n"
+    listen = "+0 listen(3, 1) = 0\n"
 
-  syn =    "+0  < S 0:0(0) win 32792 <mss 1028,sackOK,nop,nop,nop,wscale 7,mp_capable a>\n"
-  synack = "+0  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 8,mp_capable b>\n"
-  ack =    "+0  < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>\n"
-  accept = "+0  accept(3, ..., ...) = 4\n"
+    syn =    "+0  < S 0:0(0) win 32792 <mss 1028,sackOK,nop,nop,nop,wscale 7,mp_capable a>\n"
+    synack = "+0  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>\n"
+    ack =    "+0  < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>\n"
+    accept = "+0  accept(3, ..., ...) = 4\n"
   
+    """
   # Server and client side of connection. The goal is to have the same number with checksum and without
   # Create server side of connection
   for nb in range(4):
@@ -150,7 +152,7 @@ def create_connection_tests():
     nb_rand = random.getrandbits(64) #random.randint(1, 10)
     if(nb<2):	# no checksum
       fd.write("+0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable_no_cs a="+str(nb_rand)+">\n") 
-      fd.write("+0  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 8,mp_capable_no_cs b>\n")
+      fd.write("+0  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable_no_cs b>\n")
       fd.write("+0 < . 1:1(0) ack 1 win 257 <mp_capable_no_cs a="+str(nb_rand)+" b, dss dack4>\n") 
     else:	# with checksum
       fd.write("+0 < S 0:0(0) win 32792 <mss 1028,sackOK,nop,nop,nop,wscale 7,mp_capable a="+str(nb_rand)+">\n") 
@@ -173,11 +175,11 @@ def create_connection_tests():
     fd.write(sock + nonblock + connect)
 
     if(nb<2): 	# no checksum
-      fd.write("+0.0 > S 0:0(0) win 29200 <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 8,mp_capable_no_cs a>\n") 
+      fd.write("+0.0 > S 0:0(0) win 29200 <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 7,mp_capable_no_cs a>\n") 
       fd.write("+0.0 < S. 0:0(0) ack 1 win 5792 <mss 1460,sackOK,TS val 700 ecr 100,nop,wscale 7,mp_capable_no_cs b="+str(nb_rand)+">\n")
       fd.write("+0.0 > . 1:1(0) ack 1 <nop,nop,TS val 100 ecr 700,mp_capable_no_cs a b="+str(nb_rand)+", dss dack4> \n")
     else:  	# with checksum
-      fd.write("+0.0 > S 0:0(0) win 29200 <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 8,mp_capable a>\n") 
+      fd.write("+0.0 > S 0:0(0) win 29200 <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 7,mp_capable a>\n") 
       fd.write("+0.0 < S. 0:0(0) ack 1 win 5792 <mss 1460,sackOK,TS val 700 ecr 100,nop,wscale 7,mp_capable b="+str(nb_rand)+">\n")
       fd.write("+0.0 > . 1:1(0) ack 1 <nop,nop,TS val 100 ecr 700,mp_capable a b="+str(nb_rand)+", dss dack4=1>\n")
     fd.write(blocking)
@@ -185,15 +187,52 @@ def create_connection_tests():
       fd.write("+0 `sysctl -w net.mptcp.mptcp_checksum=1`\n")
     print("Created: "+filename)
     fd.close()
+    """
 
+    #Tests based on flags
+    for nb in range(6):
+    	flags = ""
+    	filename = "automated_tests/connection/mp_capable_server_flags_"+str(nb)+".pkt"
+    	fd = open(filename, 'w') 
+    	flag_a_exists = (nb&128) > 0 
+    	if(not flag_a_exists):
+    		fd.write("+0 `sysctl -w net.mptcp.mptcp_checksum=0`\n")
+    		mp_capable_token = "mp_capable_no_cs"
+    	else:
+    		mp_capable_token = "mp_capable"
+    	
+    	fd.write(sock + reuse + bind + listen + "\n")
+    	flags += " flag_a" if (nb&128) > 0 else ""
+    	flags += " flag_b" if (nb&64) > 0 else ""
+    	flags += " flag_c" if (nb&32) > 0 else ""
+    	flags += " flag_d" if (nb&16) > 0 else ""
+    	flags += " flag_e" if (nb&8) > 0 else ""
+    	flags += " flag_f" if (nb&4) > 0 else ""
+    	flags += " flag_g" if (nb&2) > 0 else ""	
+    	flags += " flag_h" if (nb&1) > 0 else ""
+    	if(nb==0): flags = " no_flags"
+    	
+    	fd.write("+0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,"+mp_capable_token+" a"+ flags +">\n") 
+    	if((nb&64) > 0):
+    		fd.write("+0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,"+mp_capable_token+" a>\n")
+    	
+    	if(flag_a_exists): 
+    		fd.write("+0  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,"+mp_capable_token+" b flag_a flag_h>\n")
+    	else:
+    		fd.write("+0  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,"+mp_capable_token+" b flag_h>\n")
+    	
+    	fd.write("+0.15  < . 1:1(0) ack 1 win 257 <"+mp_capable_token+" a b, dss dack4>\n") 
+    	fd.write("+0 `sysctl -w net.mptcp.mptcp_checksum=1`\n")
+    	print("Created: "+filename)
+    	
 def create_data_tests():
   import random
   sock = "+0.0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3\n"
   reuse = "+0.0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0\n"
   bind = "+0.0 bind(3, ..., ...) = 0\n"
   listen = "+0.0 listen(3, 1) = 0\n\n"
-  syn = "+0 < S 0:0(0) win 24900 <mss 1460,sackOK,nop,nop,nop,wscale 8, mp_capable a>\n"
-  synack = "+0 > S. 0:0(0) ack 1 <mss 1460,sackOK,nop,nop,nop,wscale 8, mp_capable b>\n"
+  syn = "+0 < S 0:0(0) win 24900 <mss 1460,sackOK,nop,nop,nop,wscale 7, mp_capable a>\n"
+  synack = "+0 > S. 0:0(0) ack 1 <mss 1460,sackOK,nop,nop,nop,wscale 7, mp_capable b>\n"
   ack = "+0 < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>\n"
   accept ="+0 accept(3, ..., ...) = 4\n"
 
@@ -253,6 +292,6 @@ def create_tests():
     #if not os.path.exists("automated_tests/"): os.makedirs("automated_tests")
     if not os.path.exists("automated_tests/close"): os.makedirs("automated_tests/close")
     
-    #create_connection_tests()
-    create_data_tests()
+    create_connection_tests()
+	#create_data_tests()
     #create_close_tests()
