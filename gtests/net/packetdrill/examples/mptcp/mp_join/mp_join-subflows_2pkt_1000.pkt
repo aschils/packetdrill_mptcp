@@ -29,7 +29,6 @@
 
 +0 > . 1:1(0) ack 1 <...> sock(6) // reliably mp_join_ack
 
-
 //Second subflow
 +0  < S 0:0(0) win 32792 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_join_syn address_id=1 token=sha1_32(key_b)> sock(10)
 +0  > S. 0:0(0) ack 1 win 28800 <mss 1460,nop,nop,sackOK,nop,wscale 7,mp_join_syn_ack address_id=1 sender_hmac=trunc_l64_hmac(key_b key_a)> sock(10)

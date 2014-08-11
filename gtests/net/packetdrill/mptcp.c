@@ -784,7 +784,7 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 
 		tcp_opt_to_modify->data.mp_join.syn.ack.sender_hmac = *(u64*)mptcp_hash_mac;
 	}
-	//mp_join ack
+	//mp_join ack XXX
 	else if(direction == DIRECTION_INBOUND &&
 			packet_to_modify->tcp->ack &&
 			!packet_to_modify->tcp->syn &&
@@ -793,24 +793,52 @@ int mptcp_subtype_mp_join(struct packet *packet_to_modify,
 		if(!subflow)
 			return STATUS_ERR;
 
-		//Build key for HMAC-SHA1
-		u64 loc_key = mp_state.packetdrill_key;
-		u64 rem_key = mp_state.kernel_key;
-		u32 loc_nonce = subflow->packetdrill_rand_nbr;
-		u32 rem_nonce = subflow->kernel_rand_nbr;
+		if(mp_join_script_info->ack.is_var){
+			//Build key for HMAC-SHA1
+			u64 loc_key = mp_state.packetdrill_key;
+			u64 rem_key = mp_state.kernel_key;
+			u32 loc_nonce = subflow->packetdrill_rand_nbr;
+			u32 rem_nonce = subflow->kernel_rand_nbr;
 
-		// return value
-		u8 mptcp_hash_mac[20];
-		mptcp_hmac_sha1(
-				(u8*)&loc_key,
-				(u8*)&rem_key,
-				(u8*)&loc_nonce,
-				(u8*)&rem_nonce,
-				(u32*)mptcp_hash_mac );
+			// return value
+			u8 mptcp_hash_mac[20];
+			mptcp_hmac_sha1(
+					(u8*)&loc_key,
+					(u8*)&rem_key,
+					(u8*)&loc_nonce,
+					(u8*)&rem_nonce,
+					(u32*)mptcp_hash_mac );
 
-		memcpy(tcp_opt_to_modify->data.mp_join.no_syn.sender_hmac,
-				mptcp_hash_mac,
-				20);
+			memcpy(tcp_opt_to_modify->data.mp_join.no_syn.sender_hmac,
+					mptcp_hash_mac,
+					20);
+		}else if(mp_join_script_info->ack.is_script_defined){
+			char *key_1 = mp_join_script_info->ack.var;
+			char *key_2 = mp_join_script_info->ack.var2;
+
+			struct mp_var *var1 = find_mp_var(key_1);
+			struct mp_var *var2 = find_mp_var(key_2);
+			if(var1==NULL || var2==NULL)
+				return STATUS_ERR;
+			u64 loc_key = *(u64*)var1->value;
+			u64 rem_key = *(u64*)var2->value;
+			u32 loc_nonce = subflow->packetdrill_rand_nbr;
+			u32 rem_nonce = subflow->kernel_rand_nbr;
+			// return value
+			u8 mptcp_hash_mac[20];
+			mptcp_hmac_sha1(
+					(u8*)&loc_key,
+					(u8*)&rem_key,
+					(u8*)&loc_nonce,
+					(u8*)&rem_nonce,
+					(u32*)mptcp_hash_mac );
+
+			memcpy(tcp_opt_to_modify->data.mp_join.no_syn.sender_hmac,
+					mptcp_hash_mac,
+					20);
+		}else{
+			return STATUS_ERR;
+		}
 	}
 
 	else if(direction == DIRECTION_OUTBOUND &&

@@ -348,7 +348,7 @@ int tcp_options_to_string(struct packet *packet,
         			fprintf(s, "add_address address_id: %u ipv4: %s port: %u",
 						option->data.add_addr.address_id,
 						src_string,
-						option->data.add_addr.ipv4_w_port.port);
+						ntohs(option->data.add_addr.ipv4_w_port.port));
         		}else if(option->length == TCPOLEN_ADD_ADDR_V6){
         			if (!inet_ntop(AF_INET, &option->data.add_addr.ipv6, src_string, ADDR_STR_LEN))
 						die_perror("inet_ntop");
@@ -361,7 +361,7 @@ int tcp_options_to_string(struct packet *packet,
 					fprintf(s, "add_address address_id: %u ipv6: %s port: %u",
 						option->data.add_addr.address_id,
 						src_string,
-						option->data.add_addr.ipv6_w_port.port);
+						ntohs(option->data.add_addr.ipv6_w_port.port));
         		}else{
         			fprintf(s, "add_address bad length");
         		}

@@ -1,15 +1,18 @@
-// Test mp_capable mptcp option, first syn sent by packetdrill
-
-0   socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+/* mptcp v0.88
+ * This tests the usage of flags inside mp_capble option
+ */
+//0 `sysctl -w net.ipv4.tcp_window_scaling=1`
+0  socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
 +0  setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
 
 +0  bind(3, ..., ...) = 0
 +0  listen(3, 1) = 0
 
-+0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable var_a flag_a flag_h> // flag_an flag_b --> falg_h
-+0  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable var_c>
-+0.1  < . 1:1(0) ack 1 win 257 <mp_capable var_a var_c flag_a flag_h>
++0.1  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable var_a flag_b> // flag_an flag_b --> falg_h
+//+0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable var_a flag_a flag_h>
++0  > S. 0:0(0) ack 1 win 29200 <mss 1460,sackOK,nop,nop,nop,wscale 7> //,mp_capable var_c
++0.1  < . 1:1(0) ack 1 win 257 //<mp_capable var_a var_c flag_a flag_h>
 
 +0  accept(3, ..., ...) = 4
 
-
+//+0 `sysctl -w net.ipv4.tcp_window_scaling=1`
