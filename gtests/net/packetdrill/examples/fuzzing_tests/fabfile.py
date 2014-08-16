@@ -54,7 +54,7 @@ def configure_mptcp_only():
     local('sysctl -w net.mptcp.mptcp_checksum=1')
     local('sysctl -w net.mptcp.mptcp_debug=0')
     local('sysctl -w net.mptcp.mptcp_enabled=1') #be sure it's running
-    local('sysctl -w net.mptcp.mptcp_ndiffports=2')
+    #local('sysctl -w net.mptcp.mptcp_ndiffports=2') # not supported by v0.89
     local('sysctl -w net.mptcp.mptcp_path_manager=fullmesh')
     local('sysctl -w net.mptcp.mptcp_syn_retries=3')
 
@@ -103,8 +103,8 @@ def restore_mptcp():
                 local("sysctl -w net.mptcp.mptcp_enabled=" + n[2])
             if("net.mptcp.mptcp_debug" == n[0]):
                 local("sysctl -w net.mptcp.mptcp_debug=" + n[2])            
-            if("net.mptcp.mptcp_ndiffports" == n[0]):
-                local("sysctl -w net.mptcp.mptcp_ndiffports=" + n[2])
+            #if("net.mptcp.mptcp_ndiffports" == n[0]):
+            #    local("sysctl -w net.mptcp.mptcp_ndiffports=" + n[2])
             if("net.mptcp.mptcp_path_manager" == n[0]):
                 local("sysctl -w net.mptcp.mptcp_path_manager=" + n[2])
             if("net.mptcp.mptcp_syn_retries" == n[0]):

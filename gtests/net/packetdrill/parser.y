@@ -571,13 +571,13 @@ struct tcp_option *mp_join_do_ack(char *str, char *str2, bool automatic){
 			semantic_error("Too big token variable name, mptcp - mp_join");
 		memcpy(mp_join_script_info->ack.var2, str2, var2_length+1);
 		mp_join_script_info->ack.is_script_defined = true;
-		
+
 	}else
 		mp_join_script_info->ack.is_var = true;
-	
+
 	if(queue_enqueue(&mp_state.vars_queue, mp_join_script_info)==STATUS_ERR)
 		semantic_error("Too many variables are used in script");
-	
+
 	return opt;
 }
 
@@ -1617,8 +1617,9 @@ tcp_option
 		semantic_error("MPTCP variables queue is full, increase queue size.");
 
 	if($2.script_assigned){
-		if(!is_valid_u64($2.value))
-			semantic_error("Value assigned to first mptcp variable is not a valid u64.");
+		// TODO refactor for testing u64 values for i386 machines
+		//if(!is_valid_u64($2.value))
+		//	semantic_error("Value assigned to first mptcp variable is not a valid u64.");
 		add_mp_var_script_defined($2.name, &$2.value, 8);
 	}
 
@@ -1627,10 +1628,11 @@ tcp_option
 
 		if(enqueue_var($3.name))
 			semantic_error("MPTCP variables queue is full, increase queue size.");
-		
+
 		if($3.script_assigned){
-			if(!is_valid_u64($3.value))
-				semantic_error("Value assigned to second mptcp variable is not a valid u64.");
+		// TODO refactor for testing u64 values for i386 machines
+		//	if(!is_valid_u64($3.value))
+		//		semantic_error("Value assigned to second mptcp variable is not a valid u64.");
 			add_mp_var_script_defined($3.name, &$3.value, 8);
 		}
 	}
@@ -1639,13 +1641,13 @@ tcp_option
 	$$->data.mp_capable.version = MPTCP_VERSION;
 	$$->data.mp_capable.subtype = MP_CAPABLE_SUBTYPE;
 	u32 flags = ZERO_RESERVED;
-	
+
 	if($4) // A
 		flags += 128;
 	if($5) // B
 		flags += 64;
 	if($6>0) // C
-		flags += 32;	
+		flags += 32;
 	if($7>0) // D
 		flags += 16;
 	if($8>0) // E
@@ -1656,7 +1658,7 @@ tcp_option
 		flags += 2;
 	if($11>0) //H
 		flags += 1;
-	
+
 	if($12>0)
 		flags = 0;
 	else if(flags==0){
@@ -1665,7 +1667,7 @@ tcp_option
 		else
 			flags = MP_CAPABLE_FLAGS_CS;
 	}
-	
+
 	$$->data.mp_capable.flags = flags;
 }
 
