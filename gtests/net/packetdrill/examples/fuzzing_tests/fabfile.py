@@ -143,7 +143,7 @@ def create_connection_tests():
 	
 	# Server and client side of connection. The goal is to have the same number with checksum and without
 	# Create server side of connection
-	for nb in range(4):
+	for nb in range(5):
 		filename = "automated_tests/connection/mp_capable_server_"+str(nb)+".pkt"
 		fd = open(filename, 'w') 
 		if(nb<2):
@@ -151,16 +151,23 @@ def create_connection_tests():
 		fd.write(sock + reuse + bind + listen)
 		nb_rand = random.getrandbits(64) #random.randint(1, 10)
 		if(nb<2):	# no checksum
-		  fd.write("+0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable_no_cs a="+str(nb_rand)+">\n") 
+		  fd.write("+0  < S 0:0(0) win 32792 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable_no_cs a="+str(nb_rand)+">\n") 
 		  fd.write("+0  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable_no_cs b>\n")
 		  fd.write("+0 < . 1:1(0) ack 1 win 257 <mp_capable_no_cs a="+str(nb_rand)+" b, dss dack4>\n") 
 		else:	# with checksum
-		  fd.write("+0 < S 0:0(0) win 32792 <mss 1028,sackOK,nop,nop,nop,wscale 7,mp_capable a="+str(nb_rand)+">\n") 
+		  fd.write("+0 < S 0:0(0) win 32792 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable a="+str(nb_rand)+">\n") 
 		  fd.write(synack)
 		  fd.write("+0 < . 1:1(0) ack 1 win 257 <mp_capable a="+str(nb_rand)+" b, dss dack4>\n") 
 		fd.write(accept)
 		if(nb<2):
+		  fd.write("+0  write(4, ..., 1000) = 1000\n")
+		  fd.write("+0  > P. 1:1001(1000) ack 1 <dss dack4 dsn4 nocs, nop, nop>\n")
+		  fd.write("+.1 < . 1:1(0) ack 1001 win 255 <dss dack4> \n")
 		  fd.write("+0 `sysctl -w net.mptcp.mptcp_checksum=1`\n")
+		else:
+		  fd.write("+0  write(4, ..., 1000) = 1000\n")
+		  fd.write("+0  > P. 1:1001(1000) ack 1 <dss dack4 dsn4>\n")
+		  fd.write("+.1 < . 1:1(0) ack 1001 win 225 <dss dack4>\n")
 		print("Created: "+filename)
 		fd.close()
 		
@@ -184,18 +191,24 @@ def create_connection_tests():
 		  fd.write("+0.0 > . 1:1(0) ack 1 <nop,nop,TS val 100 ecr 700,mp_capable a b="+str(nb_rand)+", dss dack4=1>\n")
 		fd.write(blocking)
 		if(nb<2):
+		  fd.write("+0 < P. 1:1001(1000) ack 1 win 450  <dss dack4 dsn4 nocs, nop, nop>\n")
+		  fd.write("+0 > . 1:1(0) ack 1001 <nop,nop,TS val 150 ecr 700, dss dack4>\n")
 		  fd.write("+0 `sysctl -w net.mptcp.mptcp_checksum=1`\n")
+		else:
+		  fd.write("+0 < P. 1:1001(1000) ack 1 win 450  <dss dack4 dsn4>\n")
+		  fd.write("+0 > . 1:1(0) ack 1001 <nop,nop,TS val 150 ecr 700, dss dack4>\n")
 		print("Created: "+filename)
 		fd.close()
 	
-
+	
 	#Tests based on flags
-	for nb in range(256):
+	for nb in range(10):
 		flags = ""
 		filename = "automated_tests/connection/mp_capable_server_flags_"+str(nb)+".pkt"
 		
+		nb_rand = random.randint(0, 256)
 		with open(filename, 'w') as fd: 
-			flag_a_exists = (nb&128) > 0 
+			flag_a_exists = (nb_rand&128) > 0 
 			if(not flag_a_exists): # No checksum needed => flag a
 				fd.write("+0 `sysctl -w net.mptcp.mptcp_checksum=0`\n\n")
 				mp_capable_token = 'mp_capable_no_cs'
@@ -204,19 +217,19 @@ def create_connection_tests():
 			
 			fd.write(sock + reuse + bind + listen)
 			
-			if (nb&128) > 0 : flags += " flag_a" 
-			if (nb&64) > 0 : flags += " flag_b" 
-			if (nb&32) > 0 : flags += " flag_c" 
-			if (nb&16) > 0 : flags += " flag_d" 
-			if (nb&8) > 0 : flags += " flag_e" 
-			if (nb&4) > 0 : flags += " flag_f" 
-			if (nb&2) > 0 : flags += " flag_g" 
-			if (nb&1) > 0 : flags += " flag_h" 
+			if (nb_rand&128) > 0 : flags += " flag_a" 
+			if (nb_rand&64) > 0 : flags += " flag_b" 
+			if (nb_rand&32) > 0 : flags += " flag_c" 
+			if (nb_rand&16) > 0 : flags += " flag_d" 
+			if (nb_rand&8) > 0 : flags += " flag_e" 
+			if (nb_rand&4) > 0 : flags += " flag_f" 
+			if (nb_rand&2) > 0 : flags += " flag_g" 
+			if (nb_rand&1) > 0 : flags += " flag_h" 
 			
-			if nb==0 : flags = " no_flags"
+			if nb_rand==0 : flags = " no_flags"
 			fd.write("+0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,"+mp_capable_token+" a"+ flags +">\n") 
-			if((nb&1) > 0):
-				if((nb&64) > 0): # b flag ?
+			if((nb_rand&1) > 0):
+				if((nb_rand&64) > 0): # b flag ?
 					fd.write("+0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,"+mp_capable_token+" a>\n")
 			
 				if(flag_a_exists): 
@@ -226,7 +239,7 @@ def create_connection_tests():
 			
 				fd.write("+0.15  < . 1:1(0) ack 1 win 257 <"+mp_capable_token+" a b, dss dack4>\n") 
 			else: # regular TCP
-				if((nb&64) > 0): # b flag ?
+				if((nb_rand&64) > 0): # b flag ?
 					fd.write("+0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7>\n")
 				fd.write("+0  > S. 0:0(0) ack 1 win 29200 <mss 1460,sackOK,nop,nop,nop,wscale 7>\n")
 				fd.write("+0.1  < . 1:1(0) ack 1 win 257\n")
@@ -236,7 +249,7 @@ def create_connection_tests():
 				fd.write("+0 `sysctl -w net.mptcp.mptcp_checksum=1`\n")
 			
 			print("Created: "+filename)
-
+	
 def create_mp_join_tests():
 	import random
 	sock =  "+0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3\n"
@@ -270,6 +283,7 @@ def create_mp_join_tests():
 	# tests on different class of IPs
 	for nb in range(4):
 		port_rand = random.randint(49153, 65534)	
+		"""
 		filename = "automated_tests/connection/mp_join_server_ports_ip_local_classA_"+str(nb)+".pkt"
 		with open(filename, 'w') as fd: 
 		
@@ -309,7 +323,7 @@ def create_mp_join_tests():
 			fd.write("+0 mp_join_accept(5) = 6\n\n")
 			fd.write("+0 > . 1:1(0) ack 1 <...> sock(6)\n") # reliably mp_join_ack
 			print("Created: "+filename)
-			
+			"""
 		filename = "automated_tests/connection/mp_join_server_ports_ip_local_classC_"+str(nb)+".pkt"
 		with open(filename, 'w') as fd: 
 			fd.write(sock + reuse + bind + listen)
@@ -488,34 +502,35 @@ def create_data_tests():
   fd = open(filename, 'w') 
   fd.write("+0.0 `ethtool -K tun0 tso off`\n")
   fd.write(sock+reuse+bind+listen+syn+synack+ack+accept+"\n")
-  nb_random = random.randint(1420, 999990) #random.getrandbits(32)
+  nb_random = random.randint(7100, 14200) #random.getrandbits(32)
   fd.write("+0.0 write(4, ..., "+str(nb_random)+") = "+str(nb_random)+"\n\n")
   nb_total = 1
-  for nb in range(nb_random/1420):
-    fd.write("+0.0 > . "+str(nb_total)+":"+str(nb_total+1420)+"(1420) ack 1 <dss dack4 dsn4 >\n")
-    #fd.write("+0.0 < . 1:1(0) ack "+str(nb_total+1420)+" win 257 <dss dack4>\n")
+  for nb in range(nb_random/1440):
+    fd.write("+0.0 > . "+str(nb_total)+":"+str(nb_total+1440)+"(1440) ack 1 <dss dack4 dsn4 >\n")
+    fd.write("+0.0 < . 1:1(0) ack "+str(nb_total+1440)+" win 257 <dss dack4>\n")
     nb_total += 1420
   fd.write("+0.0 > . "+str(nb_total)+":"+str(nb_random)+"("+str(nb_random - nb_total)+") ack 1 <dss dack4 dsn4 >\n")
   fd.write("+0.0 < . 1:1(0) ack "+str(nb_random)+" win 257 <dss dack4>\n")
   fd.close()
+  print("Created: "+filename)
+
 
 def create_add_address_tests():
-	print("Creating add_address tests\n")
+	print("Creating add_address tests => Futur work\n")
 
 def create_remove_address_tests():
-	print("Creating remove_address tests\n")
+	print("Creating remove_address tests => Futur work\n")
 
 def create_mp_prio_tests():
-	print("Creating mp_prio tests\n")
-		
-		
+	print("Creating mp_prio tests => Futur work\n")
+
 def create_mp_fail_tests():
-	print("Creating mp_fail tests\n")
+	print("Creating mp_fail tests => Futur work\n")
 
 def create_mp_fastclose_tests():
-	print("Creating mp_fastclose tests\n")
+	print("Creating mp_fastclose tests => Futur work\n")
 
-  
+
 @task 
 def create_tests():
     import os
@@ -530,8 +545,12 @@ def create_tests():
     #if not os.path.exists("automated_tests/mp_fail"): os.makedirs("automated_tests/mp_fail")
     #if not os.path.exists("automated_tests/close"): os.makedirs("automated_tests/close")
     
-#    create_connection_tests() # OK
-#    create_mp_join_tests()    # OK
-#    create_data_tests()       # OK
-    create_add_address_tests() 
-    #create_close_tests()
+    create_connection_tests() # OK
+    create_mp_join_tests()    # OK
+    create_data_tests()       # OK
+#    create_add_address_tests() 
+#    create_remove_address_tests()
+#    create_mp_prio_tests()
+#    create_mp_fastclose_tests()
+#    create_mp_fail_tests()
+#    create_close_tests()
