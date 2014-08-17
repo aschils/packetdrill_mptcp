@@ -20,7 +20,7 @@
 +0.0 listen(3, 1) = 0
 
 +0 < S 0:0(0) win 24900 <mss 5020,sackOK,nop,nop,nop,wscale 7, mp_capable a>
-+0 > S. 0:0(0) ack 1 <mss 5020,sackOK,nop,nop,nop,wscale 8, mp_capable b>
++0 > S. 0:0(0) ack 1 <mss 5020,sackOK,nop,nop,nop,wscale 7, mp_capable b>
 +0 < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
 +0 accept(3, ..., ...) = 4
 
@@ -31,7 +31,7 @@
 +0.0 > . 1:5001(5000) ack 1 <dss dack4 dsn4 >
 +0.01 <  . 1:1(0) ack 5001 win 257 <dss dack4>
 
-// This does not change the functionality => ok 
+// This does not change the functionality => ok
 +0.0 setsockopt(4, SOL_SOCKET, SO_SNDBUF, [1000], 4) = 0
 
 +0.406 > P. 5001:10000(4999) ack 1 <dss dack4 dsn4 >

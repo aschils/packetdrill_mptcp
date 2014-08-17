@@ -13,7 +13,7 @@
 0 `ip link set dev tun0 multipath off`
 
 0.100  < S 0:0(0) win 32792 <mss 1020,sackOK,nop,nop,nop,wscale 7,mp_capable a>
-0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 8,mp_capable b>
+0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
 0.200  < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4>
 0.200  accept(3, ..., ...) = 4
 

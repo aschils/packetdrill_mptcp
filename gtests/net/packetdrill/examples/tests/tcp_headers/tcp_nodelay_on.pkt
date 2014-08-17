@@ -1,5 +1,5 @@
 /* mptcp 0.88
- * A simple test using tcp_nodelay from initiator. 
+ * A simple test using tcp_nodelay from initiator.
  * Send 2 small packets (= smaller than mss) and ack each of them
  */
 
@@ -10,7 +10,7 @@
 
 // Establish mptcp connection
 0.100  < S 0:0(0) win 32792 <mss 1028,sackOK,nop,nop,nop,wscale 7,mp_capable a>
-0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 8,mp_capable b>
+0.100  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable b>
 0.200  < . 1:1(0) ack 1 win 257 <mp_capable a b, dss dack4=trunc_r64_hmac(b) + 1>
 0.200  accept(3, ..., ...) = 4
 

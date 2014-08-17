@@ -9,9 +9,9 @@
 +0  listen(3, 1) = 0
 
 +0.1  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable var_a flag_b> // flag_an flag_b --> falg_h
-//+0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable var_a flag_a flag_h>
-+0  > S. 0:0(0) ack 1 win 29200 <mss 1460,sackOK,nop,nop,nop,wscale 7> //,mp_capable var_c
-+0.1  < . 1:1(0) ack 1 win 257 //<mp_capable var_a var_c flag_a flag_h>
++0  < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7,mp_capable var_a flag_a flag_h>
++0  > S. 0:0(0) ack 1 win 28800 <mss 1460,sackOK,nop,nop,nop,wscale 7, mp_capable var_b>
++0.1  < . 1:1(0) ack 1 win 257 <mp_capable var_a var_b flag_a flag_h>
 
 +0  accept(3, ..., ...) = 4
 

@@ -1,5 +1,5 @@
 /* mptcp 0.88
- * Test buffering several packets before sending it. 
+ * Test buffering several packets before sending it.
  * It's done using TCP_CORK flag
  */
 

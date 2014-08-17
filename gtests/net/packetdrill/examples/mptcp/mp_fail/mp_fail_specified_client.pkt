@@ -13,4 +13,4 @@
 
 // address_id=[1,2,...,n] there may be n numbers of id.
 +0 < P. 1:1001(1000) ack 1 win 450 <mp_fail dsn8=1>
-+0 > . 1:1(0) ack 1001 <nop,nop,TS val 150 ecr 700, dss dack4>
++0 > . 1:1(0) ack 1001 <nop,nop,TS val 150 ecr 700>
