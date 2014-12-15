@@ -46,6 +46,7 @@ enum socket_state_t {
 	SOCKET_ACTIVE_CONNECTING,	/* after connect() call */
 	SOCKET_ACTIVE_SYN_SENT,		/* after sending client's SYN */
 	SOCKET_ACTIVE_SYN_ACKED,	/* after client's SYN is ACKed */
+	SOCKET_RESET_RECEIVED,			/* after receiving a RST */
 };
 
 /* A TCP/UDP/IP address for an endpoint. */

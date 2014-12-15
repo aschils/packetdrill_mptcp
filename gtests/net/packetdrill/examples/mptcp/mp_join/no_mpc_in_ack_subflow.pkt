@@ -1,0 +1,55 @@
+// mptcp v0.88
+// A simple server-side, creating additional 2 flows and send 1 packet on each
+//0 `ip link set dev eth0 multipath off`
+//0 `ip link set dev eth1 multipath off`
+//0 `sleep 3`
+0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0  setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
++0  bind(3, {sa_family = AF_INET, sin_port = htons(13000), sin_addr = inet_addr("192.168.0.1")}, ...) = 0
++0  listen(3, 1) = 0
+
++0  socket(..., SOCK_STREAM, IPPROTO_TCP) = 5
++0  setsockopt(5, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
++0  bind(5, {sa_family = AF_INET, sin_port = htons(13001), sin_addr = inet_addr("192.168.0.1")}, ...) = 0
++0  listen(5,1) = 0
+
++0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 10
++0  setsockopt(10, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
++0  bind(10, {sa_family = AF_INET, sin_port = htons(13002), sin_addr = inet_addr("192.168.0.1")}, ...) = 0
++0  listen(10, 1) = 0
+
+// open first flow, with mptcp
++0  < S 0:0(0) win 32792 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_capable key_a> sock(3)
++0  > S. 0:0(0) ack 1 win 28800 <mss 1460,nop,nop,sackOK,nop,wscale 6,mp_capable key_b> sock(3)
++0  < . 1:1(0) ack 1 win 257 <mp_capable key_a key_b> sock(3)
++0  accept(3, ..., ...) = 4
+
+// data on first flow
++0.1 < P. 1:1001(1000) ack 1 win 450 <dss dack4 dsn4 > 	sock(4)
++0 > . 1:1(0) ack 1001 <dss dack4> 				sock(4)
+
++0 < P. 1001:2001(1000) ack 1 win 450 <dss dack4 dsn4 > 	sock(4)
++0 > . 1:1(0) ack 2001 <dss dack4> 				sock(4)
+
+//First additional subflow
++0  < S 0:0(0) win 32792 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_join_syn backup=0 address_id=0 token=sha1_32(key_b)> sock(5)
++0  > S. 0:0(0) ack 1 win 28800 <mss 1460,nop,nop,sackOK,nop,wscale 6, mp_join_syn_ack backup=0 address_id=0 sender_hmac=trunc_l64_hmac(key_b key_a) > sock(5)
+// Unsuccessful first additional flow establishment. 
++0  < . 1:1(0) ack 1 win 32792  sock(5)
++0  > R 1:1(0) win 0 <...> sock(5)
+
+// data on first flow
++0 < P. 2001:3001(1000) ack 1 win 450 <dss dack4 dsn4 > 	sock(4)
++0 > . 1:1(0) ack 3001 <dss dack4> 				sock(4)
+
+
+////Second subflow
++0  < S 0:0(0) win 32792 <mss 1460,sackOK,nop,nop,nop,wscale 7,mp_join_syn address_id=1 token=sha1_32(key_b)> sock(10)
++0  > S. 0:0(0) ack 1 win 28800 <mss 1460,nop,nop,sackOK,nop,wscale 6,mp_join_syn_ack address_id=1 sender_hmac=trunc_l64_hmac(key_b key_a)> sock(10)
++0  < . 1:1(0) ack 1 win 32792 <mp_join_ack sender_hmac=full_160_hmac(key_a key_b)> sock(10)
++0 mp_join_accept(10) = 11
+
++0  > . 1:1(0) ack 1 <...> sock(11)
+
++0 < P. 1:1001(1000) ack 1 win 450 <dss dack4 dsn4 > 	sock(11)
++0 > . 1:1(0) ack 1001 <dss dack4> 				sock(11)

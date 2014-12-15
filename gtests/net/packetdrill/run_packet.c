@@ -194,7 +194,8 @@ struct socket *find_connecting_socket(struct state *state)
 {
 	struct socket *socket = state->sockets;
 	while(socket){
-		if(socket->script.fd == SOCKET_FD_NOT_DEFINED){
+		//if(socket->script.fd == SOCKET_FD_NOT_DEFINED && !(socket->last_outbound_tcp_header.rst) ){
+		if(socket->script.fd == SOCKET_FD_NOT_DEFINED && socket->state != SOCKET_RESET_RECEIVED ){
 			return socket;
 		}
 		socket = socket->next;
@@ -1571,6 +1572,9 @@ static int do_outbound_script_packet(
 		DEBUGP("SYNACK live.local_isn: %u\n",
 		       socket->live.local_isn);
 	}
+
+        if (packet->tcp->rst)
+                socket->state = SOCKET_RESET_RECEIVED;
 
 	verbose_packet_dump(state, "outbound sniffed", live_packet,
 			    live_time_to_script_time_usecs(
