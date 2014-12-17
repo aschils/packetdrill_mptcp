@@ -463,6 +463,13 @@ int mptcp_subtype_mp_capable(struct packet *packet_to_modify,
 			!packet_to_modify->tcp->ack){
 		error = mptcp_gen_key();
 		error = mptcp_set_mp_cap_syn_key(tcp_opt_to_modify) || error;
+
+		if(direction == DIRECTION_INBOUND)
+			new_subflow_inbound(packet_to_modify);
+		else if(direction == DIRECTION_OUTBOUND)
+			new_subflow_outbound(live_packet);
+		else
+			return STATUS_ERR;
 	}
 	// Syn and Syn_ack kernel->packetdrill
 	else if(tcp_opt_to_modify->length == TCPOLEN_MP_CAPABLE_SYN &&
@@ -477,13 +484,6 @@ int mptcp_subtype_mp_capable(struct packet *packet_to_modify,
 		// Automatically put the idsn tokens
 		mp_state.idsn = sha1_least_64bits(mp_state.packetdrill_key);
 		mp_state.remote_idsn = sha1_least_64bits(mp_state.kernel_key);
-
-		if(direction == DIRECTION_INBOUND)
-			new_subflow_inbound(packet_to_modify);
-		else if(direction == DIRECTION_OUTBOUND)
-			new_subflow_outbound(live_packet);
-		else
-			return STATUS_ERR;
 	}
 	// SYN_ACK, packetdrill->kernel
 	else if(tcp_opt_to_modify->length == TCPOLEN_MP_CAPABLE_SYN &&
