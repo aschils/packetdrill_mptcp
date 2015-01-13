@@ -235,7 +235,9 @@ struct mp_subflow *new_subflow_inbound(struct packet *inbound_packet)
 	subflow->packetdrill_rand_nbr =	generate_32();
 	subflow->packetdrill_addr_id = mp_state.last_packetdrill_addr_id;
 	mp_state.last_packetdrill_addr_id++;
-	subflow->ssn = 1; // =1 because it initialized at third ack
+	subflow->ssn = 1; // =1 because the code assumes it is being set with the third ack,
+			  // although that is not the case anymore (new_subflow_inbound is also
+			  // called at syn time)
 //	subflow->state = UNDEFINED;  // TODO to define it and change the state after
 	subflow->next = mp_state.subflows;
 	mp_state.subflows = subflow;
@@ -463,6 +465,9 @@ int mptcp_subtype_mp_capable(struct packet *packet_to_modify,
 			!packet_to_modify->tcp->ack){
 		error = mptcp_gen_key();
 		error = mptcp_set_mp_cap_syn_key(tcp_opt_to_modify) || error;
+		// For inbound flow, initialise flow at syn,
+		// For outbound flow, initialise at third ack.
+		new_subflow_inbound(packet_to_modify);
 	}
 	// Syn and Syn_ack kernel->packetdrill
 	else if(tcp_opt_to_modify->length == TCPOLEN_MP_CAPABLE_SYN &&
@@ -477,13 +482,10 @@ int mptcp_subtype_mp_capable(struct packet *packet_to_modify,
 		// Automatically put the idsn tokens
 		mp_state.idsn = sha1_least_64bits(mp_state.packetdrill_key);
 		mp_state.remote_idsn = sha1_least_64bits(mp_state.kernel_key);
-
-		if(direction == DIRECTION_INBOUND)
-			new_subflow_inbound(packet_to_modify);
-		else if(direction == DIRECTION_OUTBOUND)
+		// If this is done at syn packet time as for inbound, key comparisons fail
+		// due to, I guess, key set too early as it complains key is not 0
+		if(direction == DIRECTION_OUTBOUND)
 			new_subflow_outbound(live_packet);
-		else
-			return STATUS_ERR;
 	}
 	// SYN_ACK, packetdrill->kernel
 	else if(tcp_opt_to_modify->length == TCPOLEN_MP_CAPABLE_SYN &&
