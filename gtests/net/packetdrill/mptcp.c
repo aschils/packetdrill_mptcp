@@ -235,7 +235,9 @@ struct mp_subflow *new_subflow_inbound(struct packet *inbound_packet)
 	subflow->packetdrill_rand_nbr =	generate_32();
 	subflow->packetdrill_addr_id = mp_state.last_packetdrill_addr_id;
 	mp_state.last_packetdrill_addr_id++;
-	subflow->ssn = 1; // =1 because it initialized at third ack
+	subflow->ssn = 1; // =1 because the code assumes it is being set with the third ack,
+			  // although that is not the case anymore (new_subflow_inbound is also
+			  // called at syn time)
 //	subflow->state = UNDEFINED;  // TODO to define it and change the state after
 	subflow->next = mp_state.subflows;
 	mp_state.subflows = subflow;
